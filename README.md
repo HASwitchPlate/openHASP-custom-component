@@ -18,6 +18,7 @@ custom_components/hasp-lvgl/manifest.json
 
 ## Example Configuration 
 
+```yaml
 hasp-lvgl:
   plate_6fe4fc:
     topic: "hasp/plate_6fe4fc"
@@ -28,6 +29,7 @@ hasp-lvgl:
         entity: "sensor.heatpump"
       - obj: "p1b7"
         entity: "switch.blitzwolf_socket_0_switch"
+
 
 ## Contributions are welcome!
 
