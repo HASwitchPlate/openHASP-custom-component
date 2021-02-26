@@ -1,3 +1,7 @@
+# HASP - Open SwitchPlate Custom Component
+
+This custom component simplifies syncronization of a [HASP - Open SwitchPlate](https://fvanroie.github.io/hasp-docs/#) objects with Home Assistant entities.
+
 ## Installation
 
 1. Using the tool of choice open the directory (folder) for your HA configuration (where you find `configuration.yaml`).
