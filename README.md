@@ -20,7 +20,7 @@ custom_components/hasp-lvgl/manifest.json
 
 ```yaml
 hasp-lvgl:
-  plate_6fe4fc:
+  lanbon_l8:
     topic: "hasp/plate_6fe4fc"
     objects:
       - obj: "p1b2"
