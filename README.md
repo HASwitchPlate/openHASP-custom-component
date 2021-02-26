@@ -29,6 +29,7 @@ hasp-lvgl:
         entity: "sensor.heatpump"
       - obj: "p1b7"
         entity: "switch.blitzwolf_socket_0_switch"
+```
 
 
 ## Contributions are welcome!
