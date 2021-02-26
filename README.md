@@ -9,8 +9,8 @@ This custom component simplifies syncronization of a [HASP - Open SwitchPlate](h
 3. In the `custom_components` directory (folder) create a new folder called `hasp-lvgl`.
 4. Download _all_ the files from the `custom_components/hasp-lvgl/` directory (folder) in this repository.
 5. Place the files you downloaded in the new directory (folder) you created.
-6. Restart Home Assistant
-7. In the HA UI go to "Configuration" -> "Integrations" click "+" and search for "Blueprint"
+6. Edit your `configuration.yaml` file add an entry similar to the example.
+7. Restart Home Assistant
 
 Using your HA configuration directory (folder) as a starting point you should now also have this:
 
@@ -26,6 +26,11 @@ custom_components/hasp-lvgl/manifest.json
 hasp-lvgl:
   lanbon_l8:
     topic: "hasp/plate_6fe4fc"
+    pages:
+      entity: number.hasp_plate_6fe4fc_page
+      prev_obj: "p0b1"
+      home_obj: "p0b2"
+      next_obj: "p0b3"
     objects:
       - obj: "p1b2"
         entity: "sensor.power"
