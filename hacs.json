@@ -1,0 +1,11 @@
+{
+    "name": "HASP - Open Hardware edition",
+    "hacs": "1.6.0",
+    "domains": [
+        "binary_sensor",
+        "sensor",
+        "switch"
+    ],
+    "iot_class": "Local Push",
+    "homeassistant": "2021.03"
+}

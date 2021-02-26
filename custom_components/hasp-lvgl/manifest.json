@@ -1,0 +1,12 @@
+{
+  "domain": "hasp-lvgl",
+  "name": "HASP-Open_Hardware_edition",
+  "documentation": "https://fvanroie.github.io/hasp-docs/",
+  "issue_tracker": "https://github.com/fvanroie/hasp-lvgl/issues",
+  "dependencies": ["mqtt"],
+  "version": "0.0.0",
+  "codeowners": [
+    "@dgomes"
+  ],
+  "requirements": []
+}
