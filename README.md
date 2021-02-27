@@ -24,7 +24,7 @@ custom_components/hasp-lvgl/manifest.json
 
 ```yaml
 hasp-lvgl:
-  lanbon_l8:
+  landon_l8:
     topic: "hasp/plate_6fe4fc"
     pages:
       entity: number.hasp_plate_6fe4fc_page
@@ -33,11 +33,19 @@ hasp-lvgl:
       next_obj: "p0b3"
     objects:
       - obj: "p1b2"
-        entity: "sensor.power"
+        src: "sensor.power"
       - obj: "p1b4"
-        entity: "sensor.heatpump"
-      - obj: "p1b7"
-        entity: "switch.blitzwolf_socket_0_switch"
+        src: "sensor.heatpump"
+      - obj: "p1b6"
+        event:
+          down:
+            service: light.turn_on
+            target:
+              entity_id: "light.hasp_plate_6fe4fc_moodlight"
+          long:
+            service: light.turn_off
+            target:
+              entity_id: "light.hasp_plate_6fe4fc_moodlight"
 ```
 
 

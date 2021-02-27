@@ -3,6 +3,8 @@
 TOGGLE=["off", "on"]
 DOMAIN = "hasp-lvgl"
 CONF_OBJID = "obj"
+CONF_EVENT = "event"
+CONF_TRACK = "track"
 CONF_ENTITY = "entity"
 CONF_TOPIC = "topic"
 CONF_PAGE_ENTITY = "page_entity"
@@ -17,3 +19,4 @@ DEFAULT_TOPIC = "hasp"
 HASP_HOME_PAGE = 1
 HASP_VAL = "val"
 HASP_EVENT = "event"
+HASP_EVENTS = 'DOWN', 'UP', 'SHORT', 'LONG'
