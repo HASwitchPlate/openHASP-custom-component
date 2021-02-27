@@ -54,3 +54,9 @@ hasp-lvgl:
 If you want to contribute to this please read the [Contribution guidelines](CONTRIBUTING.md)
 
 
+## TODO
+
+- Detect idleness and dim - wake on touch [ ]
+- Replace `src` with a template [ ]
+- Auto-discovery [ ]
+- Support more button types [ ]

@@ -20,18 +20,25 @@ from .const import (
     CONF_EVENT,
     CONF_OBJECTS,
     CONF_OBJID,
-    CONF_PAGE_ENTITY,
+    DATA_PAGE_ENTITY,
     CONF_PAGES,
     CONF_PAGES_HOME,
     CONF_PAGES_NEXT,
     CONF_PAGES_PREV,
+    CONF_IDLE_BRIGHTNESS,
+    CONF_AWAKE_BRIGHTNESS,
     CONF_TOPIC,
     CONF_TRACK,
     DOMAIN,
+    DEFAULT_AWAKE_BRIGHNESS,
+    DEFAULT_IDLE_BRIGHNESS,
+    DATA_SERVICE_MAP,
+    DATA_PLATE_TOPIC,
     HASP_EVENT,
     HASP_EVENTS,
     HASP_HOME_PAGE,
     HASP_VAL,
+    HASP_IDLE_STATES,
     TOGGLE,
 )
 
@@ -60,9 +67,11 @@ PAGES_SCHEMA = vol.Schema(
 
 PLATE_SCHEMA = vol.Schema(
     {
+        vol.Required(CONF_OBJECTS): vol.All(cv.ensure_list, [OBJECT_SCHEMA]),
         vol.Optional(CONF_PAGES): PAGES_SCHEMA,
         vol.Optional(CONF_TOPIC): mqtt.valid_subscribe_topic,
-        vol.Required(CONF_OBJECTS): vol.All(cv.ensure_list, [OBJECT_SCHEMA]),
+        vol.Optional(CONF_AWAKE_BRIGHTNESS, default=DEFAULT_AWAKE_BRIGHNESS): vol.All(int, vol.Range(min=0, max=100)),
+        vol.Optional(CONF_IDLE_BRIGHTNESS, default=DEFAULT_IDLE_BRIGHNESS): vol.All(int, vol.Range(min=0, max=100)),
     },
     extra=vol.ALLOW_EXTRA,
 )
@@ -77,6 +86,7 @@ HASP_VAL_SCHEMA = vol.Schema(
 )
 HASP_EVENT_SCHEMA = vol.Schema({vol.Required(HASP_EVENT): vol.Any(*HASP_EVENTS)})
 
+HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 
 async def async_setup_pages(hass, plate, obj_prev, obj_home, obj_next):
     """Listen to messages on MQTT for HASP Page changes."""
@@ -94,7 +104,7 @@ async def async_setup_pages(hass, plate, obj_prev, obj_home, obj_next):
         if cmd[HASP_EVENT] != "DOWN":
             return
 
-        page_state = hass.states.get(hass.data[DOMAIN][plate][CONF_PAGE_ENTITY])
+        page_state = hass.states.get(hass.data[DOMAIN][plate][DATA_PAGE_ENTITY])
         new_value = int(page_state.state)
 
         if msg.topic.endswith(hass.data[DOMAIN][plate][CONF_PAGES_PREV]):
@@ -108,7 +118,7 @@ async def async_setup_pages(hass, plate, obj_prev, obj_home, obj_next):
             NUMBER_DOMAIN,
             SERVICE_SET_VALUE,
             {
-                ATTR_ENTITY_ID: hass.data[DOMAIN][plate][CONF_PAGE_ENTITY],
+                ATTR_ENTITY_ID: hass.data[DOMAIN][plate][DATA_PAGE_ENTITY],
                 ATTR_VALUE: new_value,
             },
         )
@@ -117,14 +127,14 @@ async def async_setup_pages(hass, plate, obj_prev, obj_home, obj_next):
         if obj is None:
             continue
 
-        state_topic = f"{hass.data[DOMAIN][plate][CONF_TOPIC]}/state/{obj}"
+        state_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/state/{obj}"
         _LOGGER.debug("Track page button: %s -> %s", obj, state_topic)
         await hass.components.mqtt.async_subscribe(state_topic, message_received)
 
 
 async def async_listen_state_changes(hass, entity_id, plate, obj):
     """Listen to state changes."""
-    command_topic = f"{hass.data[DOMAIN][plate][CONF_TOPIC]}/command/{obj}.val"
+    command_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/command/{obj}.val"
     hass.data[DOMAIN][plate][entity_id] = command_topic
     _LOGGER.debug("Track Entity: %s -> %s", entity_id, command_topic)
 
@@ -149,12 +159,12 @@ async def async_listen_state_changes(hass, entity_id, plate, obj):
 
 async def async_listen_hasp_changes(hass, obj, plate, conf):
     """Listen to messages on MQTT for HASP changes."""
-    state_topic = f"{hass.data[DOMAIN][plate][CONF_TOPIC]}/state/{obj}"
-    hass.data[DOMAIN]["service_mapping"][state_topic] = conf
+    state_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/state/{obj}"
+    hass.data[DOMAIN][DATA_SERVICE_MAP][state_topic] = conf
 
     async def message_received(msg):
         """Process MQTT message from plate."""
-        conf = hass.data[DOMAIN]["service_mapping"][msg.topic]
+        conf = hass.data[DOMAIN][DATA_SERVICE_MAP][msg.topic]
         m = HASP_EVENT_SCHEMA(json.loads(msg.payload))
 
         for event in conf:
@@ -170,16 +180,45 @@ async def async_listen_hasp_changes(hass, obj, plate, conf):
     await hass.components.mqtt.async_subscribe(state_topic, message_received)
 
 
+async def async_listen_idleness(hass, plate, idle_brightness=10, awake_brightness=100):
+    """Listen to messages on MQTT for HASP idleness."""
+    state_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/state/idle"
+    cmd_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/command/dim"
+
+    hass.data[DOMAIN][DATA_SERVICE_MAP][state_topic] = cmd_topic, idle_brightness, awake_brightness
+
+    async def message_received(msg):
+        """Process MQTT message from plate."""
+        m = HASP_IDLE_SCHEMA(msg.payload)
+
+        cmd_topic, idle_brightness, awake_brightness = hass.data[DOMAIN][DATA_SERVICE_MAP][msg.topic] 
+
+        if m == "OFF":
+            dim_value = awake_brightness  
+        elif m == "SHORT":
+            dim_value = idle_brightness
+        elif m == "LONG":
+            dim_value = 0
+
+        _LOGGER.debug("Dimming %s to %s", cmd_topic, dim_value)
+        hass.components.mqtt.async_publish(cmd_topic, dim_value, qos=0, retain=False)
+
+    await hass.components.mqtt.async_subscribe(state_topic, message_received)
+
+
 async def async_setup(hass, config):
     """Set up the MQTT async example component."""
 
-    hass.data[DOMAIN] = {"service_mapping": {}}
+    hass.data[DOMAIN] = {DATA_SERVICE_MAP: {}, "idle": False}
 
     for plate in config[DOMAIN]:
         hass.data[DOMAIN][plate] = {
-            CONF_TOPIC: config[DOMAIN][plate][CONF_TOPIC],
-            CONF_PAGE_ENTITY: config[DOMAIN][plate][CONF_PAGES][CONF_ENTITY],
+            DATA_PLATE_TOPIC: config[DOMAIN][plate][CONF_TOPIC],
+            DATA_PAGE_ENTITY: config[DOMAIN][plate][CONF_PAGES][CONF_ENTITY],
         }
+
+        # Setup idleness
+        await async_listen_idleness(hass, plate, config[DOMAIN][plate][CONF_IDLE_BRIGHTNESS], config[DOMAIN][plate][CONF_AWAKE_BRIGHTNESS])
 
         # Setup navigation buttons
         await async_setup_pages(
