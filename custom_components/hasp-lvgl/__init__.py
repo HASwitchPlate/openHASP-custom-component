@@ -1,36 +1,39 @@
 """HASP components module."""
-import logging
 import json
-from homeassistant.core import callback, DOMAIN as HA_DOMAIN
+import logging
+
 from homeassistant.components import mqtt
-from homeassistant.const import SERVICE_TURN_OFF, SERVICE_TURN_ON, ATTR_ENTITY_ID
-from homeassistant.components.number.const import SERVICE_SET_VALUE, ATTR_VALUE, DOMAIN as NUMBER_DOMAIN
+from homeassistant.components.number.const import (
+    ATTR_VALUE,
+    DOMAIN as NUMBER_DOMAIN,
+    SERVICE_SET_VALUE,
+)
+from homeassistant.const import ATTR_ENTITY_ID
+from homeassistant.core import callback
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.service import async_call_from_config
+import voluptuous as vol
 
 from .const import (
-    DOMAIN,
-    TOGGLE,
-    CONF_OBJID,
     CONF_ENTITY,
     CONF_EVENT,
-    CONF_TRACK,
-    CONF_TOPIC,
-    CONF_PAGES,
-    CONF_PAGE_ENTITY,
-    CONF_PAGES_PREV,
-    CONF_PAGES_HOME,
-    CONF_PAGES_NEXT,    
     CONF_OBJECTS,
-    DEFAULT_TOPIC,
-    HASP_VAL,
+    CONF_OBJID,
+    CONF_PAGE_ENTITY,
+    CONF_PAGES,
+    CONF_PAGES_HOME,
+    CONF_PAGES_NEXT,
+    CONF_PAGES_PREV,
+    CONF_TOPIC,
+    CONF_TRACK,
+    DOMAIN,
     HASP_EVENT,
     HASP_EVENTS,
-    HASP_HOME_PAGE
+    HASP_HOME_PAGE,
+    HASP_VAL,
+    TOGGLE,
 )
-
-import voluptuous as vol
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,9 +75,7 @@ CONFIG_SCHEMA = vol.Schema(
 HASP_VAL_SCHEMA = vol.Schema(
     {vol.Required(HASP_VAL): vol.All(int, vol.Range(min=0, max=1))}
 )
-HASP_EVENT_SCHEMA = vol.Schema(
-    {vol.Required(HASP_EVENT): vol.Any(*HASP_EVENTS)}
-)
+HASP_EVENT_SCHEMA = vol.Schema({vol.Required(HASP_EVENT): vol.Any(*HASP_EVENTS)})
 
 
 async def async_setup_pages(hass, plate, obj_prev, obj_home, obj_next):
@@ -87,10 +88,10 @@ async def async_setup_pages(hass, plate, obj_prev, obj_home, obj_next):
     async def message_received(msg):
         """Process MQTT message from plate."""
         _LOGGER.debug("Track page button: %s ", msg.topic)
-    
+
         # Parse received JSON
         cmd = HASP_EVENT_SCHEMA(json.loads(msg.payload))
-        if cmd[HASP_EVENT] != 'DOWN':
+        if cmd[HASP_EVENT] != "DOWN":
             return
 
         page_state = hass.states.get(hass.data[DOMAIN][plate][CONF_PAGE_ENTITY])
@@ -104,30 +105,26 @@ async def async_setup_pages(hass, plate, obj_prev, obj_home, obj_next):
             new_value += 1
 
         await hass.services.async_call(
-            NUMBER_DOMAIN, SERVICE_SET_VALUE, {
+            NUMBER_DOMAIN,
+            SERVICE_SET_VALUE,
+            {
                 ATTR_ENTITY_ID: hass.data[DOMAIN][plate][CONF_PAGE_ENTITY],
-                ATTR_VALUE: new_value
-                }
+                ATTR_VALUE: new_value,
+            },
         )
 
     for obj in [obj_prev, obj_home, obj_next]:
         if obj is None:
             continue
 
-        state_topic = (
-            f"{hass.data[DOMAIN][plate][CONF_TOPIC]}/state/{obj}"
-        )
+        state_topic = f"{hass.data[DOMAIN][plate][CONF_TOPIC]}/state/{obj}"
         _LOGGER.debug("Track page button: %s -> %s", obj, state_topic)
-        await hass.components.mqtt.async_subscribe(
-            state_topic, message_received
-        )
+        await hass.components.mqtt.async_subscribe(state_topic, message_received)
 
 
 async def async_listen_state_changes(hass, entity_id, plate, obj):
-    """ Listen to state changes """
-    command_topic = (
-        f"{hass.data[DOMAIN][plate][CONF_TOPIC]}/command/{obj}.val"
-    )
+    """Listen to state changes."""
+    command_topic = f"{hass.data[DOMAIN][plate][CONF_TOPIC]}/command/{obj}.val"
     hass.data[DOMAIN][plate][entity_id] = command_topic
     _LOGGER.debug("Track Entity: %s -> %s", entity_id, command_topic)
 
@@ -145,15 +142,14 @@ async def async_listen_state_changes(hass, entity_id, plate, obj):
         _LOGGER.debug("_update_hasp_obj(%s) = %s", topic, value)
         hass.components.mqtt.async_publish(topic, value)
 
-    async_track_state_change_event(hass, entity_id, lambda e: _update_hasp_obj(e, plate))
-
+    async_track_state_change_event(
+        hass, entity_id, lambda e: _update_hasp_obj(e, plate)
+    )
 
 
 async def async_listen_hasp_changes(hass, obj, plate, conf):
     """Listen to messages on MQTT for HASP changes."""
-    state_topic = (
-        f"{hass.data[DOMAIN][plate][CONF_TOPIC]}/state/{obj}"
-    )
+    state_topic = f"{hass.data[DOMAIN][plate][CONF_TOPIC]}/state/{obj}"
     hass.data[DOMAIN]["service_mapping"][state_topic] = conf
 
     async def message_received(msg):
@@ -162,28 +158,33 @@ async def async_listen_hasp_changes(hass, obj, plate, conf):
         m = HASP_EVENT_SCHEMA(json.loads(msg.payload))
 
         for event in conf:
-            if event.upper() in m["event"]:   
-                _LOGGER.debug("Service call for %s triggered by %s on %s", event, msg.payload, msg.topic)
+            if event.upper() in m["event"]:
+                _LOGGER.debug(
+                    "Service call for %s triggered by %s on %s",
+                    event,
+                    msg.payload,
+                    msg.topic,
+                )
                 await async_call_from_config(hass, conf[event], validate_config=True)
 
-    await hass.components.mqtt.async_subscribe(
-        state_topic, message_received
-    )
+    await hass.components.mqtt.async_subscribe(state_topic, message_received)
+
 
 async def async_setup(hass, config):
     """Set up the MQTT async example component."""
 
-    hass.data[DOMAIN] = {"service_mapping":{}}
+    hass.data[DOMAIN] = {"service_mapping": {}}
 
     for plate in config[DOMAIN]:
         hass.data[DOMAIN][plate] = {
             CONF_TOPIC: config[DOMAIN][plate][CONF_TOPIC],
             CONF_PAGE_ENTITY: config[DOMAIN][plate][CONF_PAGES][CONF_ENTITY],
         }
-        
+
         # Setup navigation buttons
         await async_setup_pages(
-            hass, plate, 
+            hass,
+            plate,
             config[DOMAIN][plate][CONF_PAGES][CONF_PAGES_PREV],
             config[DOMAIN][plate][CONF_PAGES][CONF_PAGES_HOME],
             config[DOMAIN][plate][CONF_PAGES][CONF_PAGES_NEXT],

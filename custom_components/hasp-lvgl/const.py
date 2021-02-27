@@ -1,6 +1,6 @@
 """Constants for HASP Open Hardware edition custom component."""
 
-TOGGLE=["off", "on"]
+TOGGLE = ["off", "on"]
 DOMAIN = "hasp-lvgl"
 CONF_OBJID = "obj"
 CONF_EVENT = "event"
@@ -19,4 +19,4 @@ DEFAULT_TOPIC = "hasp"
 HASP_HOME_PAGE = 1
 HASP_VAL = "val"
 HASP_EVENT = "event"
-HASP_EVENTS = 'DOWN', 'UP', 'SHORT', 'LONG'
+HASP_EVENTS = "DOWN", "UP", "SHORT", "LONG"
