@@ -70,8 +70,12 @@ PLATE_SCHEMA = vol.Schema(
         vol.Required(CONF_OBJECTS): vol.All(cv.ensure_list, [OBJECT_SCHEMA]),
         vol.Optional(CONF_PAGES): PAGES_SCHEMA,
         vol.Optional(CONF_TOPIC): mqtt.valid_subscribe_topic,
-        vol.Optional(CONF_AWAKE_BRIGHTNESS, default=DEFAULT_AWAKE_BRIGHNESS): vol.All(int, vol.Range(min=0, max=100)),
-        vol.Optional(CONF_IDLE_BRIGHTNESS, default=DEFAULT_IDLE_BRIGHNESS): vol.All(int, vol.Range(min=0, max=100)),
+        vol.Optional(CONF_AWAKE_BRIGHTNESS, default=DEFAULT_AWAKE_BRIGHNESS): vol.All(
+            int, vol.Range(min=0, max=100)
+        ),
+        vol.Optional(CONF_IDLE_BRIGHTNESS, default=DEFAULT_IDLE_BRIGHNESS): vol.All(
+            int, vol.Range(min=0, max=100)
+        ),
     },
     extra=vol.ALLOW_EXTRA,
 )
@@ -87,6 +91,7 @@ HASP_VAL_SCHEMA = vol.Schema(
 HASP_EVENT_SCHEMA = vol.Schema({vol.Required(HASP_EVENT): vol.Any(*HASP_EVENTS)})
 
 HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
+
 
 async def async_setup_pages(hass, plate, obj_prev, obj_home, obj_next):
     """Listen to messages on MQTT for HASP Page changes."""
@@ -185,16 +190,22 @@ async def async_listen_idleness(hass, plate, idle_brightness=10, awake_brightnes
     state_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/state/idle"
     cmd_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/command/dim"
 
-    hass.data[DOMAIN][DATA_SERVICE_MAP][state_topic] = cmd_topic, idle_brightness, awake_brightness
+    hass.data[DOMAIN][DATA_SERVICE_MAP][state_topic] = (
+        cmd_topic,
+        idle_brightness,
+        awake_brightness,
+    )
 
     async def message_received(msg):
         """Process MQTT message from plate."""
         m = HASP_IDLE_SCHEMA(msg.payload)
 
-        cmd_topic, idle_brightness, awake_brightness = hass.data[DOMAIN][DATA_SERVICE_MAP][msg.topic] 
+        cmd_topic, idle_brightness, awake_brightness = hass.data[DOMAIN][
+            DATA_SERVICE_MAP
+        ][msg.topic]
 
         if m == "OFF":
-            dim_value = awake_brightness  
+            dim_value = awake_brightness
         elif m == "SHORT":
             dim_value = idle_brightness
         elif m == "LONG":
@@ -218,7 +229,12 @@ async def async_setup(hass, config):
         }
 
         # Setup idleness
-        await async_listen_idleness(hass, plate, config[DOMAIN][plate][CONF_IDLE_BRIGHTNESS], config[DOMAIN][plate][CONF_AWAKE_BRIGHTNESS])
+        await async_listen_idleness(
+            hass,
+            plate,
+            config[DOMAIN][plate][CONF_IDLE_BRIGHTNESS],
+            config[DOMAIN][plate][CONF_AWAKE_BRIGHTNESS],
+        )
 
         # Setup navigation buttons
         await async_setup_pages(
