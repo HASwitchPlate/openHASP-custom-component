@@ -29,6 +29,7 @@ from .const import (
     CONF_TOPIC,
     CONF_TRACK,
     DATA_ENTITY_MAP,
+    DATA_IDLE,
     DATA_PAGE_ENTITY,
     DATA_PLATE_TOPIC,
     DATA_SERVICE_MAP,
@@ -227,6 +228,10 @@ async def async_listen_idleness(hass, plate, idle_brightness=10, awake_brightnes
     state_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/state/idle"
     cmd_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/command/dim"
 
+    # Sync state on boot
+    hass.components.mqtt.async_publish(f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/command", "wakeup", qos=0, retain=False)
+    hass.data[DOMAIN][plate][DATA_IDLE] = False
+
     hass.data[DOMAIN][DATA_SERVICE_MAP][state_topic] = (
         cmd_topic,
         idle_brightness,
@@ -267,7 +272,6 @@ async def async_setup(hass, config):
         hass.data[DOMAIN][plate] = {
             DATA_PLATE_TOPIC: config[DOMAIN][plate][CONF_TOPIC],
             DATA_PAGE_ENTITY: config[DOMAIN][plate][CONF_PAGES][CONF_ENTITY],
-            "idle": False,
         }
 
         # Setup idleness

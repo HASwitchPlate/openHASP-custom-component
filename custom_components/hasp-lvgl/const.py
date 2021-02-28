@@ -20,6 +20,7 @@ DATA_ENTITY_MAP = "entity_mapping"
 DATA_TOPIC = "topic"
 DATA_PLATE_TOPIC = "plate_topic"
 DATA_PAGE_ENTITY = "page_entity"
+DATA_IDLE = "idle"
 
 DEFAULT_TOPIC = "hasp"
 DEFAULT_AWAKE_BRIGHNESS = 100
