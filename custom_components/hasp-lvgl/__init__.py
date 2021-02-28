@@ -169,6 +169,10 @@ async def async_listen_state_changes(hass, entity_id, plate, obj):
             hass.components.mqtt.async_publish(command_topic, value)
 
     async_track_state_change_event(hass, entity_id, _update_hasp_obj)
+    current_state = hass.states.get(entity_id)
+    if current_state:
+        hass.components.mqtt.async_publish(command_topic, current_state.state)
+
 
     @callback
     async def message_received(msg):
@@ -301,7 +305,7 @@ async def async_setup(hass, config):
 
             event_services = obj.get(CONF_EVENT)
             if event_services:
-                _LOGGER.debug("Setup event_services for %s", obj.keys())
+                _LOGGER.debug("Setup event_services for %s", obj[CONF_OBJID])
                 await async_listen_hasp_events(hass, objid, plate, event_services)
 
     return True
