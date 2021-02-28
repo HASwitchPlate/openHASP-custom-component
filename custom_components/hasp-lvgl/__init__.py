@@ -164,7 +164,7 @@ async def async_listen_state_changes(hass, entity_id, plate, obj):
             value = TOGGLE.index(value)
 
         for command_topic in hass.data[DOMAIN][DATA_ENTITY_MAP][entity_id]:
-            _LOGGER.debug("_update_hasp_obj(%s) = %s", command_topic, value)
+            #_LOGGER.debug("_update_hasp_obj(%s) = %s", command_topic, value)
             hass.components.mqtt.async_publish(command_topic, value)
 
     async_track_state_change_event(hass, entity_id, _update_hasp_obj)
@@ -203,18 +203,22 @@ async def async_listen_hasp_events(hass, obj, plate, conf):
     async def message_received(msg):
         """Process MQTT message from plate."""
         conf = hass.data[DOMAIN][DATA_SERVICE_MAP][msg.topic]
-        m = HASP_EVENT_SCHEMA(json.loads(msg.payload))
+        try:
+            m = HASP_EVENT_SCHEMA(json.loads(msg.payload))
 
-        for event in conf:
-            if event.upper() in m[HASP_EVENT]:
-                _LOGGER.debug(
-                    "Service call for %s triggered by %s on %s",
-                    event,
-                    msg.payload,
-                    msg.topic,
-                )
-                await async_call_from_config(hass, conf[event], validate_config=True)
+            for event in conf:
+                if event.upper() in m[HASP_EVENT]:
+                    _LOGGER.debug(
+                        "Service call for %s triggered by %s on %s",
+                        event,
+                        msg.payload,
+                        msg.topic,
+                    )
+                    await async_call_from_config(hass, conf[event], validate_config=True)
+        except vol.error.Invalid as err:
+            _LOGGER.warning("Could not handle event %s on %s", msg.payload, msg.topic)
 
+    _LOGGER.debug("Subscribe for %s events on %s", obj, state_topic)
     await hass.components.mqtt.async_subscribe(state_topic, message_received)
 
 
