@@ -70,8 +70,8 @@ PAGES_SCHEMA = vol.Schema(
 PLATE_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_OBJECTS): vol.All(cv.ensure_list, [OBJECT_SCHEMA]),
-        vol.Optional(CONF_PAGES): PAGES_SCHEMA,
-        vol.Optional(CONF_TOPIC): mqtt.valid_subscribe_topic,
+        vol.Required(CONF_PAGES): PAGES_SCHEMA,
+        vol.Required(CONF_TOPIC): mqtt.valid_subscribe_topic,
         vol.Optional(CONF_AWAKE_BRIGHTNESS, default=DEFAULT_AWAKE_BRIGHNESS): vol.All(
             int, vol.Range(min=0, max=100)
         ),
@@ -227,41 +227,7 @@ async def async_listen_hasp_events(hass, obj, plate, conf):
     await hass.components.mqtt.async_subscribe(state_topic, message_received)
 
 
-async def async_listen_idleness(hass, plate, idle_brightness=10, awake_brightness=100):
-    """Listen to messages on MQTT for HASP idleness."""
-    state_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/state/idle"
-    cmd_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/command/dim"
 
-    # Sync state on boot
-    hass.components.mqtt.async_publish(f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/command", "wakeup", qos=0, retain=False)
-    hass.data[DOMAIN][plate][DATA_IDLE] = False
-
-    hass.data[DOMAIN][DATA_SERVICE_MAP][state_topic] = (
-        cmd_topic,
-        idle_brightness,
-        awake_brightness,
-    )
-
-    @callback
-    async def message_received(msg):
-        """Process MQTT message from plate."""
-        m = HASP_IDLE_SCHEMA(msg.payload)
-
-        cmd_topic, idle_brightness, awake_brightness = hass.data[DOMAIN][
-            DATA_SERVICE_MAP
-        ][msg.topic]
-
-        if m == "OFF":
-            dim_value = awake_brightness
-        elif m == "SHORT":
-            dim_value = idle_brightness
-        elif m == "LONG":
-            dim_value = 0
-
-        _LOGGER.debug("Dimming %s to %s", cmd_topic, dim_value)
-        hass.components.mqtt.async_publish(cmd_topic, dim_value, qos=0, retain=False)
-
-    await hass.components.mqtt.async_subscribe(state_topic, message_received)
 
 
 async def async_setup(hass, config):
@@ -309,3 +275,74 @@ async def async_setup(hass, config):
                 await async_listen_hasp_events(hass, objid, plate, event_services)
 
     return True
+
+class Panel(RestoreEntity):
+    """Representation of an HASP-LVGL."""
+
+    def __init__(self, name, config):
+        """Initialize a panel."""
+        self._name = name
+        self._topic = config[CONF_TOPIC]
+        self._awake_brightness = config[CONF_AWAKE_BRIGHTNESS]
+        self._idle_brightness = config[CONF_IDLE_BRIGHTNESS]
+
+        self._page_id = name #TODO find a better id
+
+        self._page = 1
+        self._dim = 100
+
+    async def async_added_to_hass(self):
+        """Run when entity about to be added."""
+        await super().async_added_to_hass()
+
+        hass.data[DOMAIN][self._plate_id] = self
+
+        state = await self.async_get_last_state()
+        if state:
+            self._page = state.state
+            self._dim = state.get(ATTR_CURRENT_DIM)
+
+    @property
+    def name(self):
+        """Return the name of the select input."""
+        return self._name
+
+    @property
+    def icon(self):
+        """Return the icon to be used for this entity."""
+        return "mdi:light-switch"
+
+    @property
+    def state(self):
+        """Return the state of the component."""
+        return self._page
+
+    @property
+    def state_attributes(self):
+        """Return the state attributes."""
+        return {ATTR_CURRENT_DIM: self._dim}
+
+    async def async_listen_idleness(self):
+        """Listen to messages on MQTT for HASP idleness."""
+        state_topic = f"{self._topic}/state/idle"
+        cmd_topic = f"{self._topic}/command/dim"
+
+        # Sync state on boot
+        self.hass.components.mqtt.async_publish(cmd_topic, self._dim, qos=0, retain=False)
+
+        @callback
+        async def idle_message_received(msg):
+            """Process MQTT message from plate."""
+            m = HASP_IDLE_SCHEMA(msg.payload)
+
+            if m == "OFF":
+                dim_value = self._awake_brightness
+            elif m == "SHORT":
+                dim_value = self._idle_brightness
+            elif m == "LONG":
+                dim_value = 0
+
+            _LOGGER.debug("Dimming %s to %s", cmd_topic, dim_value)
+            hass.components.mqtt.async_publish(cmd_topic, dim_value, qos=0, retain=False)
+
+        await hass.components.mqtt.async_subscribe(state_topic, idle_message_received)
