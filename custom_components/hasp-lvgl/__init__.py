@@ -8,38 +8,38 @@ from homeassistant.components.number.const import (
     DOMAIN as NUMBER_DOMAIN,
     SERVICE_SET_VALUE,
 )
-from homeassistant.const import ATTR_ENTITY_ID, SERVICE_TURN_ON, SERVICE_TURN_OFF
-from homeassistant.core import callback, DOMAIN as HA_DOMAIN
+from homeassistant.const import ATTR_ENTITY_ID, SERVICE_TURN_OFF, SERVICE_TURN_ON
+from homeassistant.core import DOMAIN as HA_DOMAIN, callback
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.service import async_call_from_config
 import voluptuous as vol
 
 from .const import (
+    CONF_AWAKE_BRIGHTNESS,
     CONF_ENTITY,
     CONF_EVENT,
+    CONF_IDLE_BRIGHTNESS,
     CONF_OBJECTS,
     CONF_OBJID,
-    DATA_PAGE_ENTITY,
-    DATA_ENTITY_MAP,
     CONF_PAGES,
     CONF_PAGES_HOME,
     CONF_PAGES_NEXT,
     CONF_PAGES_PREV,
-    CONF_IDLE_BRIGHTNESS,
-    CONF_AWAKE_BRIGHTNESS,
     CONF_TOPIC,
     CONF_TRACK,
-    DOMAIN,
+    DATA_ENTITY_MAP,
+    DATA_PAGE_ENTITY,
+    DATA_PLATE_TOPIC,
+    DATA_SERVICE_MAP,
     DEFAULT_AWAKE_BRIGHNESS,
     DEFAULT_IDLE_BRIGHNESS,
-    DATA_SERVICE_MAP,
-    DATA_PLATE_TOPIC,
+    DOMAIN,
     HASP_EVENT,
     HASP_EVENTS,
     HASP_HOME_PAGE,
-    HASP_VAL,
     HASP_IDLE_STATES,
+    HASP_VAL,
     TOGGLE,
 )
 
