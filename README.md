@@ -1,6 +1,6 @@
 # HASP - Open SwitchPlate Custom Component
 
-This custom component simplifies syncronization of a [HASP - Open SwitchPlate](https://fvanroie.github.io/hasp-docs/#) objects with Home Assistant entities.
+This custom component simplifies synchronization of a [HASP - Open SwitchPlate](https://fvanroie.github.io/hasp-docs/#) objects with Home Assistant entities.
 
 ## Installation
 
@@ -24,7 +24,7 @@ custom_components/hasp-lvgl/manifest.json
 
 ```yaml
 hasp-lvgl:
-  landon_l8:
+  landon:
     topic: "hasp/plate_6fe4fc"
     pages:
       entity: number.hasp_plate_6fe4fc_page
@@ -33,9 +33,9 @@ hasp-lvgl:
       next_obj: "p0b3"
     objects:
       - obj: "p1b2"
-        src: "sensor.power"
+        track: "sensor.power"
       - obj: "p1b4"
-        src: "sensor.heatpump"
+        track: "sensor.heatpump"
       - obj: "p1b6"
         event:
           down:
@@ -46,6 +46,8 @@ hasp-lvgl:
             service: light.turn_off
             target:
               entity_id: "light.hasp_plate_6fe4fc_moodlight"
+      - obj: "p1b8"
+        track: "light.dining_light_light"
 ```
 
 
@@ -56,7 +58,6 @@ If you want to contribute to this please read the [Contribution guidelines](CONT
 
 ## TODO
 
-- Detect idleness and dim - wake on touch [ ]
 - Replace `src` with a template [ ]
 - Auto-discovery [ ]
 - Support more button types [ ]
