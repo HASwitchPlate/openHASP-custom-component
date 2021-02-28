@@ -16,6 +16,7 @@ CONF_IDLE_BRIGHTNESS = "idle_brightness"
 CONF_AWAKE_BRIGHTNESS = "awake_brightness"
 
 DATA_SERVICE_MAP = "service_mapping"
+DATA_ENTITY_MAP = "entity_mapping"
 DATA_TOPIC = "topic"
 DATA_PLATE_TOPIC = "plate_topic"
 DATA_PAGE_ENTITY = "page_entity"

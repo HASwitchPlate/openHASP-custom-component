@@ -8,8 +8,8 @@ from homeassistant.components.number.const import (
     DOMAIN as NUMBER_DOMAIN,
     SERVICE_SET_VALUE,
 )
-from homeassistant.const import ATTR_ENTITY_ID
-from homeassistant.core import callback
+from homeassistant.const import ATTR_ENTITY_ID, SERVICE_TURN_ON, SERVICE_TURN_OFF
+from homeassistant.core import callback, DOMAIN as HA_DOMAIN
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.service import async_call_from_config
@@ -21,6 +21,7 @@ from .const import (
     CONF_OBJECTS,
     CONF_OBJID,
     DATA_PAGE_ENTITY,
+    DATA_ENTITY_MAP,
     CONF_PAGES,
     CONF_PAGES_HOME,
     CONF_PAGES_NEXT,
@@ -86,9 +87,12 @@ CONFIG_SCHEMA = vol.Schema(
 
 # JSON Messages from HASP schemas
 HASP_VAL_SCHEMA = vol.Schema(
-    {vol.Required(HASP_VAL): vol.All(int, vol.Range(min=0, max=1))}
+    {vol.Required(HASP_VAL): vol.All(int, vol.Range(min=0, max=1))},
+    extra=vol.ALLOW_EXTRA,
 )
-HASP_EVENT_SCHEMA = vol.Schema({vol.Required(HASP_EVENT): vol.Any(*HASP_EVENTS)})
+HASP_EVENT_SCHEMA = vol.Schema(
+    {vol.Required(HASP_EVENT): vol.Any(*HASP_EVENTS)}, extra=vol.ALLOW_EXTRA
+)
 
 HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 
@@ -140,11 +144,18 @@ async def async_setup_pages(hass, plate, obj_prev, obj_home, obj_next):
 async def async_listen_state_changes(hass, entity_id, plate, obj):
     """Listen to state changes."""
     command_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/command/{obj}.val"
-    hass.data[DOMAIN][plate][entity_id] = command_topic
+    state_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/state/{obj}"
+
+    if hass.data[DOMAIN][DATA_ENTITY_MAP].get(entity_id) is None:
+        hass.data[DOMAIN][DATA_ENTITY_MAP][entity_id] = []
+    hass.data[DOMAIN][DATA_ENTITY_MAP][entity_id].append(command_topic)
+
+    hass.data[DOMAIN][DATA_SERVICE_MAP][state_topic] = entity_id
+
     _LOGGER.debug("Track Entity: %s -> %s", entity_id, command_topic)
 
     @callback
-    def _update_hasp_obj(event, plate):
+    def _update_hasp_obj(event):
         entity_id = event.data.get("entity_id")
         value = event.data.get("new_state").state
 
@@ -152,28 +163,50 @@ async def async_listen_state_changes(hass, entity_id, plate, obj):
         if value in TOGGLE:
             value = TOGGLE.index(value)
 
-        topic = hass.data[DOMAIN][plate].get(entity_id)
+        for command_topic in hass.data[DOMAIN][DATA_ENTITY_MAP][entity_id]:
+            _LOGGER.debug("_update_hasp_obj(%s) = %s", command_topic, value)
+            hass.components.mqtt.async_publish(command_topic, value)
 
-        _LOGGER.debug("_update_hasp_obj(%s) = %s", topic, value)
-        hass.components.mqtt.async_publish(topic, value)
+    async_track_state_change_event(hass, entity_id, _update_hasp_obj)
 
-    async_track_state_change_event(
-        hass, entity_id, lambda e: _update_hasp_obj(e, plate)
-    )
+    @callback
+    async def message_received(msg):
+        """Process MQTT message from plate."""
+        entity_id = hass.data[DOMAIN][DATA_SERVICE_MAP][msg.topic]
+
+        m = HASP_VAL_SCHEMA(json.loads(msg.payload))
+        if m[HASP_VAL] == 1:
+            service = SERVICE_TURN_ON
+        else:
+            service = SERVICE_TURN_OFF
+
+        _LOGGER.debug("_update_hasp_obj(%s) = %s", entity_id, service)
+        await hass.services.async_call(
+            HA_DOMAIN,
+            service,
+            {
+                ATTR_ENTITY_ID: entity_id,
+            },
+        )
+
+    domain = entity_id.split(".", 1)[0]
+    if domain in ["switch", "light", "media_player"]:
+        await hass.components.mqtt.async_subscribe(state_topic, message_received)
 
 
-async def async_listen_hasp_changes(hass, obj, plate, conf):
-    """Listen to messages on MQTT for HASP changes."""
+async def async_listen_hasp_events(hass, obj, plate, conf):
+    """Listen to messages on MQTT for HASP events."""
     state_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/state/{obj}"
     hass.data[DOMAIN][DATA_SERVICE_MAP][state_topic] = conf
 
+    @callback
     async def message_received(msg):
         """Process MQTT message from plate."""
         conf = hass.data[DOMAIN][DATA_SERVICE_MAP][msg.topic]
         m = HASP_EVENT_SCHEMA(json.loads(msg.payload))
 
         for event in conf:
-            if event.upper() in m["event"]:
+            if event.upper() in m[HASP_EVENT]:
                 _LOGGER.debug(
                     "Service call for %s triggered by %s on %s",
                     event,
@@ -196,6 +229,7 @@ async def async_listen_idleness(hass, plate, idle_brightness=10, awake_brightnes
         awake_brightness,
     )
 
+    @callback
     async def message_received(msg):
         """Process MQTT message from plate."""
         m = HASP_IDLE_SCHEMA(msg.payload)
@@ -220,12 +254,16 @@ async def async_listen_idleness(hass, plate, idle_brightness=10, awake_brightnes
 async def async_setup(hass, config):
     """Set up the MQTT async example component."""
 
-    hass.data[DOMAIN] = {DATA_SERVICE_MAP: {}, "idle": False}
+    hass.data[DOMAIN] = {
+        DATA_SERVICE_MAP: {},
+        DATA_ENTITY_MAP: {},
+    }
 
     for plate in config[DOMAIN]:
         hass.data[DOMAIN][plate] = {
             DATA_PLATE_TOPIC: config[DOMAIN][plate][CONF_TOPIC],
             DATA_PAGE_ENTITY: config[DOMAIN][plate][CONF_PAGES][CONF_ENTITY],
+            "idle": False,
         }
 
         # Setup idleness
@@ -255,7 +293,7 @@ async def async_setup(hass, config):
 
             event_services = obj.get(CONF_EVENT)
             if event_services:
-                _LOGGER.debug("Setip event_services for %s", obj)
-                await async_listen_hasp_changes(hass, objid, plate, event_services)
+                _LOGGER.debug("Setup event_services for %s", obj.keys())
+                await async_listen_hasp_events(hass, objid, plate, event_services)
 
     return True
