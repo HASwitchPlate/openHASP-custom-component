@@ -232,16 +232,12 @@ class Panel(RestoreEntity):
         self._prev_btn = config[CONF_PAGES][CONF_PAGES_PREV]
         self._next_btn = config[CONF_PAGES][CONF_PAGES_NEXT]
 
-        self._plate_id = name #TODO find a better id
-
         self._page = 1
         self._dim = 100
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
-
-        self.hass.data[DOMAIN][self._plate_id] = self
 
         state = await self.async_get_last_state()
         if state:
@@ -298,6 +294,7 @@ class Panel(RestoreEntity):
 
     async def async_setup_pages(self):
         """Listen to messages on MQTT for HASP Page changes."""
+        cmd_topic = f"{self._topic}/command/page"
 
         async def page_message_received(msg):
             """Process MQTT message from plate."""
@@ -315,7 +312,6 @@ class Panel(RestoreEntity):
             if msg.topic.endswith(self._next_btn):
                 self._page += 1
 
-            cmd_topic = f"{self._topic}/command/page"
             _LOGGER.debug("Change page %s to %s", cmd_topic, self._page)
             self.hass.components.mqtt.async_publish(cmd_topic, self._page, qos=0, retain=False)
 

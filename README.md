@@ -27,7 +27,6 @@ hasp_lvgl:
   landon:
     topic: "hasp/plate_6fe4fc"
     pages:
-      entity: number.hasp_plate_6fe4fc_page
       prev_obj: "p0b1"
       home_obj: "p0b2"
       next_obj: "p0b3"
