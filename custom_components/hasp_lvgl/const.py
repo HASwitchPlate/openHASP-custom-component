@@ -1,7 +1,7 @@
 """Constants for HASP Open Hardware edition custom component."""
 
 TOGGLE = ["off", "on"]
-DOMAIN = "hasp-lvgl"
+DOMAIN = "hasp_lvgl"
 CONF_OBJID = "obj"
 CONF_EVENT = "event"
 CONF_TRACK = "track"

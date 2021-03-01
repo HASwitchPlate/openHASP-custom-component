@@ -23,7 +23,7 @@ custom_components/hasp-lvgl/manifest.json
 ## Example Configuration 
 
 ```yaml
-hasp-lvgl:
+hasp_lvgl:
   landon:
     topic: "hasp/plate_6fe4fc"
     pages:

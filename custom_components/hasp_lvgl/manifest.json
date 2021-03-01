@@ -1,5 +1,5 @@
 {
-  "domain": "hasp-lvgl",
+  "domain": "hasp_lvgl",
   "name": "HASP-Open_Hardware_edition",
   "documentation": "https://fvanroie.github.io/hasp-docs/",
   "issue_tracker": "https://github.com/fvanroie/hasp-lvgl/issues",

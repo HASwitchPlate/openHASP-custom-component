@@ -11,11 +11,15 @@ from homeassistant.components.number.const import (
 from homeassistant.const import ATTR_ENTITY_ID, SERVICE_TURN_OFF, SERVICE_TURN_ON
 from homeassistant.core import DOMAIN as HA_DOMAIN, callback
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.service import async_call_from_config
+from homeassistant.setup import async_when_setup
 import voluptuous as vol
 
 from .const import (
+    ATTR_CURRENT_DIM,
     CONF_AWAKE_BRIGHTNESS,
     CONF_ENTITY,
     CONF_EVENT,
@@ -60,10 +64,9 @@ OBJECT_SCHEMA = vol.Schema(
 
 PAGES_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_ENTITY): cv.entity_id,
         vol.Optional(CONF_PAGES_PREV): cv.string,
         vol.Optional(CONF_PAGES_HOME): cv.string,
-        vol.Optional(CONF_PAGES_NEXT): cv.string,
+        vol.Required(CONF_PAGES_NEXT): cv.string,
     }
 )
 
@@ -98,54 +101,10 @@ HASP_EVENT_SCHEMA = vol.Schema(
 HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 
 
-async def async_setup_pages(hass, plate, obj_prev, obj_home, obj_next):
-    """Listen to messages on MQTT for HASP Page changes."""
-
-    hass.data[DOMAIN][plate][CONF_PAGES_PREV] = obj_prev
-    hass.data[DOMAIN][plate][CONF_PAGES_HOME] = obj_home
-    hass.data[DOMAIN][plate][CONF_PAGES_NEXT] = obj_next
-
-    async def message_received(msg):
-        """Process MQTT message from plate."""
-        _LOGGER.debug("Track page button: %s ", msg.topic)
-
-        # Parse received JSON
-        cmd = HASP_EVENT_SCHEMA(json.loads(msg.payload))
-        if cmd[HASP_EVENT] != "DOWN":
-            return
-
-        page_state = hass.states.get(hass.data[DOMAIN][plate][DATA_PAGE_ENTITY])
-        new_value = int(page_state.state)
-
-        if msg.topic.endswith(hass.data[DOMAIN][plate][CONF_PAGES_PREV]):
-            new_value -= 1
-        if msg.topic.endswith(hass.data[DOMAIN][plate][CONF_PAGES_HOME]):
-            new_value = HASP_HOME_PAGE
-        if msg.topic.endswith(hass.data[DOMAIN][plate][CONF_PAGES_NEXT]):
-            new_value += 1
-
-        await hass.services.async_call(
-            NUMBER_DOMAIN,
-            SERVICE_SET_VALUE,
-            {
-                ATTR_ENTITY_ID: hass.data[DOMAIN][plate][DATA_PAGE_ENTITY],
-                ATTR_VALUE: new_value,
-            },
-        )
-
-    for obj in [obj_prev, obj_home, obj_next]:
-        if obj is None:
-            continue
-
-        state_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/state/{obj}"
-        _LOGGER.debug("Track page button: %s -> %s", obj, state_topic)
-        await hass.components.mqtt.async_subscribe(state_topic, message_received)
-
-
 async def async_listen_state_changes(hass, entity_id, plate, obj):
     """Listen to state changes."""
-    command_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/command/{obj}.val"
-    state_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/state/{obj}"
+    command_topic = f"{hass.data[DOMAIN][plate]._topic}/command/{obj}.val"
+    state_topic = f"{hass.data[DOMAIN][plate]._topic}/state/{obj}"
 
     if hass.data[DOMAIN][DATA_ENTITY_MAP].get(entity_id) is None:
         hass.data[DOMAIN][DATA_ENTITY_MAP][entity_id] = []
@@ -201,7 +160,7 @@ async def async_listen_state_changes(hass, entity_id, plate, obj):
 
 async def async_listen_hasp_events(hass, obj, plate, conf):
     """Listen to messages on MQTT for HASP events."""
-    state_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/state/{obj}"
+    state_topic = f"{hass.data[DOMAIN][plate]._topic}/state/{obj}"
     hass.data[DOMAIN][DATA_SERVICE_MAP][state_topic] = conf
 
     @callback
@@ -227,11 +186,9 @@ async def async_listen_hasp_events(hass, obj, plate, conf):
     await hass.components.mqtt.async_subscribe(state_topic, message_received)
 
 
-
-
-
 async def async_setup(hass, config):
     """Set up the MQTT async example component."""
+    component = EntityComponent(_LOGGER, DOMAIN, hass)
 
     hass.data[DOMAIN] = {
         DATA_SERVICE_MAP: {},
@@ -241,24 +198,10 @@ async def async_setup(hass, config):
     for plate in config[DOMAIN]:
         hass.data[DOMAIN][plate] = {
             DATA_PLATE_TOPIC: config[DOMAIN][plate][CONF_TOPIC],
-            DATA_PAGE_ENTITY: config[DOMAIN][plate][CONF_PAGES][CONF_ENTITY],
         }
 
-        # Setup idleness
-        await async_listen_idleness(
-            hass,
-            plate,
-            config[DOMAIN][plate][CONF_IDLE_BRIGHTNESS],
-            config[DOMAIN][plate][CONF_AWAKE_BRIGHTNESS],
-        )
-
-        # Setup navigation buttons
-        await async_setup_pages(
-            hass,
-            plate,
-            config[DOMAIN][plate][CONF_PAGES][CONF_PAGES_PREV],
-            config[DOMAIN][plate][CONF_PAGES][CONF_PAGES_HOME],
-            config[DOMAIN][plate][CONF_PAGES][CONF_PAGES_NEXT],
+        await component.async_add_entities(
+            [Panel(plate, config[DOMAIN][plate])]
         )
 
         # Setup remaining objects
@@ -285,8 +228,11 @@ class Panel(RestoreEntity):
         self._topic = config[CONF_TOPIC]
         self._awake_brightness = config[CONF_AWAKE_BRIGHTNESS]
         self._idle_brightness = config[CONF_IDLE_BRIGHTNESS]
+        self._home_btn = config[CONF_PAGES][CONF_PAGES_HOME]
+        self._prev_btn = config[CONF_PAGES][CONF_PAGES_PREV]
+        self._next_btn = config[CONF_PAGES][CONF_PAGES_NEXT]
 
-        self._page_id = name #TODO find a better id
+        self._plate_id = name #TODO find a better id
 
         self._page = 1
         self._dim = 100
@@ -295,12 +241,15 @@ class Panel(RestoreEntity):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
 
-        hass.data[DOMAIN][self._plate_id] = self
+        self.hass.data[DOMAIN][self._plate_id] = self
 
         state = await self.async_get_last_state()
         if state:
-            self._page = state.state
-            self._dim = state.get(ATTR_CURRENT_DIM)
+            self._page = int(state.state)
+            self._dim = int(state.attributes.get(ATTR_CURRENT_DIM))
+
+        await self.async_listen_idleness()
+        await self.async_setup_pages()
 
     @property
     def name(self):
@@ -343,6 +292,37 @@ class Panel(RestoreEntity):
                 dim_value = 0
 
             _LOGGER.debug("Dimming %s to %s", cmd_topic, dim_value)
-            hass.components.mqtt.async_publish(cmd_topic, dim_value, qos=0, retain=False)
+            self.hass.components.mqtt.async_publish(cmd_topic, dim_value, qos=0, retain=False)
 
-        await hass.components.mqtt.async_subscribe(state_topic, idle_message_received)
+        await self.hass.components.mqtt.async_subscribe(state_topic, idle_message_received)
+
+    async def async_setup_pages(self):
+        """Listen to messages on MQTT for HASP Page changes."""
+
+        async def page_message_received(msg):
+            """Process MQTT message from plate."""
+            _LOGGER.debug("Track page button: %s ", msg.topic)
+
+            # Parse received JSON
+            cmd = HASP_EVENT_SCHEMA(json.loads(msg.payload))
+            if cmd[HASP_EVENT] != "DOWN":
+                return
+
+            if msg.topic.endswith(self._prev_btn):
+                self._page -= 1
+            if msg.topic.endswith(self._home_btn):
+                self._page = HASP_HOME_PAGE
+            if msg.topic.endswith(self._next_btn):
+                self._page += 1
+
+            cmd_topic = f"{self._topic}/command/page"
+            _LOGGER.debug("Change page %s to %s", cmd_topic, self._page)
+            self.hass.components.mqtt.async_publish(cmd_topic, self._page, qos=0, retain=False)
+
+        for obj in [self._prev_btn, self._home_btn, self._next_btn]:
+            if obj is None:
+                continue
+
+            state_topic = f"{self._topic}/state/{obj}"
+            _LOGGER.debug("Track page button: %s -> %s", obj, state_topic)
+            await self.hass.components.mqtt.async_subscribe(state_topic, page_message_received)
