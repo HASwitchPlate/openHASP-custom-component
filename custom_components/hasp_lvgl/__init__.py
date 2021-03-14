@@ -104,6 +104,14 @@ HASP_EVENT_SCHEMA = vol.Schema(
 
 HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 
+def update_object_state(hass, entity_id, value):
+        # cast state values off/on to 0/1
+        if value in TOGGLE:
+            value = TOGGLE.index(value)
+
+        for command_topic in hass.data[DOMAIN][DATA_ENTITY_MAP][entity_id]:
+            #_LOGGER.debug("_update_hasp_obj(%s) = %s", command_topic, value)
+            hass.components.mqtt.async_publish(command_topic, value)
 
 async def async_listen_state_changes(hass, entity_id, plate, obj):
     """Listen to state changes."""
@@ -123,18 +131,15 @@ async def async_listen_state_changes(hass, entity_id, plate, obj):
         entity_id = event.data.get("entity_id")
         value = event.data.get("new_state").state
 
-        # cast state values off/on to 0/1
-        if value in TOGGLE:
-            value = TOGGLE.index(value)
+        update_object_state(hass, entity_id, value)
 
-        for command_topic in hass.data[DOMAIN][DATA_ENTITY_MAP][entity_id]:
-            #_LOGGER.debug("_update_hasp_obj(%s) = %s", command_topic, value)
-            hass.components.mqtt.async_publish(command_topic, value)
 
     async_track_state_change_event(hass, entity_id, _update_hasp_obj)
     current_state = hass.states.get(entity_id)
     if current_state:
-        hass.components.mqtt.async_publish(command_topic, current_state.state)
+        value = current_state.state
+
+        update_object_state(hass, entity_id, value)
 
 
     @callback
