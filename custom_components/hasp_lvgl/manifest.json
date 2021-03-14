@@ -1,8 +1,8 @@
 {
   "domain": "hasp_lvgl",
-  "name": "HASP-Open_Hardware_edition",
+  "name": "HASP-Open Hardware edition",
   "documentation": "https://fvanroie.github.io/hasp-docs/",
-  "issue_tracker": "https://github.com/fvanroie/hasp-lvgl/issues",
+  "issue_tracker": "https://github.com/dgomes/hasp-lvgl-custom-component/issues",
   "dependencies": ["mqtt"],
   "version": "0.0.0",
   "codeowners": [
