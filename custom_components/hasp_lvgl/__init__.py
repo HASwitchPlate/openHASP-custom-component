@@ -41,8 +41,12 @@ from .const import (
     DEFAULT_IDLE_BRIGHNESS,
     DOMAIN,
     HASP_EVENT,
+    HASP_EVENT_DOWN,
     HASP_EVENTS,
     HASP_HOME_PAGE,
+    HASP_IDLE_LONG,
+    HASP_IDLE_OFF,
+    HASP_IDLE_SHORT,
     HASP_IDLE_STATES,
     HASP_VAL,
     TOGGLE,
@@ -103,8 +107,8 @@ HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 
 async def async_listen_state_changes(hass, entity_id, plate, obj):
     """Listen to state changes."""
-    command_topic = f"{hass.data[DOMAIN][plate]._topic}/command/{obj}.val"
-    state_topic = f"{hass.data[DOMAIN][plate]._topic}/state/{obj}"
+    command_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/command/{obj}.val"
+    state_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/state/{obj}"
 
     if hass.data[DOMAIN][DATA_ENTITY_MAP].get(entity_id) is None:
         hass.data[DOMAIN][DATA_ENTITY_MAP][entity_id] = []
@@ -160,7 +164,7 @@ async def async_listen_state_changes(hass, entity_id, plate, obj):
 
 async def async_listen_hasp_events(hass, obj, plate, conf):
     """Listen to messages on MQTT for HASP events."""
-    state_topic = f"{hass.data[DOMAIN][plate]._topic}/state/{obj}"
+    state_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/state/{obj}"
     hass.data[DOMAIN][DATA_SERVICE_MAP][state_topic] = conf
 
     @callback
@@ -171,7 +175,7 @@ async def async_listen_hasp_events(hass, obj, plate, conf):
             m = HASP_EVENT_SCHEMA(json.loads(msg.payload))
 
             for event in conf:
-                if event.upper() in m[HASP_EVENT]:
+                if event in m[HASP_EVENT]:
                     _LOGGER.debug(
                         "Service call for %s triggered by %s on %s",
                         event,
@@ -280,11 +284,11 @@ class Panel(RestoreEntity):
             """Process MQTT message from plate."""
             m = HASP_IDLE_SCHEMA(msg.payload)
 
-            if m == "OFF":
+            if m == HASP_IDLE_OFF:
                 dim_value = self._awake_brightness
-            elif m == "SHORT":
+            elif m == HASP_IDLE_SHORT:
                 dim_value = self._idle_brightness
-            elif m == "LONG":
+            elif m == HASP_IDLE_LONG:
                 dim_value = 0
 
             _LOGGER.debug("Dimming %s to %s", cmd_topic, dim_value)
@@ -298,11 +302,11 @@ class Panel(RestoreEntity):
 
         async def page_message_received(msg):
             """Process MQTT message from plate."""
-            _LOGGER.debug("Track page button: %s ", msg.topic)
+            _LOGGER.debug("page button received: %s ", msg.topic)
 
             # Parse received JSON
             cmd = HASP_EVENT_SCHEMA(json.loads(msg.payload))
-            if cmd[HASP_EVENT] != "DOWN":
+            if cmd[HASP_EVENT] != HASP_EVENT_DOWN:
                 return
 
             if msg.topic.endswith(self._prev_btn):
