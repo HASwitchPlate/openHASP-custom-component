@@ -275,7 +275,9 @@ class Panel(RestoreEntity):
     @property
     def state_attributes(self):
         """Return the state attributes."""
-        return {ATTR_CURRENT_DIM: self._dim}
+        return {
+            ATTR_CURRENT_DIM: self._dim
+        }
 
     async def async_listen_idleness(self):
         """Listen to messages on MQTT for HASP idleness."""
@@ -325,6 +327,8 @@ class Panel(RestoreEntity):
 
             _LOGGER.debug("Change page %s to %s", cmd_topic, self._page)
             self.hass.components.mqtt.async_publish(cmd_topic, self._page, qos=0, retain=False)
+            self.async_write_ha_state()
+
 
         for obj in [self._prev_btn, self._home_btn, self._next_btn]:
             if obj is None:
