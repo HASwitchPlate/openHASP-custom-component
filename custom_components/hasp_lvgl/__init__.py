@@ -242,7 +242,7 @@ class Panel(RestoreEntity):
         self._next_btn = config[CONF_PAGES][CONF_PAGES_NEXT]
 
         self._page = 1
-        self._dim = 100
+        self._dim = 0
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
@@ -252,6 +252,7 @@ class Panel(RestoreEntity):
         if state:
             self._page = int(state.state)
             self._dim = int(state.attributes.get(ATTR_CURRENT_DIM))
+            _LOGGER.debug("Restore DIM to %s", self._dim)
 
         await self.async_listen_idleness()
         await self.async_setup_pages()
@@ -290,14 +291,15 @@ class Panel(RestoreEntity):
             m = HASP_IDLE_SCHEMA(msg.payload)
 
             if m == HASP_IDLE_OFF:
-                dim_value = self._awake_brightness
+                self._dim = self._awake_brightness
             elif m == HASP_IDLE_SHORT:
-                dim_value = self._idle_brightness
+                self._dim = self._idle_brightness
             elif m == HASP_IDLE_LONG:
-                dim_value = 0
+                self._dim = 0
 
-            _LOGGER.debug("Dimming %s to %s", cmd_topic, dim_value)
-            self.hass.components.mqtt.async_publish(cmd_topic, dim_value, qos=0, retain=False)
+            _LOGGER.debug("Idle state is %s - Dimming %s to %s", msg.payload, cmd_topic, self._dim)
+            self.hass.components.mqtt.async_publish(cmd_topic, self._dim, qos=0, retain=False)
+            self.async_write_ha_state()
 
         await self.hass.components.mqtt.async_subscribe(state_topic, idle_message_received)
 

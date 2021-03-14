@@ -24,8 +24,8 @@ custom_components/hasp-lvgl/manifest.json
 
 ```yaml
 hasp_lvgl:
-  landon:
-    topic: "hasp/plate_6fe4fc"
+  plate_dev:
+    topic: "hasp/plate35"
     pages:
       prev_obj: "p0b1"
       home_obj: "p0b2"
@@ -33,20 +33,17 @@ hasp_lvgl:
     objects:
       - obj: "p1b2"
         track: "sensor.power"
-      - obj: "p1b4"
-        track: "sensor.heatpump"
-      - obj: "p1b6"
-        event:
-          down:
-            service: light.turn_on
-            target:
-              entity_id: "light.hasp_plate_6fe4fc_moodlight"
-          long:
-            service: light.turn_off
-            target:
-              entity_id: "light.hasp_plate_6fe4fc_moodlight"
       - obj: "p1b8"
-        track: "light.dining_light_light"
+        track: "input_boolean.teste1"
+        event:
+          "on":
+            service: homeassistant.turn_on
+            target:
+              entity_id: "input_boolean.teste1"
+          "off":
+            service: homeassistant.turn_off
+            target:
+              entity_id: "input_boolean.teste1"
 ```
 
 
