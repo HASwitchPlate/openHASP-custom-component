@@ -3,11 +3,6 @@ import json
 import logging
 
 from homeassistant.components import mqtt
-from homeassistant.components.number.const import (
-    ATTR_VALUE,
-    DOMAIN as NUMBER_DOMAIN,
-    SERVICE_SET_VALUE,
-)
 from homeassistant.const import ATTR_ENTITY_ID, SERVICE_TURN_OFF, SERVICE_TURN_ON
 from homeassistant.core import DOMAIN as HA_DOMAIN, callback
 import homeassistant.helpers.config_validation as cv
@@ -50,6 +45,7 @@ from .const import (
     HASP_IDLE_STATES,
     HASP_VAL,
     TOGGLE,
+    ALARM,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -105,13 +101,15 @@ HASP_EVENT_SCHEMA = vol.Schema(
 HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 
 def update_object_state(hass, entity_id, value):
-        # cast state values off/on to 0/1
-        if value in TOGGLE:
-            value = TOGGLE.index(value)
+    # cast state values off/on to 0/1
+    if value in TOGGLE:
+        value = TOGGLE.index(value)
+    if value in ALARM:
+        value = 1 if ALARM.index(value) > 9 else 0
 
-        for command_topic in hass.data[DOMAIN][DATA_ENTITY_MAP][entity_id]:
-            #_LOGGER.debug("_update_hasp_obj(%s) = %s", command_topic, value)
-            hass.components.mqtt.async_publish(command_topic, value)
+    for command_topic in hass.data[DOMAIN][DATA_ENTITY_MAP][entity_id]:
+        #_LOGGER.debug("_update_hasp_obj(%s) = %s", command_topic, value)
+        hass.components.mqtt.async_publish(command_topic, value)
 
 async def async_listen_state_changes(hass, entity_id, plate, obj):
     """Listen to state changes."""
