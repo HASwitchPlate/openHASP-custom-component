@@ -99,14 +99,16 @@ HASP_EVENT_SCHEMA = vol.Schema(
 
 HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 
-def update_object_state(hass, entity_id, value):
-        # cast state values off/on to 0/1
-        if value in TOGGLE:
-            value = TOGGLE.index(value)
 
-        for command_topic in hass.data[DOMAIN][DATA_ENTITY_MAP][entity_id]:
-            #_LOGGER.debug("_update_hasp_obj(%s) = %s", command_topic, value)
-            hass.components.mqtt.async_publish(command_topic, value)
+def update_object_state(hass, entity_id, value):
+    # cast state values off/on to 0/1
+    if value in TOGGLE:
+        value = TOGGLE.index(value)
+
+    for command_topic in hass.data[DOMAIN][DATA_ENTITY_MAP][entity_id]:
+        # _LOGGER.debug("_update_hasp_obj(%s) = %s", command_topic, value)
+        hass.components.mqtt.async_publish(command_topic, value)
+
 
 async def async_listen_state_changes(hass, entity_id, plate, obj):
     """Listen to state changes."""
@@ -128,14 +130,12 @@ async def async_listen_state_changes(hass, entity_id, plate, obj):
 
         update_object_state(hass, entity_id, value)
 
-
     async_track_state_change_event(hass, entity_id, _update_hasp_obj)
     current_state = hass.states.get(entity_id)
     if current_state:
         value = current_state.state
 
         update_object_state(hass, entity_id, value)
-
 
     @callback
     async def message_received(msg):
@@ -182,7 +182,9 @@ async def async_listen_hasp_events(hass, obj, plate, conf):
                         msg.payload,
                         msg.topic,
                     )
-                    await async_call_from_config(hass, conf[event], validate_config=True)
+                    await async_call_from_config(
+                        hass, conf[event], validate_config=True
+                    )
         except vol.error.Invalid as err:
             _LOGGER.warning("Could not handle event %s on %s", msg.payload, msg.topic)
 
@@ -204,9 +206,7 @@ async def async_setup(hass, config):
             DATA_PLATE_TOPIC: config[DOMAIN][plate][CONF_TOPIC],
         }
 
-        await component.async_add_entities(
-            [Panel(plate, config[DOMAIN][plate])]
-        )
+        await component.async_add_entities([Panel(plate, config[DOMAIN][plate])])
 
         # Setup remaining objects
         for obj in config[DOMAIN][plate][CONF_OBJECTS]:
@@ -222,6 +222,7 @@ async def async_setup(hass, config):
                 await async_listen_hasp_events(hass, objid, plate, event_services)
 
     return True
+
 
 class Panel(RestoreEntity):
     """Representation of an HASP-LVGL."""
@@ -270,9 +271,7 @@ class Panel(RestoreEntity):
     @property
     def state_attributes(self):
         """Return the state attributes."""
-        return {
-            ATTR_CURRENT_DIM: self._dim
-        }
+        return {ATTR_CURRENT_DIM: self._dim}
 
     async def async_listen_idleness(self):
         """Listen to messages on MQTT for HASP idleness."""
@@ -280,7 +279,9 @@ class Panel(RestoreEntity):
         cmd_topic = f"{self._topic}/command/dim"
 
         # Sync state on boot
-        self.hass.components.mqtt.async_publish(cmd_topic, self._dim, qos=0, retain=False)
+        self.hass.components.mqtt.async_publish(
+            cmd_topic, self._dim, qos=0, retain=False
+        )
 
         @callback
         async def idle_message_received(msg):
@@ -294,11 +295,17 @@ class Panel(RestoreEntity):
             elif m == HASP_IDLE_LONG:
                 self._dim = 0
 
-            _LOGGER.debug("Idle state is %s - Dimming %s to %s", msg.payload, cmd_topic, self._dim)
-            self.hass.components.mqtt.async_publish(cmd_topic, self._dim, qos=0, retain=False)
+            _LOGGER.debug(
+                "Idle state is %s - Dimming %s to %s", msg.payload, cmd_topic, self._dim
+            )
+            self.hass.components.mqtt.async_publish(
+                cmd_topic, self._dim, qos=0, retain=False
+            )
             self.async_write_ha_state()
 
-        await self.hass.components.mqtt.async_subscribe(state_topic, idle_message_received)
+        await self.hass.components.mqtt.async_subscribe(
+            state_topic, idle_message_received
+        )
 
     async def async_setup_pages(self):
         """Listen to messages on MQTT for HASP Page changes."""
@@ -321,9 +328,10 @@ class Panel(RestoreEntity):
                 self._page += 1
 
             _LOGGER.debug("Change page %s to %s", cmd_topic, self._page)
-            self.hass.components.mqtt.async_publish(cmd_topic, self._page, qos=0, retain=False)
+            self.hass.components.mqtt.async_publish(
+                cmd_topic, self._page, qos=0, retain=False
+            )
             self.async_write_ha_state()
-
 
         for obj in [self._prev_btn, self._home_btn, self._next_btn]:
             if obj is None:
@@ -331,4 +339,6 @@ class Panel(RestoreEntity):
 
             state_topic = f"{self._topic}/state/{obj}"
             _LOGGER.debug("Track page button: %s -> %s", obj, state_topic)
-            await self.hass.components.mqtt.async_subscribe(state_topic, page_message_received)
+            await self.hass.components.mqtt.async_subscribe(
+                state_topic, page_message_received
+            )
