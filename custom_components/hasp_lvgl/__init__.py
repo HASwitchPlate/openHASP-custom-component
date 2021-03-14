@@ -11,11 +11,15 @@ from homeassistant.components.number.const import (
 from homeassistant.const import ATTR_ENTITY_ID, SERVICE_TURN_OFF, SERVICE_TURN_ON
 from homeassistant.core import DOMAIN as HA_DOMAIN, callback
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.service import async_call_from_config
+from homeassistant.setup import async_when_setup
 import voluptuous as vol
 
 from .const import (
+    ATTR_CURRENT_DIM,
     CONF_AWAKE_BRIGHTNESS,
     CONF_ENTITY,
     CONF_EVENT,
@@ -37,8 +41,12 @@ from .const import (
     DEFAULT_IDLE_BRIGHNESS,
     DOMAIN,
     HASP_EVENT,
+    HASP_EVENT_DOWN,
     HASP_EVENTS,
     HASP_HOME_PAGE,
+    HASP_IDLE_LONG,
+    HASP_IDLE_OFF,
+    HASP_IDLE_SHORT,
     HASP_IDLE_STATES,
     HASP_VAL,
     TOGGLE,
@@ -60,18 +68,17 @@ OBJECT_SCHEMA = vol.Schema(
 
 PAGES_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_ENTITY): cv.entity_id,
         vol.Optional(CONF_PAGES_PREV): cv.string,
         vol.Optional(CONF_PAGES_HOME): cv.string,
-        vol.Optional(CONF_PAGES_NEXT): cv.string,
+        vol.Required(CONF_PAGES_NEXT): cv.string,
     }
 )
 
 PLATE_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_OBJECTS): vol.All(cv.ensure_list, [OBJECT_SCHEMA]),
-        vol.Optional(CONF_PAGES): PAGES_SCHEMA,
-        vol.Optional(CONF_TOPIC): mqtt.valid_subscribe_topic,
+        vol.Required(CONF_PAGES): PAGES_SCHEMA,
+        vol.Required(CONF_TOPIC): mqtt.valid_subscribe_topic,
         vol.Optional(CONF_AWAKE_BRIGHTNESS, default=DEFAULT_AWAKE_BRIGHNESS): vol.All(
             int, vol.Range(min=0, max=100)
         ),
@@ -97,50 +104,14 @@ HASP_EVENT_SCHEMA = vol.Schema(
 
 HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 
+def update_object_state(hass, entity_id, value):
+        # cast state values off/on to 0/1
+        if value in TOGGLE:
+            value = TOGGLE.index(value)
 
-async def async_setup_pages(hass, plate, obj_prev, obj_home, obj_next):
-    """Listen to messages on MQTT for HASP Page changes."""
-
-    hass.data[DOMAIN][plate][CONF_PAGES_PREV] = obj_prev
-    hass.data[DOMAIN][plate][CONF_PAGES_HOME] = obj_home
-    hass.data[DOMAIN][plate][CONF_PAGES_NEXT] = obj_next
-
-    async def message_received(msg):
-        """Process MQTT message from plate."""
-        _LOGGER.debug("Track page button: %s ", msg.topic)
-
-        # Parse received JSON
-        cmd = HASP_EVENT_SCHEMA(json.loads(msg.payload))
-        if cmd[HASP_EVENT] != "DOWN":
-            return
-
-        page_state = hass.states.get(hass.data[DOMAIN][plate][DATA_PAGE_ENTITY])
-        new_value = int(page_state.state)
-
-        if msg.topic.endswith(hass.data[DOMAIN][plate][CONF_PAGES_PREV]):
-            new_value -= 1
-        if msg.topic.endswith(hass.data[DOMAIN][plate][CONF_PAGES_HOME]):
-            new_value = HASP_HOME_PAGE
-        if msg.topic.endswith(hass.data[DOMAIN][plate][CONF_PAGES_NEXT]):
-            new_value += 1
-
-        await hass.services.async_call(
-            NUMBER_DOMAIN,
-            SERVICE_SET_VALUE,
-            {
-                ATTR_ENTITY_ID: hass.data[DOMAIN][plate][DATA_PAGE_ENTITY],
-                ATTR_VALUE: new_value,
-            },
-        )
-
-    for obj in [obj_prev, obj_home, obj_next]:
-        if obj is None:
-            continue
-
-        state_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/state/{obj}"
-        _LOGGER.debug("Track page button: %s -> %s", obj, state_topic)
-        await hass.components.mqtt.async_subscribe(state_topic, message_received)
-
+        for command_topic in hass.data[DOMAIN][DATA_ENTITY_MAP][entity_id]:
+            #_LOGGER.debug("_update_hasp_obj(%s) = %s", command_topic, value)
+            hass.components.mqtt.async_publish(command_topic, value)
 
 async def async_listen_state_changes(hass, entity_id, plate, obj):
     """Listen to state changes."""
@@ -160,18 +131,15 @@ async def async_listen_state_changes(hass, entity_id, plate, obj):
         entity_id = event.data.get("entity_id")
         value = event.data.get("new_state").state
 
-        # cast state values off/on to 0/1
-        if value in TOGGLE:
-            value = TOGGLE.index(value)
+        update_object_state(hass, entity_id, value)
 
-        for command_topic in hass.data[DOMAIN][DATA_ENTITY_MAP][entity_id]:
-            #_LOGGER.debug("_update_hasp_obj(%s) = %s", command_topic, value)
-            hass.components.mqtt.async_publish(command_topic, value)
 
     async_track_state_change_event(hass, entity_id, _update_hasp_obj)
     current_state = hass.states.get(entity_id)
     if current_state:
-        hass.components.mqtt.async_publish(command_topic, current_state.state)
+        value = current_state.state
+
+        update_object_state(hass, entity_id, value)
 
 
     @callback
@@ -212,7 +180,7 @@ async def async_listen_hasp_events(hass, obj, plate, conf):
             m = HASP_EVENT_SCHEMA(json.loads(msg.payload))
 
             for event in conf:
-                if event.upper() in m[HASP_EVENT]:
+                if event in m[HASP_EVENT]:
                     _LOGGER.debug(
                         "Service call for %s triggered by %s on %s",
                         event,
@@ -227,45 +195,9 @@ async def async_listen_hasp_events(hass, obj, plate, conf):
     await hass.components.mqtt.async_subscribe(state_topic, message_received)
 
 
-async def async_listen_idleness(hass, plate, idle_brightness=10, awake_brightness=100):
-    """Listen to messages on MQTT for HASP idleness."""
-    state_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/state/idle"
-    cmd_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/command/dim"
-
-    # Sync state on boot
-    hass.components.mqtt.async_publish(f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/command", "wakeup", qos=0, retain=False)
-    hass.data[DOMAIN][plate][DATA_IDLE] = False
-
-    hass.data[DOMAIN][DATA_SERVICE_MAP][state_topic] = (
-        cmd_topic,
-        idle_brightness,
-        awake_brightness,
-    )
-
-    @callback
-    async def message_received(msg):
-        """Process MQTT message from plate."""
-        m = HASP_IDLE_SCHEMA(msg.payload)
-
-        cmd_topic, idle_brightness, awake_brightness = hass.data[DOMAIN][
-            DATA_SERVICE_MAP
-        ][msg.topic]
-
-        if m == "OFF":
-            dim_value = awake_brightness
-        elif m == "SHORT":
-            dim_value = idle_brightness
-        elif m == "LONG":
-            dim_value = 0
-
-        _LOGGER.debug("Dimming %s to %s", cmd_topic, dim_value)
-        hass.components.mqtt.async_publish(cmd_topic, dim_value, qos=0, retain=False)
-
-    await hass.components.mqtt.async_subscribe(state_topic, message_received)
-
-
 async def async_setup(hass, config):
     """Set up the MQTT async example component."""
+    component = EntityComponent(_LOGGER, DOMAIN, hass)
 
     hass.data[DOMAIN] = {
         DATA_SERVICE_MAP: {},
@@ -275,24 +207,10 @@ async def async_setup(hass, config):
     for plate in config[DOMAIN]:
         hass.data[DOMAIN][plate] = {
             DATA_PLATE_TOPIC: config[DOMAIN][plate][CONF_TOPIC],
-            DATA_PAGE_ENTITY: config[DOMAIN][plate][CONF_PAGES][CONF_ENTITY],
         }
 
-        # Setup idleness
-        await async_listen_idleness(
-            hass,
-            plate,
-            config[DOMAIN][plate][CONF_IDLE_BRIGHTNESS],
-            config[DOMAIN][plate][CONF_AWAKE_BRIGHTNESS],
-        )
-
-        # Setup navigation buttons
-        await async_setup_pages(
-            hass,
-            plate,
-            config[DOMAIN][plate][CONF_PAGES][CONF_PAGES_PREV],
-            config[DOMAIN][plate][CONF_PAGES][CONF_PAGES_HOME],
-            config[DOMAIN][plate][CONF_PAGES][CONF_PAGES_NEXT],
+        await component.async_add_entities(
+            [Panel(plate, config[DOMAIN][plate])]
         )
 
         # Setup remaining objects
@@ -309,3 +227,113 @@ async def async_setup(hass, config):
                 await async_listen_hasp_events(hass, objid, plate, event_services)
 
     return True
+
+class Panel(RestoreEntity):
+    """Representation of an HASP-LVGL."""
+
+    def __init__(self, name, config):
+        """Initialize a panel."""
+        self._name = name
+        self._topic = config[CONF_TOPIC]
+        self._awake_brightness = config[CONF_AWAKE_BRIGHTNESS]
+        self._idle_brightness = config[CONF_IDLE_BRIGHTNESS]
+        self._home_btn = config[CONF_PAGES][CONF_PAGES_HOME]
+        self._prev_btn = config[CONF_PAGES][CONF_PAGES_PREV]
+        self._next_btn = config[CONF_PAGES][CONF_PAGES_NEXT]
+
+        self._page = 1
+        self._dim = 0
+
+    async def async_added_to_hass(self):
+        """Run when entity about to be added."""
+        await super().async_added_to_hass()
+
+        state = await self.async_get_last_state()
+        if state:
+            self._page = int(state.state)
+            self._dim = int(state.attributes.get(ATTR_CURRENT_DIM))
+            _LOGGER.debug("Restore DIM to %s", self._dim)
+
+        await self.async_listen_idleness()
+        await self.async_setup_pages()
+
+    @property
+    def name(self):
+        """Return the name of the select input."""
+        return self._name
+
+    @property
+    def icon(self):
+        """Return the icon to be used for this entity."""
+        return "mdi:light-switch"
+
+    @property
+    def state(self):
+        """Return the state of the component."""
+        return self._page
+
+    @property
+    def state_attributes(self):
+        """Return the state attributes."""
+        return {
+            ATTR_CURRENT_DIM: self._dim
+        }
+
+    async def async_listen_idleness(self):
+        """Listen to messages on MQTT for HASP idleness."""
+        state_topic = f"{self._topic}/state/idle"
+        cmd_topic = f"{self._topic}/command/dim"
+
+        # Sync state on boot
+        self.hass.components.mqtt.async_publish(cmd_topic, self._dim, qos=0, retain=False)
+
+        @callback
+        async def idle_message_received(msg):
+            """Process MQTT message from plate."""
+            m = HASP_IDLE_SCHEMA(msg.payload)
+
+            if m == HASP_IDLE_OFF:
+                self._dim = self._awake_brightness
+            elif m == HASP_IDLE_SHORT:
+                self._dim = self._idle_brightness
+            elif m == HASP_IDLE_LONG:
+                self._dim = 0
+
+            _LOGGER.debug("Idle state is %s - Dimming %s to %s", msg.payload, cmd_topic, self._dim)
+            self.hass.components.mqtt.async_publish(cmd_topic, self._dim, qos=0, retain=False)
+            self.async_write_ha_state()
+
+        await self.hass.components.mqtt.async_subscribe(state_topic, idle_message_received)
+
+    async def async_setup_pages(self):
+        """Listen to messages on MQTT for HASP Page changes."""
+        cmd_topic = f"{self._topic}/command/page"
+
+        async def page_message_received(msg):
+            """Process MQTT message from plate."""
+            _LOGGER.debug("page button received: %s ", msg.topic)
+
+            # Parse received JSON
+            cmd = HASP_EVENT_SCHEMA(json.loads(msg.payload))
+            if cmd[HASP_EVENT] != HASP_EVENT_DOWN:
+                return
+
+            if msg.topic.endswith(self._prev_btn):
+                self._page -= 1
+            if msg.topic.endswith(self._home_btn):
+                self._page = HASP_HOME_PAGE
+            if msg.topic.endswith(self._next_btn):
+                self._page += 1
+
+            _LOGGER.debug("Change page %s to %s", cmd_topic, self._page)
+            self.hass.components.mqtt.async_publish(cmd_topic, self._page, qos=0, retain=False)
+            self.async_write_ha_state()
+
+
+        for obj in [self._prev_btn, self._home_btn, self._next_btn]:
+            if obj is None:
+                continue
+
+            state_topic = f"{self._topic}/state/{obj}"
+            _LOGGER.debug("Track page button: %s -> %s", obj, state_topic)
+            await self.hass.components.mqtt.async_subscribe(state_topic, page_message_received)
