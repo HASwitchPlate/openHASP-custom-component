@@ -3,11 +3,6 @@ import json
 import logging
 
 from homeassistant.components import mqtt
-from homeassistant.components.number.const import (
-    ATTR_VALUE,
-    DOMAIN as NUMBER_DOMAIN,
-    SERVICE_SET_VALUE,
-)
 from homeassistant.const import ATTR_ENTITY_ID, SERVICE_TURN_OFF, SERVICE_TURN_ON
 from homeassistant.core import DOMAIN as HA_DOMAIN, callback
 import homeassistant.helpers.config_validation as cv
