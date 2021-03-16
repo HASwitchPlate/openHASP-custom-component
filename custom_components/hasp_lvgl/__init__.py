@@ -241,6 +241,7 @@ class Panel(RestoreEntity):
 
         self._page = 1
         self._dim = 0
+        self._backlight = 1
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
@@ -280,10 +281,12 @@ class Panel(RestoreEntity):
     async def async_listen_idleness(self):
         """Listen to messages on MQTT for HASP idleness."""
         state_topic = f"{self._topic}/state/idle"
-        cmd_topic = f"{self._topic}/command/dim"
+        dim_topic = f"{self._topic}/command/dim"
+        backlight_topic = f"{self._topic}/command/light"
 
         # Sync state on boot
-        self.hass.components.mqtt.async_publish(cmd_topic, self._dim, qos=0, retain=False)
+        self.hass.components.mqtt.async_publish(dim_topic, self._dim, qos=0, retain=False)
+        self.hass.components.mqtt.async_publish(backlight_topic, self._backlight, qos=0, retain=False)
 
         @callback
         async def idle_message_received(msg):
@@ -292,13 +295,17 @@ class Panel(RestoreEntity):
 
             if m == HASP_IDLE_OFF:
                 self._dim = self._awake_brightness
+                self._backlight = 1
             elif m == HASP_IDLE_SHORT:
                 self._dim = self._idle_brightness
+                self._backlight = 1
             elif m == HASP_IDLE_LONG:
-                self._dim = 0
+                self._dim = self._awake_brightness
+                self._backlight = 0
 
-            _LOGGER.debug("Idle state is %s - Dimming %s to %s", msg.payload, cmd_topic, self._dim)
-            self.hass.components.mqtt.async_publish(cmd_topic, self._dim, qos=0, retain=False)
+            _LOGGER.debug("Idle state is %s - Dimming %s to %s; Backlight %s to %s", msg.payload, dim_topic, self._dim, backlight_topic, self._backlight)
+            self.hass.components.mqtt.async_publish(backlight_topic, self._backlight, qos=0, retain=False)
+            self.hass.components.mqtt.async_publish(dim_topic, self._dim, qos=0, retain=False)
             self.async_write_ha_state()
 
         await self.hass.components.mqtt.async_subscribe(state_topic, idle_message_received)
