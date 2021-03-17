@@ -27,6 +27,7 @@ from .const import (
     CONF_PAGES_PREV,
     CONF_TOPIC,
     CONF_TRACK,
+    CONF_OBJ_PROP,
     DATA_ENTITY_MAP,
     DATA_IDLE,
     DATA_PAGE_ENTITY,
@@ -59,6 +60,7 @@ OBJECT_SCHEMA = vol.Schema(
         vol.Required(CONF_OBJID): cv.string,
         vol.Optional(CONF_TRACK, default=None): vol.Any(cv.entity_id, None),
         vol.Optional(CONF_EVENT, default={}): EVENT_SCHEMA,
+        vol.Optional(CONF_OBJ_PROP, default='val'): cv.string,
     }
 )
 
@@ -111,9 +113,9 @@ def update_object_state(hass, entity_id, value):
         #_LOGGER.debug("_update_hasp_obj(%s) = %s", command_topic, value)
         hass.components.mqtt.async_publish(command_topic, value)
 
-async def async_listen_state_changes(hass, entity_id, plate, obj):
+async def async_listen_state_changes(hass, entity_id, plate, obj, update_property):
     """Listen to state changes."""
-    command_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/command/{obj}.val"
+    command_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/command/{obj}." + update_property
     state_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/state/{obj}"
 
     if hass.data[DOMAIN][DATA_ENTITY_MAP].get(entity_id) is None:
@@ -216,8 +218,9 @@ async def async_setup(hass, config):
             objid = obj[CONF_OBJID]
 
             track_entity_id = obj.get(CONF_TRACK)
+            update_property = obj.get(CONF_OBJ_PROP)
             if track_entity_id:
-                await async_listen_state_changes(hass, track_entity_id, plate, objid)
+                await async_listen_state_changes(hass, track_entity_id, plate, objid, update_property)
 
             event_services = obj.get(CONF_EVENT)
             if event_services:
