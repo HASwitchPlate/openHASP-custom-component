@@ -33,6 +33,9 @@ hasp_lvgl:
     objects:
       - obj: "p1b2"
         track: "sensor.power"
+      - obj: "p1b3"
+        track: "sensor.temperature"
+        update_property: "text"
       - obj: "p1b8"
         track: "input_boolean.teste1"
         event:
