@@ -1,6 +1,7 @@
 """Constants for HASP Open Hardware edition custom component."""
 
 TOGGLE = ["off", "on"]
+ALARM = ["disarmed", "armed_away", "armed_home"]
 DOMAIN = "hasp_lvgl"
 CONF_OBJID = "obj"
 CONF_EVENT = "event"

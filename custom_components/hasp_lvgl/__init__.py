@@ -45,6 +45,7 @@ from .const import (
     HASP_IDLE_STATES,
     HASP_VAL,
     TOGGLE,
+    ALARM,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -104,11 +105,13 @@ def update_object_state(hass, entity_id, value):
     # cast state values off/on to 0/1
     if value in TOGGLE:
         value = TOGGLE.index(value)
+    # cast alarm_panel values to 0/1
+    if value in ALARM:
+        value = 1 if ALARM.index(value) > 9 else 0
 
     for command_topic in hass.data[DOMAIN][DATA_ENTITY_MAP][entity_id]:
-        # _LOGGER.debug("_update_hasp_obj(%s) = %s", command_topic, value)
+        #_LOGGER.debug("_update_hasp_obj(%s) = %s", command_topic, value)
         hass.components.mqtt.async_publish(command_topic, value)
-
 
 async def async_listen_state_changes(hass, entity_id, plate, obj):
     """Listen to state changes."""
@@ -239,6 +242,7 @@ class Panel(RestoreEntity):
 
         self._page = 1
         self._dim = 0
+        self._backlight = 1
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
@@ -276,12 +280,12 @@ class Panel(RestoreEntity):
     async def async_listen_idleness(self):
         """Listen to messages on MQTT for HASP idleness."""
         state_topic = f"{self._topic}/state/idle"
-        cmd_topic = f"{self._topic}/command/dim"
+        dim_topic = f"{self._topic}/command/dim"
+        backlight_topic = f"{self._topic}/command/light"
 
         # Sync state on boot
-        self.hass.components.mqtt.async_publish(
-            cmd_topic, self._dim, qos=0, retain=False
-        )
+        self.hass.components.mqtt.async_publish(dim_topic, self._dim, qos=0, retain=False)
+        self.hass.components.mqtt.async_publish(backlight_topic, self._backlight, qos=0, retain=False)
 
         @callback
         async def idle_message_received(msg):
@@ -290,17 +294,17 @@ class Panel(RestoreEntity):
 
             if m == HASP_IDLE_OFF:
                 self._dim = self._awake_brightness
+                self._backlight = 1
             elif m == HASP_IDLE_SHORT:
                 self._dim = self._idle_brightness
+                self._backlight = 1
             elif m == HASP_IDLE_LONG:
-                self._dim = 0
+                self._dim = self._awake_brightness
+                self._backlight = 0
 
-            _LOGGER.debug(
-                "Idle state is %s - Dimming %s to %s", msg.payload, cmd_topic, self._dim
-            )
-            self.hass.components.mqtt.async_publish(
-                cmd_topic, self._dim, qos=0, retain=False
-            )
+            _LOGGER.debug("Idle state is %s - Dimming %s to %s; Backlight %s to %s", msg.payload, dim_topic, self._dim, backlight_topic, self._backlight)
+            self.hass.components.mqtt.async_publish(backlight_topic, self._backlight, qos=0, retain=False)
+            self.hass.components.mqtt.async_publish(dim_topic, self._dim, qos=0, retain=False)
             self.async_write_ha_state()
 
         await self.hass.components.mqtt.async_subscribe(
@@ -339,6 +343,4 @@ class Panel(RestoreEntity):
 
             state_topic = f"{self._topic}/state/{obj}"
             _LOGGER.debug("Track page button: %s -> %s", obj, state_topic)
-            await self.hass.components.mqtt.async_subscribe(
-                state_topic, page_message_received
-            )
+            await self.hass.components.mqtt.async_subscribe(state_topic, page_message_received)
