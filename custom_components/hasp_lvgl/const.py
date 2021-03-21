@@ -1,6 +1,7 @@
 """Constants for HASP Open Hardware edition custom component."""
 
 TOGGLE = ["off", "on"]
+TOGGLE_DOMAINS = ["switch", "light", "input_boolean"]
 ALARM = [
     "disarmed",
     "armed_home",

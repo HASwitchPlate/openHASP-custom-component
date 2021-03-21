@@ -38,6 +38,7 @@ from .const import (
     HASP_IDLE_STATES,
     HASP_VAL,
     TOGGLE,
+    TOGGLE_DOMAINS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -121,18 +122,13 @@ class SwitchPlate(RestoreEntity):
         # Setup remaining objects
         self._objects = []
         for obj in config[CONF_OBJECTS]:
-            new_obj = HASPObject(hass, self, obj)
+            new_obj = HASPObject(hass, self._topic, obj)
 
             self.add_object(new_obj)
 
         self._page = 1
         self._dim = 0
         self._backlight = 1
-
-    @property
-    def topic(self):
-        """SwitchPlate base topic."""
-        return self._topic
 
     def add_object(self, obj):
         """Track objects in plate."""
@@ -263,22 +259,17 @@ class SwitchPlate(RestoreEntity):
 class HASPObject:
     """Representation of an HASP-LVGL."""
 
-    def __init__(self, hass, plate_obj, config):
+    def __init__(self, hass, plate_topic, config):
         """Initialize a object."""
 
         self.hass = hass
         self.obj_id = config[CONF_OBJID]
-        self.command_topic = f"{plate_obj.topic}/command/{self.obj_id}."
-        self.state_topic = f"{plate_obj.topic}/state/{self.obj_id}"
+        self.command_topic = f"{plate_topic}/command/{self.obj_id}."
+        self.state_topic = f"{plate_topic}/state/{self.obj_id}"
         self.properties = {}
 
         self.track_entity_id = config.get(CONF_TRACK)
         self.event_services = config.get(CONF_EVENT)
-
-    @property
-    def id(self):
-        """Identification of the object pXbN."""
-        return self.obj_id
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
@@ -295,7 +286,7 @@ class HASPObject:
 
         domain = split_entity_id(entity_id)[0]
         # cast state values off/on to 0/1
-        if domain in ["switch", "light", "input_boolean"] and value in TOGGLE:
+        if domain in TOGGLE_DOMAINS and value in TOGGLE:
             value = TOGGLE.index(value)
         # cast alarm_panel values to 0/1
         if domain == "alarm_panel" and value in ALARM:
