@@ -342,7 +342,10 @@ class HASPObject:
                             msg.topic,
                         )
                         await async_call_from_config(
-                            self.hass, self.event_services[event], validate_config=True
+                            self.hass,
+                            self.event_services[event],
+                            validate_config=True,
+                            variables=message,
                         )
             except vol.error.Invalid:
                 _LOGGER.warning(

@@ -46,8 +46,15 @@ hasp_lvgl:
             service: homeassistant.turn_off
             target:
               entity_id: "input_boolean.teste1"
+      - obj: "p2b2"
+        event:
+          "changed":
+            service: persistent_notification.create
+            data:
+              message: Hello {{ text }}
 ```
 
+in the event service call you can use any variable coming from the MQTT message besides the actual event
 
 ## Contributions are welcome!
 
