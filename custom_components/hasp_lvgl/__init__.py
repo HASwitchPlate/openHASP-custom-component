@@ -98,18 +98,18 @@ async def async_setup(hass, config):
     component = EntityComponent(_LOGGER, DOMAIN, hass)
 
     for plate in config[DOMAIN]:
-        panel = Panel(hass, plate, config[DOMAIN][plate])
+        plate = SwitchPlate(hass, plate, config[DOMAIN][plate])
 
-        await component.async_add_entities([panel])
+        await component.async_add_entities([plate])
 
     return True
 
 
-class Panel(RestoreEntity):
+class SwitchPlate(RestoreEntity):
     """Representation of an HASP-LVGL."""
 
     def __init__(self, hass, name, config):
-        """Initialize a panel."""
+        """Initialize a plate."""
         self._name = name
         self._topic = config[CONF_TOPIC]
         self._awake_brightness = config[CONF_AWAKE_BRIGHTNESS]
@@ -131,11 +131,11 @@ class Panel(RestoreEntity):
 
     @property
     def topic(self):
-        """Panel base topic."""
+        """SwitchPlate base topic."""
         return self._topic
 
     def add_object(self, obj):
-        """Track objects in panel."""
+        """Track objects in plate."""
         self._objects.append(obj)
 
     async def async_added_to_hass(self):
@@ -291,7 +291,7 @@ class HASPObject:
             await self.async_listen_hasp_events()
 
     def update_object_state(self, _property, entity_id, value):
-        """Update back the Object in the panel."""
+        """Update back the Object in the plate."""
 
         domain = split_entity_id(entity_id)[0]
         # cast state values off/on to 0/1
