@@ -1,12 +1,22 @@
 """Constants for HASP Open Hardware edition custom component."""
 
 TOGGLE = ["off", "on"]
-ALARM = ["disarmed", "armed_away", "armed_home"]
+ALARM = [
+    "disarmed",
+    "armed_home",
+    "armed_away",
+    "armed_night",
+    "armed_custom_bypass",
+    "pending",
+    "arming",
+    "disarming",
+    "triggered",
+]
+
 DOMAIN = "hasp_lvgl"
 CONF_OBJID = "obj"
 CONF_EVENT = "event"
 CONF_TRACK = "track"
-CONF_ENTITY = "entity"
 CONF_TOPIC = "topic"
 CONF_PAGES = "pages"
 CONF_PAGES_PREV = "prev_obj"
@@ -15,13 +25,6 @@ CONF_PAGES_NEXT = "next_obj"
 CONF_OBJECTS = "objects"
 CONF_IDLE_BRIGHTNESS = "idle_brightness"
 CONF_AWAKE_BRIGHTNESS = "awake_brightness"
-
-DATA_SERVICE_MAP = "service_mapping"
-DATA_ENTITY_MAP = "entity_mapping"
-DATA_TOPIC = "topic"
-DATA_PLATE_TOPIC = "plate_topic"
-DATA_PAGE_ENTITY = "page_entity"
-DATA_IDLE = "idle"
 
 DEFAULT_TOPIC = "hasp"
 DEFAULT_AWAKE_BRIGHNESS = 100

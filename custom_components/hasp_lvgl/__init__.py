@@ -3,20 +3,17 @@ import json
 import logging
 
 from homeassistant.components import mqtt
-from homeassistant.const import ATTR_ENTITY_ID, SERVICE_TURN_OFF, SERVICE_TURN_ON
-from homeassistant.core import DOMAIN as HA_DOMAIN, callback
+from homeassistant.core import callback
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.service import async_call_from_config
-from homeassistant.setup import async_when_setup
 import voluptuous as vol
 
 from .const import (
     ATTR_CURRENT_DIM,
     CONF_AWAKE_BRIGHTNESS,
-    CONF_ENTITY,
     CONF_EVENT,
     CONF_IDLE_BRIGHTNESS,
     CONF_OBJECTS,
@@ -27,11 +24,6 @@ from .const import (
     CONF_PAGES_PREV,
     CONF_TOPIC,
     CONF_TRACK,
-    DATA_ENTITY_MAP,
-    DATA_IDLE,
-    DATA_PAGE_ENTITY,
-    DATA_PLATE_TOPIC,
-    DATA_SERVICE_MAP,
     DEFAULT_AWAKE_BRIGHNESS,
     DEFAULT_IDLE_BRIGHNESS,
     DOMAIN,
@@ -101,128 +93,14 @@ HASP_EVENT_SCHEMA = vol.Schema(
 HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 
 
-def update_object_state(hass, entity_id, value):
-    # cast state values off/on to 0/1
-    if value in TOGGLE:
-        value = TOGGLE.index(value)
-    # cast alarm_panel values to 0/1
-    if value in ALARM:
-        value = 1 if ALARM.index(value) > 9 else 0
-
-    for command_topic in hass.data[DOMAIN][DATA_ENTITY_MAP][entity_id]:
-        #_LOGGER.debug("_update_hasp_obj(%s) = %s", command_topic, value)
-        hass.components.mqtt.async_publish(command_topic, value)
-
-async def async_listen_state_changes(hass, entity_id, plate, obj):
-    """Listen to state changes."""
-    command_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/command/{obj}.val"
-    state_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/state/{obj}"
-
-    if hass.data[DOMAIN][DATA_ENTITY_MAP].get(entity_id) is None:
-        hass.data[DOMAIN][DATA_ENTITY_MAP][entity_id] = []
-    hass.data[DOMAIN][DATA_ENTITY_MAP][entity_id].append(command_topic)
-
-    hass.data[DOMAIN][DATA_SERVICE_MAP][state_topic] = entity_id
-
-    _LOGGER.debug("Track Entity: %s -> %s", entity_id, command_topic)
-
-    @callback
-    def _update_hasp_obj(event):
-        entity_id = event.data.get("entity_id")
-        value = event.data.get("new_state").state
-
-        update_object_state(hass, entity_id, value)
-
-    async_track_state_change_event(hass, entity_id, _update_hasp_obj)
-    current_state = hass.states.get(entity_id)
-    if current_state:
-        value = current_state.state
-
-        update_object_state(hass, entity_id, value)
-
-    @callback
-    async def message_received(msg):
-        """Process MQTT message from plate."""
-        entity_id = hass.data[DOMAIN][DATA_SERVICE_MAP][msg.topic]
-
-        m = HASP_VAL_SCHEMA(json.loads(msg.payload))
-        if m[HASP_VAL] == 1:
-            service = SERVICE_TURN_ON
-        else:
-            service = SERVICE_TURN_OFF
-
-        _LOGGER.debug("_update_hasp_obj(%s) = %s", entity_id, service)
-        await hass.services.async_call(
-            HA_DOMAIN,
-            service,
-            {
-                ATTR_ENTITY_ID: entity_id,
-            },
-        )
-
-    domain = entity_id.split(".", 1)[0]
-    if domain in ["switch", "light", "media_player"]:
-        await hass.components.mqtt.async_subscribe(state_topic, message_received)
-
-
-async def async_listen_hasp_events(hass, obj, plate, conf):
-    """Listen to messages on MQTT for HASP events."""
-    state_topic = f"{hass.data[DOMAIN][plate][DATA_PLATE_TOPIC]}/state/{obj}"
-    hass.data[DOMAIN][DATA_SERVICE_MAP][state_topic] = conf
-
-    @callback
-    async def message_received(msg):
-        """Process MQTT message from plate."""
-        conf = hass.data[DOMAIN][DATA_SERVICE_MAP][msg.topic]
-        try:
-            m = HASP_EVENT_SCHEMA(json.loads(msg.payload))
-
-            for event in conf:
-                if event in m[HASP_EVENT]:
-                    _LOGGER.debug(
-                        "Service call for %s triggered by %s on %s",
-                        event,
-                        msg.payload,
-                        msg.topic,
-                    )
-                    await async_call_from_config(
-                        hass, conf[event], validate_config=True
-                    )
-        except vol.error.Invalid as err:
-            _LOGGER.warning("Could not handle event %s on %s", msg.payload, msg.topic)
-
-    _LOGGER.debug("Subscribe for %s events on %s", obj, state_topic)
-    await hass.components.mqtt.async_subscribe(state_topic, message_received)
-
-
 async def async_setup(hass, config):
     """Set up the MQTT async example component."""
     component = EntityComponent(_LOGGER, DOMAIN, hass)
 
-    hass.data[DOMAIN] = {
-        DATA_SERVICE_MAP: {},
-        DATA_ENTITY_MAP: {},
-    }
-
     for plate in config[DOMAIN]:
-        hass.data[DOMAIN][plate] = {
-            DATA_PLATE_TOPIC: config[DOMAIN][plate][CONF_TOPIC],
-        }
+        panel = Panel(hass, plate, config[DOMAIN][plate])
 
-        await component.async_add_entities([Panel(plate, config[DOMAIN][plate])])
-
-        # Setup remaining objects
-        for obj in config[DOMAIN][plate][CONF_OBJECTS]:
-            objid = obj[CONF_OBJID]
-
-            track_entity_id = obj.get(CONF_TRACK)
-            if track_entity_id:
-                await async_listen_state_changes(hass, track_entity_id, plate, objid)
-
-            event_services = obj.get(CONF_EVENT)
-            if event_services:
-                _LOGGER.debug("Setup event_services for %s", obj[CONF_OBJID])
-                await async_listen_hasp_events(hass, objid, plate, event_services)
+        await component.async_add_entities([panel])
 
     return True
 
@@ -230,7 +108,7 @@ async def async_setup(hass, config):
 class Panel(RestoreEntity):
     """Representation of an HASP-LVGL."""
 
-    def __init__(self, name, config):
+    def __init__(self, hass, name, config):
         """Initialize a panel."""
         self._name = name
         self._topic = config[CONF_TOPIC]
@@ -240,9 +118,25 @@ class Panel(RestoreEntity):
         self._prev_btn = config[CONF_PAGES][CONF_PAGES_PREV]
         self._next_btn = config[CONF_PAGES][CONF_PAGES_NEXT]
 
+        # Setup remaining objects
+        self._objects = []
+        for obj in config[CONF_OBJECTS]:
+            new_obj = HASPObject(hass, self, obj)
+
+            self.add_object(new_obj)
+
         self._page = 1
         self._dim = 0
         self._backlight = 1
+
+    @property
+    def topic(self):
+        """Panel base topic."""
+        return self._topic
+
+    def add_object(self, obj):
+        """Track objects in panel."""
+        self._objects.append(obj)
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
@@ -256,6 +150,9 @@ class Panel(RestoreEntity):
 
         await self.async_listen_idleness()
         await self.async_setup_pages()
+
+        for obj in self._objects:
+            await obj.async_added_to_hass()
 
     @property
     def name(self):
@@ -284,27 +181,42 @@ class Panel(RestoreEntity):
         backlight_topic = f"{self._topic}/command/light"
 
         # Sync state on boot
-        self.hass.components.mqtt.async_publish(dim_topic, self._dim, qos=0, retain=False)
-        self.hass.components.mqtt.async_publish(backlight_topic, self._backlight, qos=0, retain=False)
+        self.hass.components.mqtt.async_publish(
+            dim_topic, self._dim, qos=0, retain=False
+        )
+        self.hass.components.mqtt.async_publish(
+            backlight_topic, self._backlight, qos=0, retain=False
+        )
 
         @callback
         async def idle_message_received(msg):
             """Process MQTT message from plate."""
-            m = HASP_IDLE_SCHEMA(msg.payload)
+            message = HASP_IDLE_SCHEMA(msg.payload)
 
-            if m == HASP_IDLE_OFF:
+            if message == HASP_IDLE_OFF:
                 self._dim = self._awake_brightness
                 self._backlight = 1
-            elif m == HASP_IDLE_SHORT:
+            elif message == HASP_IDLE_SHORT:
                 self._dim = self._idle_brightness
                 self._backlight = 1
-            elif m == HASP_IDLE_LONG:
+            elif message == HASP_IDLE_LONG:
                 self._dim = self._awake_brightness
                 self._backlight = 0
 
-            _LOGGER.debug("Idle state is %s - Dimming %s to %s; Backlight %s to %s", msg.payload, dim_topic, self._dim, backlight_topic, self._backlight)
-            self.hass.components.mqtt.async_publish(backlight_topic, self._backlight, qos=0, retain=False)
-            self.hass.components.mqtt.async_publish(dim_topic, self._dim, qos=0, retain=False)
+            _LOGGER.debug(
+                "Idle state is %s - Dimming %s to %s; Backlight %s to %s",
+                msg.payload,
+                dim_topic,
+                self._dim,
+                backlight_topic,
+                self._backlight,
+            )
+            self.hass.components.mqtt.async_publish(
+                backlight_topic, self._backlight, qos=0, retain=False
+            )
+            self.hass.components.mqtt.async_publish(
+                dim_topic, self._dim, qos=0, retain=False
+            )
             self.async_write_ha_state()
 
         await self.hass.components.mqtt.async_subscribe(
@@ -343,4 +255,101 @@ class Panel(RestoreEntity):
 
             state_topic = f"{self._topic}/state/{obj}"
             _LOGGER.debug("Track page button: %s -> %s", obj, state_topic)
-            await self.hass.components.mqtt.async_subscribe(state_topic, page_message_received)
+            await self.hass.components.mqtt.async_subscribe(
+                state_topic, page_message_received
+            )
+
+
+class HASPObject:
+    """Representation of an HASP-LVGL."""
+
+    def __init__(self, hass, plate_obj, config):
+        """Initialize a object."""
+
+        self.hass = hass
+        self.obj_id = config[CONF_OBJID]
+        self.command_topic = f"{plate_obj.topic}/command/{self.obj_id}."
+        self.state_topic = f"{plate_obj.topic}/state/{self.obj_id}"
+        self.properties = {}
+
+        self.track_entity_id = config.get(CONF_TRACK)
+        self.event_services = config.get(CONF_EVENT)
+
+    @property
+    def id(self):
+        """Identification of the object pXbN."""
+        return self.obj_id
+
+    async def async_added_to_hass(self):
+        """Run when entity about to be added."""
+
+        if self.track_entity_id:
+            await self.async_listen_state_changes("val", self.track_entity_id)
+
+        if self.event_services:
+            _LOGGER.debug("Setup event_services for %s", self.obj_id)
+            await self.async_listen_hasp_events()
+
+    def update_object_state(self, value, _property):
+        """Update back the Object in the panel."""
+
+        # cast state values off/on to 0/1
+        if value in TOGGLE:
+            value = TOGGLE.index(value)
+        # cast alarm_panel values to 0/1
+        if value in ALARM:
+            value = int(ALARM.index(value) > 0)
+
+        self.hass.components.mqtt.async_publish(self.command_topic + _property, value)
+
+    async def async_listen_state_changes(self, _property, entity_id):
+        """Listen to state changes."""
+
+        self.properties[entity_id] = _property
+
+        _LOGGER.debug("Track Entity: %s -> %s", entity_id, self.command_topic)
+
+        @callback
+        def _update_hasp_obj(event):
+            entity_id = event.data.get("entity_id")
+            value = event.data.get("new_state").state
+
+            _property = self.properties[entity_id]
+            self.update_object_state(value, _property)
+
+        async_track_state_change_event(self.hass, entity_id, _update_hasp_obj)
+        current_state = self.hass.states.get(entity_id)
+        if current_state:
+            value = current_state.state
+
+            self.update_object_state(value, _property)
+
+    async def async_listen_hasp_events(self):
+        """Listen to messages on MQTT for HASP events."""
+
+        @callback
+        async def message_received(msg):
+            """Process object state MQTT message."""
+            try:
+                message = HASP_EVENT_SCHEMA(json.loads(msg.payload))
+
+                for event in self.event_services:
+                    if event in message[HASP_EVENT]:
+                        _LOGGER.debug(
+                            "Service call for %s triggered by %s on %s",
+                            event,
+                            msg.payload,
+                            msg.topic,
+                        )
+                        await async_call_from_config(
+                            self.hass, self.event_services[event], validate_config=True
+                        )
+            except vol.error.Invalid:
+                _LOGGER.warning(
+                    "Could not handle event %s on %s", msg.payload, msg.topic
+                )
+
+        _LOGGER.debug("Subscribe for %s events on %s", self.obj_id, self.state_topic)
+        await self.hass.components.mqtt.async_subscribe(
+            self.state_topic, message_received
+        )
