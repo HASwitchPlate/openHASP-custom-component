@@ -3,7 +3,7 @@ import json
 import logging
 
 from homeassistant.components import mqtt
-from homeassistant.core import callback
+from homeassistant.core import callback, split_entity_id
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.event import async_track_state_change_event
@@ -12,6 +12,7 @@ from homeassistant.helpers.service import async_call_from_config
 import voluptuous as vol
 
 from .const import (
+    ALARM,
     ATTR_CURRENT_DIM,
     CONF_AWAKE_BRIGHTNESS,
     CONF_EVENT,
@@ -37,7 +38,6 @@ from .const import (
     HASP_IDLE_STATES,
     HASP_VAL,
     TOGGLE,
-    ALARM,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -284,30 +284,35 @@ class HASPObject:
         """Run when entity about to be added."""
 
         if self.track_entity_id:
-            await self.async_listen_state_changes("val", self.track_entity_id)
+            await self.async_listen_state_changes("val")  # TODO support more then "val"
 
         if self.event_services:
             _LOGGER.debug("Setup event_services for %s", self.obj_id)
             await self.async_listen_hasp_events()
 
-    def update_object_state(self, value, _property):
+    def update_object_state(self, _property, entity_id, value):
         """Update back the Object in the panel."""
 
+        domain = split_entity_id(entity_id)[0]
         # cast state values off/on to 0/1
-        if value in TOGGLE:
+        if domain in ["switch", "light", "input_boolean"] and value in TOGGLE:
             value = TOGGLE.index(value)
         # cast alarm_panel values to 0/1
-        if value in ALARM:
+        if domain == "alarm_panel" and value in ALARM:
             value = int(ALARM.index(value) > 0)
 
         self.hass.components.mqtt.async_publish(self.command_topic + _property, value)
 
-    async def async_listen_state_changes(self, _property, entity_id):
+    async def async_listen_state_changes(self, _property):
         """Listen to state changes."""
 
-        self.properties[entity_id] = _property
+        self.properties[self.track_entity_id] = _property
 
-        _LOGGER.debug("Track Entity: %s -> %s", entity_id, self.command_topic)
+        _LOGGER.debug(
+            "Track Entity: %s -> %s",
+            self.track_entity_id,
+            self.command_topic + _property,
+        )
 
         @callback
         def _update_hasp_obj(event):
@@ -315,14 +320,16 @@ class HASPObject:
             value = event.data.get("new_state").state
 
             _property = self.properties[entity_id]
-            self.update_object_state(value, _property)
+            self.update_object_state(_property, entity_id, value)
 
-        async_track_state_change_event(self.hass, entity_id, _update_hasp_obj)
-        current_state = self.hass.states.get(entity_id)
+        async_track_state_change_event(
+            self.hass, self.track_entity_id, _update_hasp_obj
+        )
+        current_state = self.hass.states.get(self.track_entity_id)
         if current_state:
             value = current_state.state
 
-            self.update_object_state(value, _property)
+            self.update_object_state(_property, self.track_entity_id, value)
 
     async def async_listen_hasp_events(self):
         """Listen to messages on MQTT for HASP events."""
