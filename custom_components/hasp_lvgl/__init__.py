@@ -315,7 +315,7 @@ class HASPObject:
                 result,
             )
 
-            self.hass.components.mqtt.async_publish(self.command_topic + "val", result)
+            self.hass.components.mqtt.async_publish(self.command_topic + _property, result)
 
         property_template = async_track_template_result(
             self.hass,
