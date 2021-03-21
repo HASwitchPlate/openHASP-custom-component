@@ -32,9 +32,11 @@ hasp_lvgl:
       next_obj: "p0b3"
     objects:
       - obj: "p1b2"
-        track: "sensor.power"
+        properties:
+          "val": "{{ states('sensor.power') }}"
       - obj: "p1b8"
-        track: "input_boolean.teste1"
+        properties:
+          "val": "{{ 1 if states('input_boolean.teste1') == 'on' else 0 }}"
         event:
           "on":
             service: homeassistant.turn_on

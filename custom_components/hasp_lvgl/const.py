@@ -1,21 +1,8 @@
 """Constants for HASP Open Hardware edition custom component."""
 
-TOGGLE = ["off", "on"]
-TOGGLE_DOMAINS = ["switch", "light", "input_boolean"]
-ALARM = [
-    "disarmed",
-    "armed_home",
-    "armed_away",
-    "armed_night",
-    "armed_custom_bypass",
-    "pending",
-    "arming",
-    "disarming",
-    "triggered",
-]
-
 DOMAIN = "hasp_lvgl"
 CONF_OBJID = "obj"
+CONF_PROPERTIES = "properties"
 CONF_EVENT = "event"
 CONF_TRACK = "track"
 CONF_TOPIC = "topic"
@@ -24,6 +11,7 @@ CONF_PAGES_PREV = "prev_obj"
 CONF_PAGES_HOME = "home_obj"
 CONF_PAGES_NEXT = "next_obj"
 CONF_OBJECTS = "objects"
+CONF_VAL = "val"
 CONF_IDLE_BRIGHTNESS = "idle_brightness"
 CONF_AWAKE_BRIGHTNESS = "awake_brightness"
 

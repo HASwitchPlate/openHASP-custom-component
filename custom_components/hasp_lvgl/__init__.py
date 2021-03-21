@@ -3,16 +3,19 @@ import json
 import logging
 
 from homeassistant.components import mqtt
-from homeassistant.core import callback, split_entity_id
+from homeassistant.core import callback
 import homeassistant.helpers.config_validation as cv
+from homeassistant.exceptions import TemplateError
 from homeassistant.helpers.entity_component import EntityComponent
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import (
+    TrackTemplate,
+    async_track_template_result,
+)
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.service import async_call_from_config
 import voluptuous as vol
 
 from .const import (
-    ALARM,
     ATTR_CURRENT_DIM,
     CONF_AWAKE_BRIGHTNESS,
     CONF_EVENT,
@@ -23,6 +26,7 @@ from .const import (
     CONF_PAGES_HOME,
     CONF_PAGES_NEXT,
     CONF_PAGES_PREV,
+    CONF_PROPERTIES,
     CONF_TOPIC,
     CONF_TRACK,
     DEFAULT_AWAKE_BRIGHNESS,
@@ -37,8 +41,6 @@ from .const import (
     HASP_IDLE_SHORT,
     HASP_IDLE_STATES,
     HASP_VAL,
-    TOGGLE,
-    TOGGLE_DOMAINS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -47,10 +49,13 @@ _LOGGER = logging.getLogger(__name__)
 # Configuration YAML schemas
 EVENT_SCHEMA = cv.schema_with_slug_keys(cv.SERVICE_SCHEMA)
 
+PROPERTY_SCHEMA = cv.schema_with_slug_keys(cv.template)
+
 OBJECT_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_OBJID): cv.string,
         vol.Optional(CONF_TRACK, default=None): vol.Any(cv.entity_id, None),
+        vol.Optional(CONF_PROPERTIES, default={}): PROPERTY_SCHEMA,
         vol.Optional(CONF_EVENT, default={}): EVENT_SCHEMA,
     }
 )
@@ -268,59 +273,56 @@ class HASPObject:
         self.state_topic = f"{plate_topic}/state/{self.obj_id}"
         self.properties = {}
 
-        self.track_entity_id = config.get(CONF_TRACK)
+        self.properties = config.get(CONF_PROPERTIES)
         self.event_services = config.get(CONF_EVENT)
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
 
-        if self.track_entity_id:
-            await self.async_listen_state_changes("val")  # TODO support more then "val"
-
         if self.event_services:
             _LOGGER.debug("Setup event_services for %s", self.obj_id)
             await self.async_listen_hasp_events()
 
-    def update_object_state(self, _property, entity_id, value):
-        """Update back the Object in the plate."""
+        for _property, template in self.properties.items():
+            await self.async_set_property(_property, template)
 
-        domain = split_entity_id(entity_id)[0]
-        # cast state values off/on to 0/1
-        if domain in TOGGLE_DOMAINS and value in TOGGLE:
-            value = TOGGLE.index(value)
-        # cast alarm_panel values to 0/1
-        if domain == "alarm_panel" and value in ALARM:
-            value = int(ALARM.index(value) > 0)
-
-        self.hass.components.mqtt.async_publish(self.command_topic + _property, value)
-
-    async def async_listen_state_changes(self, _property):
-        """Listen to state changes."""
-
-        self.properties[self.track_entity_id] = _property
-
-        _LOGGER.debug(
-            "Track Entity: %s -> %s",
-            self.track_entity_id,
-            self.command_topic + _property,
-        )
+    async def async_set_property(self, _property, template):
+        """Set HASP Object property to template value."""
 
         @callback
-        def _update_hasp_obj(event):
-            entity_id = event.data.get("entity_id")
-            value = event.data.get("new_state").state
+        def _async_template_result_changed(event, updates):
+            track_template_result = updates.pop()
+            template = track_template_result.template
+            result = track_template_result.result
 
-            _property = self.properties[entity_id]
-            self.update_object_state(_property, entity_id, value)
+            if isinstance(result, TemplateError):
+                entity = event and event.data.get("entity_id")
+                _LOGGER.error(
+                    "TemplateError('%s') "
+                    "while processing template '%s' "
+                    "in entity '%s'",
+                    result,
+                    template,
+                    entity,
+                )
+                return
 
-        async_track_state_change_event(
-            self.hass, self.track_entity_id, _update_hasp_obj
+            _LOGGER.debug(
+                "%s.%s - %s changed, updating with: %s",
+                self.obj_id,
+                _property,
+                template,
+                result,
+            )
+
+            self.hass.components.mqtt.async_publish(self.command_topic + "val", result)
+
+        property_template = async_track_template_result(
+            self.hass,
+            [TrackTemplate(template, None)],
+            _async_template_result_changed,
         )
-        current_state = self.hass.states.get(self.track_entity_id)
-        if current_state:
-            value = current_state.state
-
-            self.update_object_state(_property, self.track_entity_id, value)
+        property_template.async_refresh()
 
     async def async_listen_hasp_events(self):
         """Listen to messages on MQTT for HASP events."""
