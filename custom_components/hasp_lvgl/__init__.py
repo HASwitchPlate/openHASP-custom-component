@@ -41,6 +41,8 @@ from .const import (
     HASP_IDLE_SHORT,
     HASP_IDLE_STATES,
     HASP_VAL,
+    HASP_LWT,
+    HASP_ONLINE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -98,6 +100,8 @@ HASP_EVENT_SCHEMA = vol.Schema(
 
 HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 
+HASP_LWT_SCHEMA = vol.Schema(vol.Any(*HASP_LWT))
+
 
 async def async_setup(hass, config):
     """Set up the MQTT async example component."""
@@ -139,6 +143,11 @@ class SwitchPlate(RestoreEntity):
         """Track objects in plate."""
         self._objects.append(obj)
 
+    async def refresh(self):
+        """Refresh objects in the SwitchPlate."""
+        for obj in self._objects:
+            await obj.refresh()
+
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
@@ -154,6 +163,19 @@ class SwitchPlate(RestoreEntity):
 
         for obj in self._objects:
             await obj.async_added_to_hass()
+
+        @callback
+        async def lwt_message_received(msg):
+            """Process LWT."""
+
+            message = HASP_LWT_SCHEMA(msg.payload)
+
+            if message == HASP_ONLINE:
+                await self.refresh()
+
+        await self.hass.components.mqtt.async_subscribe(
+            self._topic + "/LWT", lwt_message_received
+        )
 
     @property
     def name(self):
@@ -271,7 +293,7 @@ class HASPObject:
         self.obj_id = config[CONF_OBJID]
         self.command_topic = f"{plate_topic}/command/{self.obj_id}."
         self.state_topic = f"{plate_topic}/state/{self.obj_id}"
-        self.properties = {}
+        self.properties_templates = {}
 
         self.properties = config.get(CONF_PROPERTIES)
         self.event_services = config.get(CONF_EVENT)
@@ -315,7 +337,9 @@ class HASPObject:
                 result,
             )
 
-            self.hass.components.mqtt.async_publish(self.command_topic + _property, result)
+            self.hass.components.mqtt.async_publish(
+                self.command_topic + _property, result
+            )
 
         property_template = async_track_template_result(
             self.hass,
@@ -323,6 +347,17 @@ class HASPObject:
             _async_template_result_changed,
         )
         property_template.async_refresh()
+        self.properties_templates[_property] = property_template
+
+    async def refresh(self):
+        """Force template eval."""
+        for _property, property_template in self.properties_templates.items():
+            # Shouldn't need to access a private property (_last_result)
+            for _, result in property_template._last_result.items():
+                _LOGGER.debug("Refresh %s.%s = %s", self.obj_id, _property, result)
+                self.hass.components.mqtt.async_publish(
+                    self.command_topic + _property, result
+                )
 
     async def async_listen_hasp_events(self):
         """Listen to messages on MQTT for HASP events."""
