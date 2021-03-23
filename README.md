@@ -57,8 +57,8 @@ hasp_lvgl:
 In the event service call any variable coming from the MQTT message can be used between curly brackets. 
 
 ### Example 1: cover control with state feedback
-![kép](https://user-images.githubusercontent.com/1550668/112142921-77daf580-8bd7-11eb-9626-ebfb3423629d.png)
-<br>UI theme set to `Hasp Light` in plate's web interface.
+![picture](https://user-images.githubusercontent.com/1550668/112142921-77daf580-8bd7-11eb-9626-ebfb3423629d.png)
+<br>UI theme set to `Hasp Light` in plate's web interface. Two cover entities, each controlled by an up, stop and down button. The icon on the up and down buttons change color when covers move and set opacity when reached to limit. The stop button also shows the current percentage of the position.
 
 **hasp-lvgl config:** (screen size 240x320) 
 ```text
@@ -110,7 +110,7 @@ In the event service call any variable coming from the MQTT message can be used 
               entity_id: "cover.cover_2"
       - obj: "p1b8"
         properties:
-          "text": "{{ state_attr('cover.haloszoba_kozep','current_position') }}" 
+          "text": "{{ state_attr('cover.cover_2','current_position') }}" 
         event:
           "down":
             service: cover.stop_cover
@@ -128,8 +128,8 @@ In the event service call any variable coming from the MQTT message can be used 
 ```
 
 ### Example 2: generic thermostat control
-![kép](https://user-images.githubusercontent.com/1550668/112160012-09536300-8bea-11eb-867d-53c64894c324.png)
-<br>UI theme set to `Hasp Light` in plate's web interface.
+![picture](https://user-images.githubusercontent.com/1550668/112160012-09536300-8bea-11eb-867d-53c64894c324.png)
+<br>Arc can be dragged by the handle, precise set possible from the buttons. Note that the `min`, `max` and `val` values of the arc are multiplied and divided by 10 when set and read, because [LVGL only suppports integers](https://github.com/fvanroie/hasp-lvgl/issues/81) for object values. By multiplying and dividing by 10, it becomes possible to set decimal values for climate temperature.
 
 **hasp-lvgl config:** (screen size 240x320) 
 ```text
