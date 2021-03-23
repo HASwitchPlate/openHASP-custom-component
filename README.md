@@ -60,7 +60,7 @@ In the event service call any variable coming from the MQTT message can be used 
 ![kép](https://user-images.githubusercontent.com/1550668/112142921-77daf580-8bd7-11eb-9626-ebfb3423629d.png)
 <br>UI theme set to `Hasp Light` in plate's web interface.
 
-**hasp-lvgl config:**
+**hasp-lvgl config:** (screen size 240x320) 
 ```text
 {"page":1,"comment":"---------- Page 1 ----------"}
 {"obj":"btn","id":4,"x":5,"y":140,"w":73,"h":60,"toggle":false,"text":"\uF077","text_font":28}
