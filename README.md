@@ -54,7 +54,78 @@ hasp_lvgl:
               message: Hello {{ text }}
 ```
 
-in the event service call you can use any variable coming from the MQTT message besides the actual event
+In the event service call any variable coming from the MQTT message can be used between curly brackets. 
+
+### Example 1: cover control with state feedback
+![kép](https://user-images.githubusercontent.com/1550668/112142921-77daf580-8bd7-11eb-9626-ebfb3423629d.png)
+<br>UI theme set to `Hasp Light` in plate's web interface.
+
+**hasp-lvgl config:**
+```text
+{"page":1,"comment":"---------- Page 1 ----------"}
+{"obj":"btn","id":4,"x":5,"y":140,"w":73,"h":60,"toggle":false,"text":"\uF077","text_font":28}
+{"obj":"btn","id":5,"x":83,"y":140,"w":73,"h":60,"toggle":false,"value_str":"\uF04D","text_font":12,"text_color":"Teal","value_font":28,"value_color":"#FFFFFF"}
+{"obj":"btn","id":6,"x":161,"y":140,"w":73,"h":60,"toggle":false,"text":"\uF078","text_font":28}
+{"obj":"btn","id":7,"x":5,"y":210,"w":73,"h":60,"toggle":false,"text":"\uF077","text_font":28}
+{"obj":"btn","id":8,"x":83,"y":210,"w":73,"h":60,"toggle":false,"value_str":"\uF04D","text_font":12,"text_color":"teal","value_font":28,"value_color":"#FFFFFF"}
+{"obj":"btn","id":9,"x":161,"y":210,"w":73,"h":60,"toggle":false,"text":"\uF078","text_font":28}
+```
+**hasp-lvgl-custom-component config:**
+```yaml
+      - obj: "p1b4"
+        properties:
+          "text_color": "{{ '#FFFF00' if states('cover.cover_1') == 'opening' else '#FFFFFF' }}"
+          "text_opa": "{{ '80' if state_attr('cover.cover_1','current_position') == 100 else '255' }}"
+        event:
+          "down":
+            service: cover.open_cover
+            target:
+              entity_id: "cover.cover_1"
+      - obj: "p1b5"
+        properties:
+          "text": "{{ state_attr('cover.cover_1','current_position') }}" 
+        event:
+          "down":
+            service: cover.stop_cover
+            target:
+              entity_id: "cover.cover_1"
+      - obj: "p1b6"
+        properties:
+          "text_color": "{{ '#FFFF00' if states('cover.cover_1') == 'closing' else '#FFFFFF' }}"
+          "text_opa": "{{ '80' if state_attr('cover.cover_1','current_position') == 0 else '255' }}"
+        event:
+          "down":
+            service: cover.close_cover
+            target:
+              entity_id: "cover.cover_1"
+
+      - obj: "p1b7"
+        properties:
+          "text_color": "{{ '#FFFF00' if states('cover.cover_2') == 'opening' else '#FFFFFF' }}"
+          "text_opa": "{{ '80' if state_attr('cover.cover_2','current_position') == 100 else '255' }}"
+        event:
+          "down":
+            service: cover.open_cover
+            target:
+              entity_id: "cover.cover_2"
+      - obj: "p1b8"
+        properties:
+          "text": "{{ state_attr('cover.haloszoba_kozep','current_position') }}" 
+        event:
+          "down":
+            service: cover.stop_cover
+            target:
+              entity_id: "cover.cover_2"
+      - obj: "p1b9"
+        properties:
+          "text_color": "{{ '#FFFF00' if states('cover.cover_2') == 'closing' else '#FFFFFF' }}"
+          "text_opa": "{{ '80' if state_attr('cover.cover_2','current_position') == 0 else '255' }}"
+        event:
+          "down":
+            service: cover.close_cover
+            target:
+              entity_id: "cover.cover_2"
+```
 
 ## Contributions are welcome!
 
