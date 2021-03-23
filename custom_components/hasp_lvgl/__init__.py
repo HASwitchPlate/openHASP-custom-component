@@ -297,6 +297,8 @@ class HASPObject:
 
         self.properties = config.get(CONF_PROPERTIES)
         self.event_services = config.get(CONF_EVENT)
+        
+        self._setbyme = False
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
@@ -313,6 +315,15 @@ class HASPObject:
 
         @callback
         def _async_template_result_changed(event, updates):
+            if (self._setbyme and _property == 'val'):
+                _LOGGER.debug(
+                    "%s.%s changed, but skipping update because was previously _setbyme",
+                    self.obj_id,
+                    _property,
+                )
+                self._setbyme = False
+                return
+
             track_template_result = updates.pop()
             template = track_template_result.template
             result = track_template_result.result
@@ -376,6 +387,9 @@ class HASPObject:
                             msg.payload,
                             msg.topic,
                         )
+                        
+                        self._setbyme = True
+                        
                         await async_call_from_config(
                             self.hass,
                             self.event_services[event],
