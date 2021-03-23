@@ -127,6 +127,61 @@ In the event service call any variable coming from the MQTT message can be used 
               entity_id: "cover.cover_2"
 ```
 
+### Example 2: generic thermostat control
+![kép](https://user-images.githubusercontent.com/1550668/112160012-09536300-8bea-11eb-867d-53c64894c324.png)
+<br>UI theme set to `Hasp Light` in plate's web interface.
+
+**hasp-lvgl config:** (screen size 240x320) 
+```text
+{"page":2,"comment":"---------- Page 2 ----------"}
+{"obj":"arc","id":3,"x":20,"y":75,"w":200,"h":200,"min":180,"max":250,"border_side":0,"type":0,"rotation":0,"start_angle":135,"end_angle":45,"start_angle1":135,"end_angle1":45,"value_font":28,"value_color":"#2C3E50","adjustable":"true"}
+{"obj":"dropdown","id":4,"x":75,"y":235,"w":90,"h":30,"options":"off\nheat_cool\nheat\ncool\ndry\nfan_only"}
+{"obj":"btn","id":5,"x":68,"y":162,"w":25,"h":25,"toggle":false,"text":"-","text_font":28,"align":1}
+{"obj":"btn","id":6,"x":147,"y":162,"w":25,"h":25,"toggle":false,"text":"+","text_font":28,"align":1}
+{"obj":"label","id":7,"x":60,"y":120,"w":120,"h":30,"text":"Status","align":1,"padh":50}
+```
+**hasp-lvgl-custom-component config:**
+```yaml
+      - obj: "p2b3"
+        properties:
+          "val": "{{ state_attr('climate.thermostat_1','temperature') * 10 | int }}"
+          "value_str": "{{ state_attr('climate.thermostat_1','temperature') }}"
+          "min": "{{ state_attr('climate.thermostat_1','min_temp') * 10 | int }}"
+          "max": "{{ state_attr('climate.thermostat_1','max_temp') * 10 | int }}"
+        event:
+          "changed":
+            service: climate.set_temperature
+            data:
+              entity_id: climate.thermostat_1
+              temperature: "{{ val | int / 10 }}"
+      - obj: "p2b4"
+        event:
+          "changed":
+            service: climate.set_hvac_mode
+            data:
+              entity_id: climate.thermostat_1
+              hvac_mode: "{{ text }}"
+      - obj: "p2b5"
+        event:
+          "down":
+            service: climate.set_temperature
+            data:
+              entity_id: climate.thermostat_1
+              temperature: "{{ state_attr('climate.thermostat_1','temperature') - state_attr('climate.thermostat_1','target_temp_step') | float}}" 
+      - obj: "p2b6"
+        event:
+          "down":
+            service: climate.set_temperature
+            data:
+              entity_id: climate.thermostat_1
+              temperature: "{{ state_attr('climate.thermostat_1','temperature') + state_attr('climate.thermostat_1','target_temp_step') | float}}" 
+      - obj: "p2b7"
+        properties:
+          "text": "{{ state_attr('climate.thermostat_1','hvac_action') }}"
+```
+
+
+
 ## Contributions are welcome!
 
 If you want to contribute to this please read the [Contribution guidelines](CONTRIBUTING.md)
