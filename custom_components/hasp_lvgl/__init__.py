@@ -223,7 +223,7 @@ class SwitchPlate(RestoreEntity):
                 self._dim = self._idle_brightness
                 self._backlight = 1
             elif message == HASP_IDLE_LONG:
-                self._dim = self._awake_brightness
+                self._dim = self._idle_brightness
                 self._backlight = 0
 
             _LOGGER.debug(
