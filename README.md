@@ -135,7 +135,7 @@ In the event service call any variable coming from the MQTT message can be used 
 ```text
 {"page":2,"comment":"---------- Page 2 ----------"}
 {"obj":"arc","id":3,"x":20,"y":75,"w":200,"h":200,"min":180,"max":250,"border_side":0,"type":0,"rotation":0,"start_angle":135,"end_angle":45,"start_angle1":135,"end_angle1":45,"value_font":28,"value_color":"#2C3E50","adjustable":"true"}
-{"obj":"dropdown","id":4,"x":75,"y":235,"w":90,"h":30,"options":"off\nheat_cool\nheat\ncool\ndry\nfan_only"}
+{"obj":"dropdown","id":4,"x":75,"y":235,"w":90,"h":30,"options":""}
 {"obj":"btn","id":5,"x":68,"y":162,"w":25,"h":25,"toggle":false,"text":"-","text_font":28,"align":1}
 {"obj":"btn","id":6,"x":147,"y":162,"w":25,"h":25,"toggle":false,"text":"+","text_font":28,"align":1}
 {"obj":"label","id":7,"x":60,"y":120,"w":120,"h":30,"text":"Status","align":1,"padh":50}
@@ -155,6 +155,12 @@ In the event service call any variable coming from the MQTT message can be used 
               entity_id: climate.thermostat_1
               temperature: "{{ val | int / 10 }}"
       - obj: "p2b4"
+        properties:
+          "options": >
+            {% for mode in state_attr('climate.thermostat_1','hvac_modes') %}
+            {{ mode }}{{ "\n"|e }}{%- if not loop.last %}
+            {%- endif %}
+            {%- endfor %}
         event:
           "changed":
             service: climate.set_hvac_mode
