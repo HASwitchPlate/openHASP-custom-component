@@ -157,10 +157,7 @@ In the event service call any variable coming from the MQTT message can be used 
       - obj: "p2b4"
         properties:
           "options": >
-            {% for mode in state_attr('climate.thermostat_1','hvac_modes') %}
-            {{ mode }}{{ "\n"|e }}{%- if not loop.last %}
-            {%- endif %}
-            {%- endfor %}
+            {%for mode in state_attr('climate.thermostat_1','hvac_modes')%}{{mode+"\n"|e}}{%-if not loop.last%}{%-endif%}{%-endfor%}
         event:
           "changed":
             service: climate.set_hvac_mode
