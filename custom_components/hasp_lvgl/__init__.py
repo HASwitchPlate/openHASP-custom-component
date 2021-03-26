@@ -1,6 +1,7 @@
 """HASP components module."""
 import json
 import logging
+import os
 
 from homeassistant.components import mqtt
 from homeassistant.core import callback
@@ -43,6 +44,9 @@ from .const import (
     HASP_VAL,
     HASP_LWT,
     HASP_ONLINE,
+    SERVICE_LOAD_PAGE,
+    DEFAULT_PATH,
+    ATTR_PATH,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -112,6 +116,8 @@ async def async_setup(hass, config):
 
         await component.async_add_entities([plate])
 
+        component.async_register_entity_service(SERVICE_LOAD_PAGE, {vol.Required(ATTR_PATH): cv.isfile}, "async_load_page")
+
     return True
 
 
@@ -168,10 +174,13 @@ class SwitchPlate(RestoreEntity):
         async def lwt_message_received(msg):
             """Process LWT."""
 
-            message = HASP_LWT_SCHEMA(msg.payload)
+            try:
+                message = HASP_LWT_SCHEMA(msg.payload)
 
-            if message == HASP_ONLINE:
-                await self.refresh()
+                if message == HASP_ONLINE:
+                    await self.refresh()
+            except vol.error.Invalid as err:
+                _LOGGER.error(err)
 
         await self.hass.components.mqtt.async_subscribe(
             self._topic + "/LWT", lwt_message_received
@@ -255,23 +264,27 @@ class SwitchPlate(RestoreEntity):
             _LOGGER.debug("page button received: %s ", msg.topic)
 
             # Parse received JSON
-            cmd = HASP_EVENT_SCHEMA(json.loads(msg.payload))
-            if cmd[HASP_EVENT] != HASP_EVENT_DOWN:
-                return
+            try:
+                cmd = HASP_EVENT_SCHEMA(json.loads(msg.payload))
 
-            if msg.topic.endswith(self._prev_btn):
-                self._page -= 1
-            if msg.topic.endswith(self._home_btn):
-                self._page = HASP_HOME_PAGE
-            if msg.topic.endswith(self._next_btn):
-                self._page += 1
+                if cmd[HASP_EVENT] != HASP_EVENT_DOWN:
+                    return
 
-            _LOGGER.debug("Change page %s to %s", cmd_topic, self._page)
-            self.hass.components.mqtt.async_publish(
-                cmd_topic, self._page, qos=0, retain=False
-            )
-            self.async_write_ha_state()
+                if msg.topic.endswith(self._prev_btn):
+                    self._page -= 1
+                if msg.topic.endswith(self._home_btn):
+                    self._page = HASP_HOME_PAGE
+                if msg.topic.endswith(self._next_btn):
+                    self._page += 1
 
+                _LOGGER.debug("Change page %s to %s", cmd_topic, self._page)
+                self.hass.components.mqtt.async_publish(
+                    cmd_topic, self._page, qos=0, retain=False
+                )
+                self.async_write_ha_state()
+            except vol.error.Invalid as err:
+                _LOGGER.error(err)
+                
         for obj in [self._prev_btn, self._home_btn, self._next_btn]:
             if obj is None:
                 continue
@@ -281,6 +294,35 @@ class SwitchPlate(RestoreEntity):
             await self.hass.components.mqtt.async_subscribe(
                 state_topic, page_message_received
             )
+
+    async def async_load_page(self, path):
+        """Clear current pages and load new ones."""
+        cmd_topic = f"{self._topic}/command"
+
+        if not self.hass.config.is_allowed_path(path):
+            _LOGGER.error("'%s' is not an allowed directory", path)
+            return
+
+        try:
+            with open(path) as pages_jsonl:
+                #clear current pages
+                for page in range(1,12):
+                    self.hass.components.mqtt.async_publish(
+                        cmd_topic, f"clearpage {page}", qos=0, retain=False
+                    )
+                #load line by line
+                for line in pages_jsonl:
+                    if line:
+                        self.hass.components.mqtt.async_publish(
+                            cmd_topic+"/jsonl", line, qos=0, retain=False
+                        )
+                    
+        except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError):
+            _LOGGER.warning(
+                "File or data not present at the moment: %s",
+                os.path.basename(path),
+            )
+            return
 
 
 class HASPObject:

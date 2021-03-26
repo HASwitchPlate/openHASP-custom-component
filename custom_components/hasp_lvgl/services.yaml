@@ -1,0 +1,11 @@
+load_page:
+  name: Load pages.jsonl
+  description: Clears plate and loads new layout from pages.jsonl file (or optional path)
+  fields:
+    path:
+      name: Path
+      description: Path to the file containing the plate layout in JSONL format
+      required: true
+      example: "/config/pages.jsonl"
+      selector:
+        text:
