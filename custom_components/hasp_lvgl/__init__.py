@@ -47,6 +47,7 @@ from .const import (
     SERVICE_LOAD_PAGE,
     DEFAULT_PATH,
     ATTR_PATH,
+    CONF_PAGES_PATH,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -59,7 +60,7 @@ PROPERTY_SCHEMA = cv.schema_with_slug_keys(cv.template)
 
 OBJECT_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_OBJID): cv.string,
+        vol.Required(CONF_OBJID): cv.string,    #TODO validade string is an object p#b#
         vol.Optional(CONF_TRACK, default=None): vol.Any(cv.entity_id, None),
         vol.Optional(CONF_PROPERTIES, default={}): PROPERTY_SCHEMA,
         vol.Optional(CONF_EVENT, default={}): EVENT_SCHEMA,
@@ -68,7 +69,7 @@ OBJECT_SCHEMA = vol.Schema(
 
 PAGES_SCHEMA = vol.Schema(
     {
-        vol.Optional(CONF_PAGES_PREV): cv.string,
+        vol.Optional(CONF_PAGES_PREV): cv.string, #TODO validade string is an object p#b#
         vol.Optional(CONF_PAGES_HOME): cv.string,
         vol.Required(CONF_PAGES_NEXT): cv.string,
     }
@@ -85,6 +86,7 @@ PLATE_SCHEMA = vol.Schema(
         vol.Optional(CONF_IDLE_BRIGHTNESS, default=DEFAULT_IDLE_BRIGHNESS): vol.All(
             int, vol.Range(min=0, max=100)
         ),
+        vol.Optional(CONF_PAGES_PATH): cv.isfile,
     },
     extra=vol.ALLOW_EXTRA,
 )
@@ -133,6 +135,7 @@ class SwitchPlate(RestoreEntity):
         self._home_btn = config[CONF_PAGES][CONF_PAGES_HOME]
         self._prev_btn = config[CONF_PAGES][CONF_PAGES_PREV]
         self._next_btn = config[CONF_PAGES][CONF_PAGES_NEXT]
+        self._pages_jsonl = config.get(CONF_PAGES_PATH)
 
         # Setup remaining objects
         self._objects = []
@@ -157,6 +160,9 @@ class SwitchPlate(RestoreEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
+
+        if self._pages_jsonl:
+            await self.async_load_page(self._pages_jsonl)
 
         state = await self.async_get_last_state()
         if state:
@@ -284,7 +290,7 @@ class SwitchPlate(RestoreEntity):
                 self.async_write_ha_state()
             except vol.error.Invalid as err:
                 _LOGGER.error(err)
-                
+
         for obj in [self._prev_btn, self._home_btn, self._next_btn]:
             if obj is None:
                 continue

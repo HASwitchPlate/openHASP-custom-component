@@ -1,4 +1,4 @@
-"""Constants for HASP Open Hardware edition custom component."""
+"""Constants for HASP Open Hardware Edition custom component."""
 
 DOMAIN = "hasp_lvgl"
 CONF_OBJID = "obj"
@@ -7,6 +7,7 @@ CONF_EVENT = "event"
 CONF_TRACK = "track"
 CONF_TOPIC = "topic"
 CONF_PAGES = "pages"
+CONF_PAGES_PATH = "path"
 CONF_PAGES_PREV = "prev_obj"
 CONF_PAGES_HOME = "home_obj"
 CONF_PAGES_NEXT = "next_obj"
