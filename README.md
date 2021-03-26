@@ -149,7 +149,7 @@ In the event service call any variable coming from the MQTT message can be used 
           "min": "{{ state_attr('climate.thermostat_1','min_temp') * 10 | int }}"
           "max": "{{ state_attr('climate.thermostat_1','max_temp') * 10 | int }}"
         event:
-          "changed":
+          "up":
             service: climate.set_temperature
             data:
               entity_id: climate.thermostat_1
