@@ -1,6 +1,7 @@
-load_page:
+load_pages:
   name: Load pages.jsonl
   description: Clears plate and loads new layout from pages.jsonl file (or optional path)
+  target:
   fields:
     path:
       name: Path
@@ -9,3 +10,27 @@ load_page:
       example: "/config/pages.jsonl"
       selector:
         text:
+
+next_page:
+  name: Next Page
+  description: Changes plate to the next page
+  target:
+
+prev_page:
+  name: Previous Page
+  description: Changes plate to the previous page
+  target:
+
+change_page:
+  name: Change Page
+  description: Changes plate to the provided page
+  target:
+  fields:
+    page:
+      name: Page
+      description: Page number to change to
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 12

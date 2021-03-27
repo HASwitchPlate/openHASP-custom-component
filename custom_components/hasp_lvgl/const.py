@@ -48,8 +48,11 @@ HASP_ONLINE = "online"
 HASP_OFFLINE = "offline"
 HASP_LWT = HASP_ONLINE, HASP_OFFLINE
 
-ATTR_CURRENT_PAGE = "page"
+ATTR_PAGE = "page"
 ATTR_CURRENT_DIM = "dim"
 ATTR_PATH = "path"
 
-SERVICE_LOAD_PAGE = "load_page"
+SERVICE_LOAD_PAGE = "load_pages"
+SERVICE_PAGE_CHANGE = "change_page"
+SERVICE_PAGE_NEXT = "next_page"
+SERVICE_PAGE_PREV = "prev_page"

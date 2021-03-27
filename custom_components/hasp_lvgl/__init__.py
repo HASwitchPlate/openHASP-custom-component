@@ -5,19 +5,18 @@ import os
 
 from homeassistant.components import mqtt
 from homeassistant.core import callback
-import homeassistant.helpers.config_validation as cv
 from homeassistant.exceptions import TemplateError
+import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity_component import EntityComponent
-from homeassistant.helpers.event import (
-    TrackTemplate,
-    async_track_template_result,
-)
+from homeassistant.helpers.event import TrackTemplate, async_track_template_result
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.service import async_call_from_config
 import voluptuous as vol
 
 from .const import (
     ATTR_CURRENT_DIM,
+    ATTR_PAGE,
+    ATTR_PATH,
     CONF_AWAKE_BRIGHTNESS,
     CONF_EVENT,
     CONF_IDLE_BRIGHTNESS,
@@ -26,6 +25,7 @@ from .const import (
     CONF_PAGES,
     CONF_PAGES_HOME,
     CONF_PAGES_NEXT,
+    CONF_PAGES_PATH,
     CONF_PAGES_PREV,
     CONF_PROPERTIES,
     CONF_TOPIC,
@@ -41,13 +41,13 @@ from .const import (
     HASP_IDLE_OFF,
     HASP_IDLE_SHORT,
     HASP_IDLE_STATES,
-    HASP_VAL,
     HASP_LWT,
     HASP_ONLINE,
+    HASP_VAL,
     SERVICE_LOAD_PAGE,
-    DEFAULT_PATH,
-    ATTR_PATH,
-    CONF_PAGES_PATH,
+    SERVICE_PAGE_CHANGE,
+    SERVICE_PAGE_NEXT,
+    SERVICE_PAGE_PREV,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ PROPERTY_SCHEMA = cv.schema_with_slug_keys(cv.template)
 
 OBJECT_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_OBJID): cv.string,    #TODO validade string is an object p#b#
+        vol.Required(CONF_OBJID): cv.string,  # TODO validade string is an object p#b#
         vol.Optional(CONF_TRACK, default=None): vol.Any(cv.entity_id, None),
         vol.Optional(CONF_PROPERTIES, default={}): PROPERTY_SCHEMA,
         vol.Optional(CONF_EVENT, default={}): EVENT_SCHEMA,
@@ -69,7 +69,9 @@ OBJECT_SCHEMA = vol.Schema(
 
 PAGES_SCHEMA = vol.Schema(
     {
-        vol.Optional(CONF_PAGES_PREV): cv.string, #TODO validade string is an object p#b#
+        vol.Optional(
+            CONF_PAGES_PREV
+        ): cv.string,  # TODO validade string is an object p#b#
         vol.Optional(CONF_PAGES_HOME): cv.string,
         vol.Required(CONF_PAGES_NEXT): cv.string,
     }
@@ -118,7 +120,19 @@ async def async_setup(hass, config):
 
         await component.async_add_entities([plate])
 
-        component.async_register_entity_service(SERVICE_LOAD_PAGE, {vol.Required(ATTR_PATH): cv.isfile}, "async_load_page")
+        component.async_register_entity_service(
+            SERVICE_PAGE_NEXT, {}, "async_change_page_next"
+        )
+        component.async_register_entity_service(
+            SERVICE_PAGE_PREV, {}, "async_change_page_prev"
+        )
+        component.async_register_entity_service(
+            SERVICE_PAGE_CHANGE, {vol.Required(ATTR_PAGE): int}, "async_change_page"
+        )
+
+        component.async_register_entity_service(
+            SERVICE_LOAD_PAGE, {vol.Required(ATTR_PATH): cv.isfile}, "async_load_page"
+        )
 
     return True
 
@@ -154,6 +168,10 @@ class SwitchPlate(RestoreEntity):
 
     async def refresh(self):
         """Refresh objects in the SwitchPlate."""
+
+        if self._pages_jsonl:
+            await self.async_load_page(self._pages_jsonl)
+
         for obj in self._objects:
             await obj.refresh()
 
@@ -210,7 +228,10 @@ class SwitchPlate(RestoreEntity):
     @property
     def state_attributes(self):
         """Return the state attributes."""
-        return {ATTR_CURRENT_DIM: self._dim}
+        return {
+            ATTR_PAGE: self._page,
+            ATTR_CURRENT_DIM: self._dim,
+        }
 
     async def async_listen_idleness(self):
         """Listen to messages on MQTT for HASP idleness."""
@@ -261,13 +282,37 @@ class SwitchPlate(RestoreEntity):
             state_topic, idle_message_received
         )
 
+    async def async_change_page_next(self):
+        """Change page to next one."""
+        await self.async_change_page(self._page + 1)
+
+    async def async_change_page_prev(self):
+        """Change page to previous one."""
+
+        await self.async_change_page(self._page - 1)
+
+    async def async_change_page(self, page):
+        """Change page to number."""
+        cmd_topic = f"{self._topic}/command/page"
+
+        if page <= 0:
+            _LOGGER.error("Can't change to %s, first page is 1.", page)
+            return
+
+        self._page = page
+
+        _LOGGER.debug("Change page %s to %s", cmd_topic, self._page)
+        self.hass.components.mqtt.async_publish(
+            cmd_topic, self._page, qos=0, retain=False
+        )
+        self.async_write_ha_state()
+
     async def async_setup_pages(self):
         """Listen to messages on MQTT for HASP Page changes."""
-        cmd_topic = f"{self._topic}/command/page"
 
         async def page_message_received(msg):
             """Process MQTT message from plate."""
-            _LOGGER.debug("page button received: %s ", msg.topic)
+            _LOGGER.debug("Page button received: %s ", msg.topic)
 
             # Parse received JSON
             try:
@@ -277,17 +322,12 @@ class SwitchPlate(RestoreEntity):
                     return
 
                 if msg.topic.endswith(self._prev_btn):
-                    self._page -= 1
+                    await self.async_change_page(self._page - 1)
                 if msg.topic.endswith(self._home_btn):
-                    self._page = HASP_HOME_PAGE
+                    await self.async_change_page(HASP_HOME_PAGE)
                 if msg.topic.endswith(self._next_btn):
-                    self._page += 1
+                    await self.async_change_page(self._page + 1)
 
-                _LOGGER.debug("Change page %s to %s", cmd_topic, self._page)
-                self.hass.components.mqtt.async_publish(
-                    cmd_topic, self._page, qos=0, retain=False
-                )
-                self.async_write_ha_state()
             except vol.error.Invalid as err:
                 _LOGGER.error(err)
 
@@ -304,6 +344,7 @@ class SwitchPlate(RestoreEntity):
     async def async_load_page(self, path):
         """Clear current pages and load new ones."""
         cmd_topic = f"{self._topic}/command"
+        _LOGGER.info("Load page %s to %s", path, cmd_topic)
 
         if not self.hass.config.is_allowed_path(path):
             _LOGGER.error("'%s' is not an allowed directory", path)
@@ -311,18 +352,18 @@ class SwitchPlate(RestoreEntity):
 
         try:
             with open(path) as pages_jsonl:
-                #clear current pages
-                for page in range(1,12):
+                # clear current pages
+                for page in range(1, 12):
                     self.hass.components.mqtt.async_publish(
                         cmd_topic, f"clearpage {page}", qos=0, retain=False
                     )
-                #load line by line
+                # load line by line
                 for line in pages_jsonl:
                     if line:
                         self.hass.components.mqtt.async_publish(
-                            cmd_topic+"/jsonl", line, qos=0, retain=False
+                            f"{cmd_topic}/jsonl", line, qos=0, retain=False
                         )
-                    
+
         except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError):
             _LOGGER.warning(
                 "File or data not present at the moment: %s",
@@ -341,7 +382,7 @@ class HASPObject:
         self.obj_id = config[CONF_OBJID]
         self.command_topic = f"{plate_topic}/command/{self.obj_id}."
         self.state_topic = f"{plate_topic}/state/{self.obj_id}"
-        self.properties_templates = {}
+        self.cached_properties = {}
 
         self.properties = config.get(CONF_PROPERTIES)
         self.event_services = config.get(CONF_EVENT)
@@ -385,6 +426,7 @@ class HASPObject:
                 result,
             )
 
+            self.cached_properties[_property] = result
             self.hass.components.mqtt.async_publish(
                 self.command_topic + _property, result
             )
@@ -395,17 +437,14 @@ class HASPObject:
             _async_template_result_changed,
         )
         property_template.async_refresh()
-        self.properties_templates[_property] = property_template
 
     async def refresh(self):
         """Force template eval."""
-        for _property, property_template in self.properties_templates.items():
-            # Shouldn't need to access a private property (_last_result)
-            for _, result in property_template._last_result.items():
-                _LOGGER.debug("Refresh %s.%s = %s", self.obj_id, _property, result)
-                self.hass.components.mqtt.async_publish(
-                    self.command_topic + _property, result
-                )
+        for _property, result in self.cached_properties.items():
+            _LOGGER.debug("Refresh %s.%s = %s", self.obj_id, _property, result)
+            self.hass.components.mqtt.async_publish(
+                self.command_topic + _property, result
+            )
 
     async def async_listen_hasp_events(self):
         """Listen to messages on MQTT for HASP events."""
