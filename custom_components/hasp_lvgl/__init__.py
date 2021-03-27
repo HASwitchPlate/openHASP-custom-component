@@ -4,6 +4,7 @@ import logging
 import os
 
 from homeassistant.components import mqtt
+from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import callback
 from homeassistant.exceptions import TemplateError
 import homeassistant.helpers.config_validation as cv
@@ -15,6 +16,7 @@ import voluptuous as vol
 
 from .const import (
     ATTR_CURRENT_DIM,
+    ATTR_IDLE,
     ATTR_PAGE,
     ATTR_PATH,
     CONF_AWAKE_BRIGHTNESS,
@@ -48,6 +50,7 @@ from .const import (
     SERVICE_PAGE_CHANGE,
     SERVICE_PAGE_NEXT,
     SERVICE_PAGE_PREV,
+    SERVICE_WAKEUP,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -106,6 +109,16 @@ HASP_EVENT_SCHEMA = vol.Schema(
     {vol.Required(HASP_EVENT): vol.Any(*HASP_EVENTS)}, extra=vol.ALLOW_EXTRA
 )
 
+HASP_STATUSUPDATE_SCHEMA = vol.Schema(
+    {
+        vol.Required("node"): cv.string,
+        vol.Required("version"): cv.string,
+        vol.Required("uptime"): int,
+        vol.Required("canUpdate"): cv.boolean,
+    },
+    extra=vol.ALLOW_EXTRA,
+)
+
 HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 
 HASP_LWT_SCHEMA = vol.Schema(vol.Any(*HASP_LWT))
@@ -120,6 +133,7 @@ async def async_setup(hass, config):
 
         await component.async_add_entities([plate])
 
+        component.async_register_entity_service(SERVICE_WAKEUP, {}, "async_wakeup")
         component.async_register_entity_service(
             SERVICE_PAGE_NEXT, {}, "async_change_page_next"
         )
@@ -158,6 +172,9 @@ class SwitchPlate(RestoreEntity):
 
             self.add_object(new_obj)
 
+        self._idle = None
+        self._statusupdate = None
+        self._available = False
         self._page = 1
         self._dim = 0
         self._backlight = 1
@@ -183,7 +200,7 @@ class SwitchPlate(RestoreEntity):
             await self.async_load_page(self._pages_jsonl)
 
         state = await self.async_get_last_state()
-        if state:
+        if state and state.state not in [STATE_UNAVAILABLE, STATE_UNKNOWN, None]:
             self._page = int(state.state)
             self._dim = int(state.attributes.get(ATTR_CURRENT_DIM))
             _LOGGER.debug("Restore DIM to %s", self._dim)
@@ -202,12 +219,37 @@ class SwitchPlate(RestoreEntity):
                 message = HASP_LWT_SCHEMA(msg.payload)
 
                 if message == HASP_ONLINE:
+                    self._available = True
                     await self.refresh()
+                else:
+                    self._available = False
+
+                self.async_write_ha_state()
+
             except vol.error.Invalid as err:
                 _LOGGER.error(err)
 
         await self.hass.components.mqtt.async_subscribe(
             self._topic + "/LWT", lwt_message_received
+        )
+
+        @callback
+        async def statusupdate_message_received(msg):
+            """Process statusupdate."""
+
+            try:
+                message = HASP_STATUSUPDATE_SCHEMA(json.loads(msg.payload))
+
+                self._available = True
+                self._statusupdate = message
+
+                self.async_write_ha_state()
+
+            except vol.error.Invalid as err:
+                _LOGGER.error(err)
+
+        await self.hass.components.mqtt.async_subscribe(
+            self._topic + "/state/statusupdate", statusupdate_message_received
         )
 
     @property
@@ -226,12 +268,24 @@ class SwitchPlate(RestoreEntity):
         return self._page
 
     @property
+    def available(self):
+        """Return if entity is available."""
+        return self._available
+
+    @property
     def state_attributes(self):
         """Return the state attributes."""
-        return {
+        attributes = {
             ATTR_PAGE: self._page,
             ATTR_CURRENT_DIM: self._dim,
         }
+        if self._idle:
+            attributes[ATTR_IDLE] = self._idle
+
+        if self._statusupdate:
+            attributes = {**attributes, **self._statusupdate}
+
+        return attributes
 
     async def async_listen_idleness(self):
         """Listen to messages on MQTT for HASP idleness."""
@@ -251,6 +305,7 @@ class SwitchPlate(RestoreEntity):
         async def idle_message_received(msg):
             """Process MQTT message from plate."""
             message = HASP_IDLE_SCHEMA(msg.payload)
+            self._idle = message
 
             if message == HASP_IDLE_OFF:
                 self._dim = self._awake_brightness
@@ -280,6 +335,14 @@ class SwitchPlate(RestoreEntity):
 
         await self.hass.components.mqtt.async_subscribe(
             state_topic, idle_message_received
+        )
+
+    async def async_wakeup(self):
+        """Wake up the display."""
+        cmd_topic = f"{self._topic}/command"
+        _LOGGER.debug("Wakeup")
+        self.hass.components.mqtt.async_publish(
+            cmd_topic, "wakeup", qos=0, retain=False
         )
 
     async def async_change_page_next(self):

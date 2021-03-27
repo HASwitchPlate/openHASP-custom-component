@@ -50,8 +50,10 @@ HASP_LWT = HASP_ONLINE, HASP_OFFLINE
 
 ATTR_PAGE = "page"
 ATTR_CURRENT_DIM = "dim"
+ATTR_IDLE = "idle"
 ATTR_PATH = "path"
 
+SERVICE_WAKEUP = "wakeup"
 SERVICE_LOAD_PAGE = "load_pages"
 SERVICE_PAGE_CHANGE = "change_page"
 SERVICE_PAGE_NEXT = "next_page"

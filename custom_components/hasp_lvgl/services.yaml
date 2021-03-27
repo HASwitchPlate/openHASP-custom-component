@@ -11,6 +11,11 @@ load_pages:
       selector:
         text:
 
+wakeup:
+  name: Wakeup
+  description: This is helpful e.g. when you want to wake up the display when an external event has occurred, like a PIR motion sensor.
+  target:
+
 next_page:
   name: Next Page
   description: Changes plate to the next page
