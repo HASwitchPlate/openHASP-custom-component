@@ -2,6 +2,7 @@
 import json
 import logging
 import os
+import re
 
 from homeassistant.components import mqtt
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
@@ -56,6 +57,13 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
+def hasp_object(value):
+    """Validade HASP-LVGL object format."""
+    if re.match("p[0-9]+b[0-9]+", value):
+        return value
+    raise vol.Invalid("Not an HASP-LVGL object p#b#")
+
+
 # Configuration YAML schemas
 EVENT_SCHEMA = cv.schema_with_slug_keys(cv.SERVICE_SCHEMA)
 
@@ -63,7 +71,7 @@ PROPERTY_SCHEMA = cv.schema_with_slug_keys(cv.template)
 
 OBJECT_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_OBJID): cv.string,  # TODO validade string is an object p#b#
+        vol.Required(CONF_OBJID): hasp_object,
         vol.Optional(CONF_TRACK, default=None): vol.Any(cv.entity_id, None),
         vol.Optional(CONF_PROPERTIES, default={}): PROPERTY_SCHEMA,
         vol.Optional(CONF_EVENT, default={}): EVENT_SCHEMA,
@@ -72,11 +80,9 @@ OBJECT_SCHEMA = vol.Schema(
 
 PAGES_SCHEMA = vol.Schema(
     {
-        vol.Optional(
-            CONF_PAGES_PREV
-        ): cv.string,  # TODO validade string is an object p#b#
-        vol.Optional(CONF_PAGES_HOME): cv.string,
-        vol.Required(CONF_PAGES_NEXT): cv.string,
+        vol.Optional(CONF_PAGES_PREV): hasp_object,
+        vol.Optional(CONF_PAGES_HOME): hasp_object,
+        vol.Required(CONF_PAGES_NEXT): hasp_object,
     }
 )
 
@@ -454,7 +460,7 @@ class HASPObject:
         """Run when entity about to be added."""
 
         if self.event_services:
-            _LOGGER.debug("Setup event_services for %s", self.obj_id)
+            _LOGGER.debug("Setup event_services for '%s'", self.obj_id)
             await self.async_listen_hasp_events()
 
         for _property, template in self.properties.items():
@@ -521,7 +527,7 @@ class HASPObject:
                 for event in self.event_services:
                     if event in message[HASP_EVENT]:
                         _LOGGER.debug(
-                            "Service call for %s triggered by %s on %s",
+                            "Service call for '%s' triggered by '%s' on '%s'",
                             event,
                             msg.payload,
                             msg.topic,
@@ -534,10 +540,12 @@ class HASPObject:
                         )
             except vol.error.Invalid:
                 _LOGGER.warning(
-                    "Could not handle event %s on %s", msg.payload, msg.topic
+                    "Could not handle event '%s' on '%s'", msg.payload, msg.topic
                 )
 
-        _LOGGER.debug("Subscribe for %s events on %s", self.obj_id, self.state_topic)
+        _LOGGER.debug(
+            "Subscribe for '%s' events on '%s'", self.obj_id, self.state_topic
+        )
         await self.hass.components.mqtt.async_subscribe(
             self.state_topic, message_received
         )
