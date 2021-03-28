@@ -12,8 +12,19 @@ from homeassistant.components.light import (
 from homeassistant.core import callback
 import homeassistant.helpers.config_validation as cv
 import homeassistant.util.color as color_util
+from homeassistant.helpers.restore_state import RestoreEntity
 import voluptuous as vol
 from .common import HASPEntity
+from .const import (
+    ATTR_AWAKE_BRIGHTNESS,
+    ATTR_IDLE_BRIGHTNESS,
+    HASP_IDLE_LONG,
+    HASP_IDLE_OFF,
+    HASP_IDLE_SHORT,
+    HASP_IDLE_STATES,
+    CONF_IDLE_BRIGHTNESS,
+    CONF_TOPIC,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,6 +38,7 @@ HASP_MOODLIGHT_SCHEMA = vol.Schema(
 )
 
 HASP_BACKLIGHT_SCHEMA = vol.Schema(vol.Any(cv.boolean, vol.Coerce(int)))
+HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 
 
 async def async_setup_platform(hass, _, async_add_entities, discovery_info=None):
@@ -35,22 +47,25 @@ async def async_setup_platform(hass, _, async_add_entities, discovery_info=None)
         _LOGGER.error("This platform is only available through discovery")
         return
 
+    plate, config = discovery_info
     async_add_entities(
-        [HASPBackLight(hass, discovery_info), HASPMoodLight(hass, discovery_info)]
+        [HASPBackLight(plate, config), HASPMoodLight(hass, plate, config)]
     )
 
 
-class HASPLight(HASPEntity, LightEntity):
-    """Base class for HASP-LVGL lights."""
+class HASPBackLight(HASPEntity, LightEntity, RestoreEntity):
+    """Representation of HASP LVGL Backlight."""
 
-    def __init__(self, hass, topic, supported):
+    def __init__(self, plate, config):
         """Initialize the light."""
         super().__init__()
-        self.hass = hass
-        self._topic = topic
+        self._topic = config[CONF_TOPIC]
         self._state = False
-        self._name = None
-        self._supported = supported
+
+        self._name = f"{plate} backlight"
+        self._awake_brightness = 100
+        self._brightness = 0
+        self._idle_brightness = config[CONF_IDLE_BRIGHTNESS]
 
     @property
     def is_on(self):
@@ -60,27 +75,43 @@ class HASPLight(HASPEntity, LightEntity):
     @property
     def supported_features(self):
         """Flag supported features."""
-        return self._supported
+        return SUPPORT_BRIGHTNESS
 
     @property
     def name(self):
         """Return the name of the light."""
         return self._name
 
+    @property
+    def state_attributes(self):
+        """Return the state attributes."""
+        light_attributes = super().state_attributes
 
-class HASPBackLight(HASPLight):
-    """Representation of HASP LVGL Backlight."""
+        attributes = {
+            ATTR_AWAKE_BRIGHTNESS: self._awake_brightness,
+            ATTR_IDLE_BRIGHTNESS: self._idle_brightness,
+        }
 
-    def __init__(self, hass, conf):
-        """Initialize the light."""
-        name, topic = conf
-        super().__init__(hass, topic, SUPPORT_BRIGHTNESS)
-        self._name = f"{name} backlight"
-        self._brightness = 0
+        if light_attributes:
+            attributes = {**attributes, **light_attributes}
+
+        return attributes
+
+    @property
+    def brightness(self):
+        """Return the brightness of this light between 0..255."""
+        return self._brightness
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
+
+        state = await self.async_get_last_state()
+        if state:
+            self._awake_brightness = state.attributes.get(ATTR_AWAKE_BRIGHTNESS)
+
+        await self.async_listen_idleness()
+
         cmd_topic = f"{self._topic}/command"
         light_state_topic = f"{self._topic}/state/light"
         dim_state_topic = f"{self._topic}/state/dim"
@@ -116,6 +147,46 @@ class HASPBackLight(HASPLight):
             cmd_topic, 'json ["light", "dim"]', qos=0, retain=False
         )
 
+    async def async_listen_idleness(self):
+        """Listen to messages on MQTT for HASP idleness."""
+        state_topic = f"{self._topic}/state/idle"
+        cmd_topic = f"{self._topic}/command"
+
+        @callback
+        async def idle_message_received(msg):
+            """Process MQTT message from plate."""
+            message = HASP_IDLE_SCHEMA(msg.payload)
+
+            if message == HASP_IDLE_OFF:
+                dim = self._awake_brightness
+                backlight = 1
+            elif message == HASP_IDLE_SHORT:
+                dim = self._idle_brightness
+                backlight = 1
+            elif message == HASP_IDLE_LONG:
+                dim = self._awake_brightness
+                backlight = 0
+            else:
+                return
+
+            _LOGGER.debug(
+                "Idle state is %s - Dimming to %s; Backlight to %s",
+                message,
+                dim,
+                backlight,
+            )
+            self.hass.components.mqtt.async_publish(
+                cmd_topic,
+                f'json ["dim {dim}", "light {backlight}"]',
+                qos=0,
+                retain=False,
+            )
+            self.async_write_ha_state()
+
+        await self.hass.components.mqtt.async_subscribe(
+            state_topic, idle_message_received
+        )
+
     async def refresh(self):
         """Sync local state back to plate."""
         cmd_topic = f"{self._topic}/command"
@@ -141,6 +212,9 @@ class HASPBackLight(HASPLight):
         """Turn on the moodlight."""
         if ATTR_BRIGHTNESS in kwargs:
             self._brightness = kwargs[ATTR_BRIGHTNESS]
+            self._awake_brightness = int(
+                self._brightness * 100 / 255
+            )  # convert to HASP-LVGL 0-100 range #save this value for later recall
         self._state = True
         await self.refresh()
 
@@ -149,21 +223,38 @@ class HASPBackLight(HASPLight):
         self._state = False
         await self.refresh()
 
-    @property
-    def brightness(self):
-        """Return the brightness of this light between 0..255."""
-        return self._brightness
 
-
-class HASPMoodLight(HASPLight):
+class HASPMoodLight(HASPEntity, LightEntity):
     """Representation of HASP LVGL Moodlight."""
 
-    def __init__(self, hass, conf):
+    def __init__(self, hass, plate, config):
         """Initialize the light."""
-        name, topic = conf
-        super().__init__(hass, topic, SUPPORT_COLOR)
-        self._name = f"{name} moodlight"
+        super().__init__()
+        self.hass = hass
+        self._topic = config[CONF_TOPIC]
+        self._state = False
+        self._name = f"{plate} moodlight"
         self._hs = [0, 0]
+
+    @property
+    def is_on(self):
+        """Return true if device is on."""
+        return self._state
+
+    @property
+    def supported_features(self):
+        """Flag supported features."""
+        return SUPPORT_COLOR
+
+    @property
+    def name(self):
+        """Return the name of the light."""
+        return self._name
+
+    @property
+    def hs_color(self):
+        """Return the color property."""
+        return self._hs
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
@@ -222,8 +313,3 @@ class HASPMoodLight(HASPLight):
         """Turn off the moodlight."""
         self._state = False
         await self.refresh()
-
-    @property
-    def hs_color(self):
-        """Return the color property."""
-        return self._hs

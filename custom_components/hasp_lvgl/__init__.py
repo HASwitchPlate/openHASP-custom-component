@@ -18,11 +18,8 @@ from homeassistant.helpers.service import async_call_from_config
 import voluptuous as vol
 
 from .const import (
-    ATTR_IDLE,
     ATTR_PAGE,
     ATTR_PATH,
-    ATTR_AWAKE_BRIGHTNESS,
-    ATTR_IDLE_BRIGHTNESS,
     CONF_AWAKE_BRIGHTNESS,
     CONF_EVENT,
     CONF_IDLE_BRIGHTNESS,
@@ -43,10 +40,6 @@ from .const import (
     HASP_EVENT_DOWN,
     HASP_EVENTS,
     HASP_HOME_PAGE,
-    HASP_IDLE_LONG,
-    HASP_IDLE_OFF,
-    HASP_IDLE_SHORT,
-    HASP_IDLE_STATES,
     HASP_NUM_PAGES,
     HASP_MAX_PAGES,
     HASP_VAL,
@@ -130,8 +123,6 @@ HASP_STATUSUPDATE_SCHEMA = vol.Schema(
     extra=vol.ALLOW_EXTRA,
 )
 
-HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
-
 
 async def async_setup(hass, config):
     """Set up the MQTT async example component."""
@@ -158,11 +149,7 @@ async def async_setup(hass, config):
 
         hass.async_create_task(
             discovery.async_load_platform(
-                hass,
-                LIGHT_DOMAIN,
-                DOMAIN,
-                (plate, config[DOMAIN][plate][CONF_TOPIC]),
-                config,
+                hass, LIGHT_DOMAIN, DOMAIN, (plate, config[DOMAIN][plate]), config
             )
         )
 
@@ -177,8 +164,6 @@ class SwitchPlate(HASPEntity, RestoreEntity):
         super().__init__()
         self._name = name
         self._topic = config[CONF_TOPIC]
-        self._awake_brightness = config[CONF_AWAKE_BRIGHTNESS]
-        self._idle_brightness = config[CONF_IDLE_BRIGHTNESS]
         self._home_btn = config[CONF_PAGES].get(CONF_PAGES_HOME)
         self._prev_btn = config[CONF_PAGES].get(CONF_PAGES_PREV)
         self._next_btn = config[CONF_PAGES].get(CONF_PAGES_NEXT)
@@ -191,7 +176,6 @@ class SwitchPlate(HASPEntity, RestoreEntity):
 
             self.add_object(new_obj)
 
-        self._idle = None
         self._statusupdate = {HASP_NUM_PAGES: HASP_MAX_PAGES}
         self._available = False
         self._page = 1
@@ -221,10 +205,7 @@ class SwitchPlate(HASPEntity, RestoreEntity):
         state = await self.async_get_last_state()
         if state and state.state not in [STATE_UNAVAILABLE, STATE_UNKNOWN, None]:
             self._page = int(state.state)
-            self._awake_brightness = state.attributes.get(ATTR_AWAKE_BRIGHTNESS)
-            self._idle_brightness = state.attributes.get(ATTR_IDLE_BRIGHTNESS)
 
-        await self.async_listen_idleness()
         await self.async_setup_pages()
 
         for obj in self._objects:
@@ -275,58 +256,12 @@ class SwitchPlate(HASPEntity, RestoreEntity):
     @property
     def state_attributes(self):
         """Return the state attributes."""
-        attributes = {
-            ATTR_AWAKE_BRIGHTNESS: self._awake_brightness,
-            ATTR_IDLE_BRIGHTNESS: self._idle_brightness,
-        }
-        if self._idle:
-            attributes[ATTR_IDLE] = self._idle
+        attributes = {}
 
         if self._statusupdate:
             attributes = {**attributes, **self._statusupdate}
 
         return attributes
-
-    async def async_listen_idleness(self):
-        """Listen to messages on MQTT for HASP idleness."""
-        state_topic = f"{self._topic}/state/idle"
-        cmd_topic = f"{self._topic}/command"
-
-        @callback
-        async def idle_message_received(msg):
-            """Process MQTT message from plate."""
-            message = HASP_IDLE_SCHEMA(msg.payload)
-            self._idle = message
-
-            if message == HASP_IDLE_OFF:
-                dim = self._awake_brightness
-                backlight = 1
-            elif message == HASP_IDLE_SHORT:
-                dim = self._idle_brightness
-                backlight = 1
-            elif message == HASP_IDLE_LONG:
-                dim = self._idle_brightness
-                backlight = 0
-            else:
-                return
-
-            _LOGGER.debug(
-                "Idle state is %s - Dimming to %s; Backlight to %s",
-                message,
-                dim,
-                backlight,
-            )
-            self.hass.components.mqtt.async_publish(
-                cmd_topic,
-                f'json ["dim {dim}", "light {backlight}"]',
-                qos=0,
-                retain=False,
-            )
-            self.async_write_ha_state()
-
-        await self.hass.components.mqtt.async_subscribe(
-            state_topic, idle_message_received
-        )
 
     async def async_wakeup(self):
         """Wake up the display."""

@@ -16,7 +16,7 @@ class HASPEntity(Entity):
     """Common HASP-LVGL properties and methods."""
 
     def __init__(self):
-        """Initial values."""
+        """Initiate values."""
         self._topic = None
         self._available = False
 
