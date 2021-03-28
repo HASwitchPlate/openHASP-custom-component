@@ -26,6 +26,20 @@ prev_page:
   description: Changes plate to the previous page
   target:
 
+clearpage:
+  name: Clear Page
+  description: Clears the contents of the provided page
+  target:
+  fields:
+    page:
+      name: Page
+      description: Page number to clear (if not set clear all pages)
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 12
+
 change_page:
   name: Change Page
   description: Changes plate to the provided page

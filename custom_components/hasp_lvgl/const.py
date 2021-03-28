@@ -58,6 +58,7 @@ ATTR_AWAKE_BRIGHTNESS = "awake brightness"
 ATTR_IDLE_BRIGHTNESS = "idle brightness"
 
 SERVICE_WAKEUP = "wakeup"
+SERVICE_CLEAR_PAGE = "clearpage"
 SERVICE_LOAD_PAGE = "load_pages"
 SERVICE_PAGE_CHANGE = "change_page"
 SERVICE_PAGE_NEXT = "next_page"

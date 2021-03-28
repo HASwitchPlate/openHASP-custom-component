@@ -48,6 +48,7 @@ from .const import (
     SERVICE_PAGE_NEXT,
     SERVICE_PAGE_PREV,
     SERVICE_WAKEUP,
+    SERVICE_CLEAR_PAGE,
 )
 
 from .common import HASPEntity
@@ -89,9 +90,6 @@ PLATE_SCHEMA = vol.Schema(
         vol.Required(CONF_OBJECTS): vol.All(cv.ensure_list, [OBJECT_SCHEMA]),
         vol.Required(CONF_PAGES): PAGES_SCHEMA,
         vol.Required(CONF_TOPIC): mqtt.valid_subscribe_topic,
-        vol.Optional(CONF_AWAKE_BRIGHTNESS, default=DEFAULT_AWAKE_BRIGHNESS): vol.All(
-            int, vol.Range(min=0, max=100)
-        ),
         vol.Optional(CONF_IDLE_BRIGHTNESS, default=DEFAULT_IDLE_BRIGHNESS): vol.All(
             int, vol.Range(min=0, max=100)
         ),
@@ -146,7 +144,9 @@ async def async_setup(hass, config):
         component.async_register_entity_service(
             SERVICE_LOAD_PAGE, {vol.Required(ATTR_PATH): cv.isfile}, "async_load_page"
         )
-
+        component.async_register_entity_service(
+            SERVICE_CLEAR_PAGE, {vol.Optional(ATTR_PAGE): int}, "async_clearpage"
+        )
         hass.async_create_task(
             discovery.async_load_platform(
                 hass, LIGHT_DOMAIN, DOMAIN, (plate, config[DOMAIN][plate]), config
@@ -279,6 +279,14 @@ class SwitchPlate(HASPEntity, RestoreEntity):
         """Change page to previous one."""
         await self.async_change_page(self._page - 1)
 
+    async def async_clearpage(self, page="all"):
+        """Clears page."""
+        cmd_topic = f"{self._topic}/command"
+
+        self.hass.components.mqtt.async_publish(
+            cmd_topic, f"clearpage {page}", qos=0, retain=False
+        )
+
     async def async_change_page(self, page):
         """Change page to number."""
         cmd_topic = f"{self._topic}/command/page"
@@ -345,9 +353,7 @@ class SwitchPlate(HASPEntity, RestoreEntity):
         try:
             with open(path) as pages_jsonl:
                 # clear current pages
-                self.hass.components.mqtt.async_publish(
-                    cmd_topic, "clearpage all", qos=0, retain=False
-                )
+                await self.async_clearpage()
                 self.hass.components.mqtt.async_publish(
                     cmd_topic, "page 1", qos=0, retain=False
                 )
