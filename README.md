@@ -48,6 +48,8 @@ Assuming your plate's configured MQTT topic is `plate35`, add the following to y
 hasp_lvgl:
   plate_my_room:
     topic: "hasp/plate35"
+    awake_brightness: 80
+    idle_brightness: 8
     pages:
       prev_obj: "p0b1"
       home_obj: "p0b2"
@@ -86,6 +88,12 @@ hasp_lvgl:
 
 **topic:**\
   *(string)* *(Required)* The MQTT topic your plate is configured with.
+
+**awake_brightness:**\
+  *(int)* *(Optional)* The brightness of the screen when awake (before short idle). Numeric value between 0 and 100. Default 100. 
+
+**idle_brightness:**\
+  *(int)* *(Optional)* The brightness of the screen when idle (before long idle). Numeric value between 0 and 100. Default 10. 
 
 **pages:**\
   *(Optional)* Page navigation objects: `prev_obj`, `home_obj`, `next_obj` are the dedicated objects on the screen which will navigate the pages in previous, home and next directions, respectively. (_Note:_ objects on page `0`, have `p0` in their name, they appear on all pages).
