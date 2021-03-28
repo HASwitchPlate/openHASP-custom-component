@@ -88,7 +88,7 @@ hasp_lvgl:
   *(string)* *(Required)* The MQTT topic your plate is configured with.
 
 **pages:**\
-  *(Required)* Page navigation objects: `prev_obj`, `home_obj`, `next_obj` are the dedicated objects on the screen which will navigate the pages in previous, home and next directions, respectively. (_Note:_ objects on page `0`, have `p0` in their name, they appear on all pages).
+  *(Optional)* Page navigation objects: `prev_obj`, `home_obj`, `next_obj` are the dedicated objects on the screen which will navigate the pages in previous, home and next directions, respectively. (_Note:_ objects on page `0`, have `p0` in their name, they appear on all pages).
 
 **objects:**\
   *(Optional)* Definition of the objects reacting to changes in Home Assistant, or generating events for Home Assistant.
@@ -109,7 +109,7 @@ _Note:_ Any variable coming from the MQTT message can be used between curly brac
 This component implements some specific services to make interactions with the plate even more comfortable.
 
 **hasp_lvgl.load_pages**\
-  Clears plate and loads new layout from pages.jsonl file at optional path.
+  Clears plate and loads new layout from pages.jsonl file (at optional _path_ argument). The file must be located in an authorised location deffined by [allowlist_external_dirs](https://www.home-assistant.io/docs/configuration/basic/#allowlist_external_dirs).
   
 **hasp_lvgl.wakeup**\
   Wakes up the display when an external event has occurred, like a presence or a PIR motion sensor.
