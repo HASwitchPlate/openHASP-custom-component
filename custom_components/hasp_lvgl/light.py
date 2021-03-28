@@ -68,7 +68,7 @@ class HASPLight(LightEntity):
 
                 if message == HASP_ONLINE:
                     self._available = True
-                    self.refresh()
+                    await self.refresh()
 
                 self.async_write_ha_state()
 
