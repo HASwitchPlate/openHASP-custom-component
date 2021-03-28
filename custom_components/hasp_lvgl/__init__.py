@@ -54,6 +54,7 @@ from .const import (
     SERVICE_PAGE_NEXT,
     SERVICE_PAGE_PREV,
     SERVICE_WAKEUP,
+    SERVICE_WAKETOIDLE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -141,7 +142,10 @@ async def async_setup(hass, config):
 
         await component.async_add_entities([plate_entity])
 
-        component.async_register_entity_service(SERVICE_WAKEUP, {}, "async_wakeup")
+        component.async_register_entity_service(
+            SERVICE_WAKEUP, {vol.Optional(SERVICE_WAKETOIDLE, default=False): cv.boolean}, "async_wakeup"
+        )
+
         component.async_register_entity_service(
             SERVICE_PAGE_NEXT, {}, "async_change_page_next"
         )
@@ -196,6 +200,7 @@ class SwitchPlate(RestoreEntity):
         self._page = 1
         self._dim = 0
         self._backlight = 1
+        self._wakedtoidle = False
 
     def add_object(self, obj):
         """Track objects in plate."""
@@ -331,7 +336,11 @@ class SwitchPlate(RestoreEntity):
             self._idle = message
 
             if message == HASP_IDLE_OFF:
-                self._dim = self._awake_brightness
+                if self._wakedtoidle:
+                    self._dim = self._idle_brightness
+                    self._wakedtoidle = False
+                else:
+                    self._dim = self._awake_brightness
                 self._backlight = 1
             elif message == HASP_IDLE_SHORT:
                 self._dim = self._idle_brightness
@@ -360,10 +369,14 @@ class SwitchPlate(RestoreEntity):
             state_topic, idle_message_received
         )
 
-    async def async_wakeup(self):
+    async def async_wakeup(self, toIdleBrightness):
         """Wake up the display."""
         cmd_topic = f"{self._topic}/command"
         _LOGGER.debug("Wakeup")
+
+        if toIdleBrightness:
+            self._wakedtoidle = True
+
         self.hass.components.mqtt.async_publish(
             cmd_topic, "wakeup", qos=0, retain=False
         )
