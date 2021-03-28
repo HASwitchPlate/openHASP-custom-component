@@ -18,7 +18,6 @@ from homeassistant.helpers.service import async_call_from_config
 import voluptuous as vol
 
 from .const import (
-    ATTR_CURRENT_DIM,
     ATTR_IDLE,
     ATTR_PAGE,
     ATTR_PATH,
@@ -48,6 +47,8 @@ from .const import (
     HASP_IDLE_STATES,
     HASP_LWT,
     HASP_ONLINE,
+    HASP_NUM_PAGES,
+    HASP_MAX_PAGES,
     HASP_VAL,
     SERVICE_LOAD_PAGE,
     SERVICE_PAGE_CHANGE,
@@ -178,9 +179,9 @@ class SwitchPlate(RestoreEntity):
         self._topic = config[CONF_TOPIC]
         self._awake_brightness = config[CONF_AWAKE_BRIGHTNESS]
         self._idle_brightness = config[CONF_IDLE_BRIGHTNESS]
-        self._home_btn = config[CONF_PAGES][CONF_PAGES_HOME]
-        self._prev_btn = config[CONF_PAGES][CONF_PAGES_PREV]
-        self._next_btn = config[CONF_PAGES][CONF_PAGES_NEXT]
+        self._home_btn = config[CONF_PAGES].get(CONF_PAGES_HOME)
+        self._prev_btn = config[CONF_PAGES].get(CONF_PAGES_PREV)
+        self._next_btn = config[CONF_PAGES].get(CONF_PAGES_NEXT)
         self._pages_jsonl = config.get(CONF_PAGES_PATH)
 
         # Setup remaining objects
@@ -191,11 +192,9 @@ class SwitchPlate(RestoreEntity):
             self.add_object(new_obj)
 
         self._idle = None
-        self._statusupdate = None
+        self._statusupdate = {HASP_NUM_PAGES: HASP_MAX_PAGES}
         self._available = False
         self._page = 1
-        self._dim = 0
-        self._backlight = 1
 
     def add_object(self, obj):
         """Track objects in plate."""
@@ -220,8 +219,6 @@ class SwitchPlate(RestoreEntity):
         state = await self.async_get_last_state()
         if state and state.state not in [STATE_UNAVAILABLE, STATE_UNKNOWN, None]:
             self._page = int(state.state)
-            self._dim = int(state.attributes.get(ATTR_CURRENT_DIM))
-            _LOGGER.debug("Restore DIM to %s", self._dim)
 
         await self.async_listen_idleness()
         await self.async_setup_pages()
@@ -300,7 +297,6 @@ class SwitchPlate(RestoreEntity):
         """Return the state attributes."""
         attributes = {
             ATTR_PAGE: self._page,
-            ATTR_CURRENT_DIM: self._dim,
         }
         if self._idle:
             attributes[ATTR_IDLE] = self._idle
@@ -316,14 +312,6 @@ class SwitchPlate(RestoreEntity):
         dim_topic = f"{self._topic}/command/dim"
         backlight_topic = f"{self._topic}/command/light"
 
-        # Sync state on boot
-        self.hass.components.mqtt.async_publish(
-            dim_topic, self._dim, qos=0, retain=False
-        )
-        self.hass.components.mqtt.async_publish(
-            backlight_topic, self._backlight, qos=0, retain=False
-        )
-
         @callback
         async def idle_message_received(msg):
             """Process MQTT message from plate."""
@@ -331,29 +319,29 @@ class SwitchPlate(RestoreEntity):
             self._idle = message
 
             if message == HASP_IDLE_OFF:
-                self._dim = self._awake_brightness
-                self._backlight = 1
+                dim = self._awake_brightness
+                backlight = 1
             elif message == HASP_IDLE_SHORT:
-                self._dim = self._idle_brightness
-                self._backlight = 1
+                dim = self._idle_brightness
+                backlight = 1
             elif message == HASP_IDLE_LONG:
-                self._dim = self._idle_brightness
-                self._backlight = 0
+                dim = self._idle_brightness
+                backlight = 0
+            else:
+                return
 
             _LOGGER.debug(
                 "Idle state is %s - Dimming %s to %s; Backlight %s to %s",
                 msg.payload,
                 dim_topic,
-                self._dim,
+                dim,
                 backlight_topic,
-                self._backlight,
+                backlight,
             )
             self.hass.components.mqtt.async_publish(
-                backlight_topic, self._backlight, qos=0, retain=False
+                backlight_topic, backlight, qos=0, retain=False
             )
-            self.hass.components.mqtt.async_publish(
-                dim_topic, self._dim, qos=0, retain=False
-            )
+            self.hass.components.mqtt.async_publish(dim_topic, dim, qos=0, retain=False)
             self.async_write_ha_state()
 
         await self.hass.components.mqtt.async_subscribe(
@@ -374,20 +362,23 @@ class SwitchPlate(RestoreEntity):
 
     async def async_change_page_prev(self):
         """Change page to previous one."""
-
         await self.async_change_page(self._page - 1)
 
     async def async_change_page(self, page):
         """Change page to number."""
         cmd_topic = f"{self._topic}/command/page"
 
-        if page <= 0:
-            _LOGGER.error("Can't change to %s, first page is 1.", page)
+        num_pages = self._statusupdate[HASP_NUM_PAGES]
+
+        if page <= 0 or page > num_pages:
+            _LOGGER.error(
+                "Can't change to %s, available pages are 1 to %s", page, num_pages
+            )
             return
 
         self._page = page
 
-        _LOGGER.debug("Change page %s to %s", cmd_topic, self._page)
+        _LOGGER.debug("Change page %s", self._page)
         self.hass.components.mqtt.async_publish(
             cmd_topic, self._page, qos=0, retain=False
         )
@@ -400,7 +391,6 @@ class SwitchPlate(RestoreEntity):
             """Process MQTT message from plate."""
             _LOGGER.debug("Page button received: %s ", msg.topic)
 
-            # Parse received JSON
             try:
                 cmd = HASP_EVENT_SCHEMA(json.loads(msg.payload))
 
@@ -408,11 +398,11 @@ class SwitchPlate(RestoreEntity):
                     return
 
                 if msg.topic.endswith(self._prev_btn):
-                    await self.async_change_page(self._page - 1)
+                    await self.async_change_page_prev()
                 if msg.topic.endswith(self._home_btn):
                     await self.async_change_page(HASP_HOME_PAGE)
                 if msg.topic.endswith(self._next_btn):
-                    await self.async_change_page(self._page + 1)
+                    await self.async_change_page_next()
 
             except vol.error.Invalid as err:
                 _LOGGER.error(err)
@@ -439,7 +429,7 @@ class SwitchPlate(RestoreEntity):
         try:
             with open(path) as pages_jsonl:
                 # clear current pages
-                for page in range(1, 12):
+                for page in range(1, self._statusupdate[HASP_NUM_PAGES] + 1):
                     self.hass.components.mqtt.async_publish(
                         cmd_topic, f"clearpage {page}", qos=0, retain=False
                     )

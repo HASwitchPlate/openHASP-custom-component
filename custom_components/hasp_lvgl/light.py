@@ -1,7 +1,6 @@
 """Support for HASP LVGL moodlights."""
 import json
 import logging
-from math import ceil
 
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
@@ -14,6 +13,7 @@ from homeassistant.core import callback
 import homeassistant.helpers.config_validation as cv
 import homeassistant.util.color as color_util
 import voluptuous as vol
+from .const import HASP_LWT, HASP_ONLINE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,8 +28,10 @@ HASP_MOODLIGHT_SCHEMA = vol.Schema(
 
 HASP_BACKLIGHT_SCHEMA = vol.Schema(vol.Any(cv.boolean, vol.Coerce(int)))
 
+HASP_LWT_SCHEMA = vol.Schema(vol.Any(*HASP_LWT))
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
+
+async def async_setup_platform(hass, _, async_add_entities, discovery_info=None):
     """Set up the HASP LVGL moodlight."""
     if discovery_info is None:
         _LOGGER.error("This platform is only available through discovery")
@@ -40,16 +42,76 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     )
 
 
-class HASPBackLight(LightEntity):
+class HASPLight(LightEntity):
+    """Base class for HASP-LVGL lights."""
+
+    def __init__(self, hass, topic, supported):
+        """Initialize the light."""
+        self._available = False
+        self.hass = hass
+        self._topic = topic
+        self._state = False
+        self._name = "light"
+        self._supported = supported
+
+    async def async_added_to_hass(self):
+        """Run when entity about to be added."""
+        await super().async_added_to_hass()
+
+        @callback
+        async def lwt_message_received(msg):
+            """Process LWT."""
+            try:
+                message = HASP_LWT_SCHEMA(msg.payload)
+
+                self._available = False
+
+                if message == HASP_ONLINE:
+                    self._available = True
+                    self.refresh()
+
+                self.async_write_ha_state()
+
+            except vol.error.Invalid as err:
+                _LOGGER.error(err)
+
+        await self.hass.components.mqtt.async_subscribe(
+            f"{self._topic}/LWT", lwt_message_received
+        )
+
+    async def refresh(self):
+        """Sync light properties back to device."""
+        raise NotImplementedError("must be implemented by subclass")
+
+    @property
+    def available(self):
+        """Return if entity is available."""
+        return self._available
+
+    @property
+    def is_on(self):
+        """Return true if device is on."""
+        return self._state
+
+    @property
+    def supported_features(self):
+        """Flag supported features."""
+        return self._supported
+
+    @property
+    def name(self):
+        """Return the name of the light."""
+        return self._name
+
+
+class HASPBackLight(HASPLight):
     """Representation of HASP LVGL Backlight."""
 
     def __init__(self, hass, conf):
         """Initialize the light."""
         name, topic = conf
-        self.hass = hass
+        super().__init__(hass, topic, SUPPORT_BRIGHTNESS)
         self._name = f"{name} backlight"
-        self._topic = f"{topic}"
-        self._state = False
         self._brightness = 0
 
     async def async_added_to_hass(self):
@@ -64,13 +126,16 @@ class HASPBackLight(LightEntity):
             """Process Backlight State."""
 
             try:
+                self._available = True
                 _LOGGER.debug("backlight = %s", msg.payload)
                 message = HASP_BACKLIGHT_SCHEMA(msg.payload)
 
                 if isinstance(message, bool):
                     self._state = message
                 else:
-                    self._brightness = ceil(message * 255 / 100)
+                    self._brightness = int(
+                        message * 255 / 100
+                    )  # convert to HA 0-255 range
 
                 self.async_write_ha_state()
 
@@ -83,73 +148,57 @@ class HASPBackLight(LightEntity):
         await self.hass.components.mqtt.async_subscribe(
             dim_state_topic, backlight_message_received
         )
-        self.hass.components.mqtt.async_publish(cmd_topic, "light", qos=0, retain=False)
-        self.hass.components.mqtt.async_publish(cmd_topic, "dim", qos=0, retain=False)
+        self.hass.components.mqtt.async_publish(
+            cmd_topic, 'json ["light", "dim"]', qos=0, retain=False
+        )
 
-    async def async_turn_on(self, **kwargs):
-        """Turn on the moodlight."""
+    async def refresh(self):
+        """Sync local state back to plate."""
         cmd_topic = f"{self._topic}/command"
-
-        if ATTR_BRIGHTNESS in kwargs:
-            self._brightness = ceil(kwargs[ATTR_BRIGHTNESS] * 100 / 255)
-            self.hass.components.mqtt.async_publish(
-                cmd_topic,
-                f"dim {self._brightness}",
-                qos=0,
-                retain=False,
-            )
+        brightness = int(
+            self._brightness * 100 / 255
+        )  # convert to HASP-LVGL 0-100 range
 
         self.hass.components.mqtt.async_publish(
             cmd_topic,
-            "light on",
+            f"dim {brightness}",
             qos=0,
             retain=False,
         )
 
-    async def async_turn_off(self, **kwargs):
-        """Turn off the moodlight."""
-        cmd_topic = f"{self._topic}/command"
-
         self.hass.components.mqtt.async_publish(
-            cmd_topic, "light off", qos=0, retain=False
+            cmd_topic,
+            f"light {self._state}",
+            qos=0,
+            retain=False,
         )
 
-    @property
-    def is_on(self):
-        """Return true if device is on."""
-        return self._state
+    async def async_turn_on(self, **kwargs):
+        """Turn on the moodlight."""
+        if ATTR_BRIGHTNESS in kwargs:
+            self._brightness = kwargs[ATTR_BRIGHTNESS]
+        self._state = True
+        await self.refresh()
+
+    async def async_turn_off(self, **kwargs):
+        """Turn off the moodlight."""
+        self._state = False
+        await self.refresh()
 
     @property
     def brightness(self):
         """Return the brightness of this light between 0..255."""
         return self._brightness
 
-    @property
-    def name(self):
-        """Return the name of the device if any."""
-        return self._name
 
-    @property
-    def supported_features(self):
-        """Flag supported features."""
-        return SUPPORT_BRIGHTNESS
-
-    @property
-    def unique_id(self):
-        """Return the ID of this light."""
-        return self._name
-
-
-class HASPMoodLight(LightEntity):
+class HASPMoodLight(HASPLight):
     """Representation of HASP LVGL Moodlight."""
 
     def __init__(self, hass, conf):
         """Initialize the light."""
         name, topic = conf
-        self.hass = hass
+        super().__init__(hass, topic, SUPPORT_COLOR)
         self._name = f"{name} moodlight"
-        self._topic = f"{topic}"
-        self._state = False
         self._hs = [0, 0]
 
     async def async_added_to_hass(self):
@@ -163,6 +212,7 @@ class HASPMoodLight(LightEntity):
             """Process Moodlight State."""
 
             try:
+                self._available = True
                 _LOGGER.debug("moodlight = %s", msg.payload)
                 message = HASP_MOODLIGHT_SCHEMA(json.loads(msg.payload))
 
@@ -184,50 +234,32 @@ class HASPMoodLight(LightEntity):
             cmd_topic, "moodlight", qos=0, retain=False
         )
 
-    async def async_turn_on(self, **kwargs):
-        """Turn on the moodlight."""
+    async def refresh(self):
+        """Sync local state back to plate."""
         cmd_topic = f"{self._topic}/command"
-
-        if ATTR_HS_COLOR in kwargs:
-            self._hs = kwargs[ATTR_HS_COLOR]
 
         rgb = color_util.color_hs_to_RGB(*self._hs)
         self.hass.components.mqtt.async_publish(
             cmd_topic,
-            f'moodlight {{"state":"on","r":{rgb[0]},"g":{rgb[1]},"b":{rgb[2]}}}',
+            f'moodlight {{"state":"{self._state}","r":{rgb[0]},"g":{rgb[1]},"b":{rgb[2]}}}',
             qos=0,
             retain=False,
         )
 
+    async def async_turn_on(self, **kwargs):
+        """Turn on the moodlight."""
+        if ATTR_HS_COLOR in kwargs:
+            self._hs = kwargs[ATTR_HS_COLOR]
+
+        self._state = True
+        await self.refresh()
+
     async def async_turn_off(self, **kwargs):
         """Turn off the moodlight."""
-        cmd_topic = f"{self._topic}/command"
-
-        self.hass.components.mqtt.async_publish(
-            cmd_topic, 'moodlight {"state":"off"}', qos=0, retain=False
-        )
-
-    @property
-    def is_on(self):
-        """Return true if device is on."""
-        return self._state
+        self._state = False
+        await self.refresh()
 
     @property
     def hs_color(self):
         """Return the color property."""
         return self._hs
-
-    @property
-    def name(self):
-        """Return the name of the device if any."""
-        return self._name
-
-    @property
-    def supported_features(self):
-        """Flag supported features."""
-        return SUPPORT_COLOR
-
-    @property
-    def unique_id(self):
-        """Return the ID of this light."""
-        return self._name
