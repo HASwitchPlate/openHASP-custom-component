@@ -209,6 +209,8 @@ class SwitchPlate(RestoreEntity):
         for obj in self._objects:
             await obj.refresh()
 
+        await self.async_change_page(self._page)
+
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
@@ -245,7 +247,7 @@ class SwitchPlate(RestoreEntity):
                 _LOGGER.error(err)
 
         await self.hass.components.mqtt.async_subscribe(
-            self._topic + "/LWT", lwt_message_received
+            f"{self._topic}/LWT", lwt_message_received
         )
 
         @callback
@@ -257,7 +259,7 @@ class SwitchPlate(RestoreEntity):
 
                 self._available = True
                 self._statusupdate = message
-
+                self._page = message[ATTR_PAGE]
                 self.async_write_ha_state()
 
             except vol.error.Invalid as err:
@@ -295,9 +297,7 @@ class SwitchPlate(RestoreEntity):
     @property
     def state_attributes(self):
         """Return the state attributes."""
-        attributes = {
-            ATTR_PAGE: self._page,
-        }
+        attributes = {}
         if self._idle:
             attributes[ATTR_IDLE] = self._idle
 
@@ -368,13 +368,14 @@ class SwitchPlate(RestoreEntity):
         """Change page to number."""
         cmd_topic = f"{self._topic}/command/page"
 
-        num_pages = self._statusupdate[HASP_NUM_PAGES]
+        if self._statusupdate:
+            num_pages = self._statusupdate[HASP_NUM_PAGES]
 
-        if page <= 0 or page > num_pages:
-            _LOGGER.error(
-                "Can't change to %s, available pages are 1 to %s", page, num_pages
-            )
-            return
+            if page <= 0 or page > num_pages:
+                _LOGGER.error(
+                    "Can't change to %s, available pages are 1 to %s", page, num_pages
+                )
+                return
 
         self._page = page
 
