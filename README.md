@@ -129,14 +129,7 @@ This component implements some specific services to make interactions with the p
   Changes plate to the previous page.
 
 **hasp_lvgl.change_page**\
-  Changes plate to the specified page number. For example jump to page 1:
-```yaml
-    - service: hasp_lvgl.change_page
-      target:
-        entity_id: hasp_lvgl.plate_my_room
-      data:
-        page: 1
-```
+  Changes plate directly to the specified page number.
 
 ### Examples
 
