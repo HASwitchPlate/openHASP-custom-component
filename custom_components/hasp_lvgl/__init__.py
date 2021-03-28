@@ -4,9 +4,11 @@ import logging
 import os
 import re
 
+from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
 from homeassistant.components import mqtt
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import callback
+from homeassistant.helpers import discovery
 from homeassistant.exceptions import TemplateError
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity_component import EntityComponent
@@ -135,9 +137,9 @@ async def async_setup(hass, config):
     component = EntityComponent(_LOGGER, DOMAIN, hass)
 
     for plate in config[DOMAIN]:
-        plate = SwitchPlate(hass, plate, config[DOMAIN][plate])
+        plate_entity = SwitchPlate(hass, plate, config[DOMAIN][plate])
 
-        await component.async_add_entities([plate])
+        await component.async_add_entities([plate_entity])
 
         component.async_register_entity_service(SERVICE_WAKEUP, {}, "async_wakeup")
         component.async_register_entity_service(
@@ -152,6 +154,16 @@ async def async_setup(hass, config):
 
         component.async_register_entity_service(
             SERVICE_LOAD_PAGE, {vol.Required(ATTR_PATH): cv.isfile}, "async_load_page"
+        )
+
+        hass.async_create_task(
+            discovery.async_load_platform(
+                hass,
+                LIGHT_DOMAIN,
+                DOMAIN,
+                (plate, config[DOMAIN][plate][CONF_TOPIC]),
+                config,
+            )
         )
 
     return True
@@ -261,6 +273,11 @@ class SwitchPlate(RestoreEntity):
     @property
     def name(self):
         """Return the name of the select input."""
+        return self._name
+
+    @property
+    def unique_id(self):
+        """Return the ID of this plate."""
         return self._name
 
     @property
