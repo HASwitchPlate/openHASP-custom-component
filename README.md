@@ -109,7 +109,7 @@ _Note:_ Any variable coming from the MQTT message can be used between curly brac
 This component implements some specific services to make interactions with the plate even more comfortable.
 
 **hasp_lvgl.load_pages**\
-  Clears plate and loads new layout from pages.jsonl file (at optional _path_ argument). The file must be located in an authorised location deffined by [allowlist_external_dirs](https://www.home-assistant.io/docs/configuration/basic/#allowlist_external_dirs).
+  Clears plate and loads new layout from pages.jsonl file at optional _full path_ (e.g. `/config/pages.jsonl` in casebof hassio). The file must be located in an authorised location deffined by [allowlist_external_dirs](https://www.home-assistant.io/docs/configuration/basic/#allowlist_external_dirs).
   
 **hasp_lvgl.wakeup**\
   Wakes up the display when an external event has occurred, like a presence or a PIR motion sensor.
