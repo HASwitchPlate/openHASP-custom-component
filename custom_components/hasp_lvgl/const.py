@@ -54,6 +54,8 @@ ATTR_PAGE = "page"
 ATTR_CURRENT_DIM = "dim"
 ATTR_IDLE = "idle"
 ATTR_PATH = "path"
+ATTR_AWAKE_BRIGHTNESS = "awake brightness"
+ATTR_IDLE_BRIGHTNESS = "idle brightness"
 
 SERVICE_WAKEUP = "wakeup"
 SERVICE_LOAD_PAGE = "load_pages"

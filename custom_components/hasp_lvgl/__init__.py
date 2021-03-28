@@ -21,6 +21,8 @@ from .const import (
     ATTR_IDLE,
     ATTR_PAGE,
     ATTR_PATH,
+    ATTR_AWAKE_BRIGHTNESS,
+    ATTR_IDLE_BRIGHTNESS,
     CONF_AWAKE_BRIGHTNESS,
     CONF_EVENT,
     CONF_IDLE_BRIGHTNESS,
@@ -45,8 +47,6 @@ from .const import (
     HASP_IDLE_OFF,
     HASP_IDLE_SHORT,
     HASP_IDLE_STATES,
-    HASP_LWT,
-    HASP_ONLINE,
     HASP_NUM_PAGES,
     HASP_MAX_PAGES,
     HASP_VAL,
@@ -56,6 +56,8 @@ from .const import (
     SERVICE_PAGE_PREV,
     SERVICE_WAKEUP,
 )
+
+from .common import HASPEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -130,8 +132,6 @@ HASP_STATUSUPDATE_SCHEMA = vol.Schema(
 
 HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 
-HASP_LWT_SCHEMA = vol.Schema(vol.Any(*HASP_LWT))
-
 
 async def async_setup(hass, config):
     """Set up the MQTT async example component."""
@@ -152,7 +152,6 @@ async def async_setup(hass, config):
         component.async_register_entity_service(
             SERVICE_PAGE_CHANGE, {vol.Required(ATTR_PAGE): int}, "async_change_page"
         )
-
         component.async_register_entity_service(
             SERVICE_LOAD_PAGE, {vol.Required(ATTR_PATH): cv.isfile}, "async_load_page"
         )
@@ -170,11 +169,12 @@ async def async_setup(hass, config):
     return True
 
 
-class SwitchPlate(RestoreEntity):
-    """Representation of an HASP-LVGL."""
+class SwitchPlate(HASPEntity, RestoreEntity):
+    """Representation of an HASP-LVGL Plate."""
 
     def __init__(self, hass, name, config):
         """Initialize a plate."""
+        super().__init__()
         self._name = name
         self._topic = config[CONF_TOPIC]
         self._awake_brightness = config[CONF_AWAKE_BRIGHTNESS]
@@ -221,34 +221,14 @@ class SwitchPlate(RestoreEntity):
         state = await self.async_get_last_state()
         if state and state.state not in [STATE_UNAVAILABLE, STATE_UNKNOWN, None]:
             self._page = int(state.state)
+            self._awake_brightness = state.attributes.get(ATTR_AWAKE_BRIGHTNESS)
+            self._idle_brightness = state.attributes.get(ATTR_IDLE_BRIGHTNESS)
 
         await self.async_listen_idleness()
         await self.async_setup_pages()
 
         for obj in self._objects:
             await obj.async_added_to_hass()
-
-        @callback
-        async def lwt_message_received(msg):
-            """Process LWT."""
-
-            try:
-                message = HASP_LWT_SCHEMA(msg.payload)
-
-                if message == HASP_ONLINE:
-                    self._available = True
-                    await self.refresh()
-                else:
-                    self._available = False
-
-                self.async_write_ha_state()
-
-            except vol.error.Invalid as err:
-                _LOGGER.error(err)
-
-        await self.hass.components.mqtt.async_subscribe(
-            f"{self._topic}/LWT", lwt_message_received
-        )
 
         @callback
         async def statusupdate_message_received(msg):
@@ -268,15 +248,13 @@ class SwitchPlate(RestoreEntity):
         await self.hass.components.mqtt.async_subscribe(
             self._topic + "/state/statusupdate", statusupdate_message_received
         )
+        self.hass.components.mqtt.async_publish(
+            self._topic + "/command", "statusupdate", qos=0, retain=False
+        )
 
     @property
     def name(self):
         """Return the name of the select input."""
-        return self._name
-
-    @property
-    def unique_id(self):
-        """Return the ID of this plate."""
         return self._name
 
     @property
@@ -297,7 +275,10 @@ class SwitchPlate(RestoreEntity):
     @property
     def state_attributes(self):
         """Return the state attributes."""
-        attributes = {}
+        attributes = {
+            ATTR_AWAKE_BRIGHTNESS: self._awake_brightness,
+            ATTR_IDLE_BRIGHTNESS: self._idle_brightness,
+        }
         if self._idle:
             attributes[ATTR_IDLE] = self._idle
 
@@ -309,8 +290,7 @@ class SwitchPlate(RestoreEntity):
     async def async_listen_idleness(self):
         """Listen to messages on MQTT for HASP idleness."""
         state_topic = f"{self._topic}/state/idle"
-        dim_topic = f"{self._topic}/command/dim"
-        backlight_topic = f"{self._topic}/command/light"
+        cmd_topic = f"{self._topic}/command"
 
         @callback
         async def idle_message_received(msg):
@@ -331,17 +311,17 @@ class SwitchPlate(RestoreEntity):
                 return
 
             _LOGGER.debug(
-                "Idle state is %s - Dimming %s to %s; Backlight %s to %s",
-                msg.payload,
-                dim_topic,
+                "Idle state is %s - Dimming to %s; Backlight to %s",
+                message,
                 dim,
-                backlight_topic,
                 backlight,
             )
             self.hass.components.mqtt.async_publish(
-                backlight_topic, backlight, qos=0, retain=False
+                cmd_topic,
+                f'json ["dim {dim}", "light {backlight}"]',
+                qos=0,
+                retain=False,
             )
-            self.hass.components.mqtt.async_publish(dim_topic, dim, qos=0, retain=False)
             self.async_write_ha_state()
 
         await self.hass.components.mqtt.async_subscribe(
@@ -430,10 +410,12 @@ class SwitchPlate(RestoreEntity):
         try:
             with open(path) as pages_jsonl:
                 # clear current pages
-                for page in range(1, self._statusupdate[HASP_NUM_PAGES] + 1):
-                    self.hass.components.mqtt.async_publish(
-                        cmd_topic, f"clearpage {page}", qos=0, retain=False
-                    )
+                self.hass.components.mqtt.async_publish(
+                    cmd_topic, "clearpage all", qos=0, retain=False
+                )
+                self.hass.components.mqtt.async_publish(
+                    cmd_topic, "page 1", qos=0, retain=False
+                )
                 # load line by line
                 for line in pages_jsonl:
                     if line:
