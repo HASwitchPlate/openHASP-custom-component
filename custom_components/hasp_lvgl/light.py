@@ -62,7 +62,7 @@ class HASPBackLight(HASPEntity, LightEntity, RestoreEntity):
         self._topic = config[CONF_TOPIC]
         self._state = False
 
-        self._name = f"{plate} backlight"
+        self._identifer = f"{plate} backlight"
         self._awake_brightness = 100
         self._brightness = 0
         self._idle_brightness = config[CONF_IDLE_BRIGHTNESS]
@@ -78,9 +78,9 @@ class HASPBackLight(HASPEntity, LightEntity, RestoreEntity):
         return SUPPORT_BRIGHTNESS
 
     @property
-    def name(self):
-        """Return the name of the light."""
-        return self._name
+    def unique_id(self):
+        """Return the identifier of the light."""
+        return self._identifer
 
     @property
     def state_attributes(self):

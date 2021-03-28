@@ -20,7 +20,6 @@ import voluptuous as vol
 from .const import (
     ATTR_PAGE,
     ATTR_PATH,
-    CONF_AWAKE_BRIGHTNESS,
     CONF_EVENT,
     CONF_IDLE_BRIGHTNESS,
     CONF_OBJECTS,
@@ -33,7 +32,6 @@ from .const import (
     CONF_PROPERTIES,
     CONF_TOPIC,
     CONF_TRACK,
-    DEFAULT_AWAKE_BRIGHNESS,
     DEFAULT_IDLE_BRIGHNESS,
     DOMAIN,
     HASP_EVENT,
@@ -159,10 +157,10 @@ async def async_setup(hass, config):
 class SwitchPlate(HASPEntity, RestoreEntity):
     """Representation of an HASP-LVGL Plate."""
 
-    def __init__(self, hass, name, config):
+    def __init__(self, hass, plate, config):
         """Initialize a plate."""
         super().__init__()
-        self._name = name
+        self._plate = plate
         self._topic = config[CONF_TOPIC]
         self._home_btn = config[CONF_PAGES].get(CONF_PAGES_HOME)
         self._prev_btn = config[CONF_PAGES].get(CONF_PAGES_PREV)
@@ -234,9 +232,9 @@ class SwitchPlate(HASPEntity, RestoreEntity):
         )
 
     @property
-    def name(self):
-        """Return the name of the select input."""
-        return self._name
+    def unique_id(self):
+        """Return the plate identifier."""
+        return self._plate
 
     @property
     def icon(self):
@@ -280,7 +278,7 @@ class SwitchPlate(HASPEntity, RestoreEntity):
         await self.async_change_page(self._page - 1)
 
     async def async_clearpage(self, page="all"):
-        """Clears page."""
+        """Clear page."""
         cmd_topic = f"{self._topic}/command"
 
         self.hass.components.mqtt.async_publish(
