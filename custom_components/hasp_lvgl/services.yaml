@@ -15,6 +15,12 @@ wakeup:
   name: Wakeup
   description: This is helpful e.g. when you want to wake up the display when an external event has occurred, like a PIR motion sensor.
   target:
+  fields:
+    toIdleBrightness:
+      name: To idle brightness
+      description: If true, wake screen to idle brightness level instead of awake level
+      required: false
+      example: "True"
 
 next_page:
   name: Next Page
