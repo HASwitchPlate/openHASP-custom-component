@@ -54,6 +54,7 @@ ATTR_IDLE = "idle"
 ATTR_PATH = "path"
 
 SERVICE_WAKEUP = "wakeup"
+SERVICE_WAKETOIDLE = "toIdleBrightness"
 SERVICE_LOAD_PAGE = "load_pages"
 SERVICE_PAGE_CHANGE = "change_page"
 SERVICE_PAGE_NEXT = "next_page"
