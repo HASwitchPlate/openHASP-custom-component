@@ -4,7 +4,7 @@
   "documentation": "https://github.com/dgomes/hasp-lvgl-custom-component/wiki",
   "issue_tracker": "https://github.com/dgomes/hasp-lvgl-custom-component/issues",
   "dependencies": ["mqtt"],
-  "version": "0.0.0",
+  "version": "0.0.1",
   "codeowners": [
     "@dgomes"
   ],

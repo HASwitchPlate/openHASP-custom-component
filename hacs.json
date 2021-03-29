@@ -2,9 +2,8 @@
     "name": "HASP - Open Hardware edition",
     "hacs": "1.6.0",
     "domains": [
-        "binary_sensor",
-        "sensor",
-        "switch"
+        "hasp_lvgl",
+        "light"
     ],
     "render_readme": true,
     "iot_class": "Local Push",
