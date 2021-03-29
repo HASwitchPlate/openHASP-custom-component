@@ -54,8 +54,10 @@ async def async_setup_platform(hass, _, async_add_entities, discovery_info=None)
         [HASPBackLight(plate, base_topic, brightness), HASPMoodLight(plate, base_topic)]
     )
 
+
 class HASPLight(LightEntity):
     """Representation of HASP LVGL Backlight."""
+
     def __init__(self, plate, topic):
         """Initialize the light."""
         super().__init__()
@@ -85,6 +87,7 @@ class HASPLight(LightEntity):
         @callback
         async def online(event):
             if event["plate"] == self._plate:
+                self._available = True
                 await self.refresh()
 
         self.hass.bus.async_listen(EVENT_HASP_PLATE_ONLINE, online)
@@ -97,6 +100,7 @@ class HASPLight(LightEntity):
 
         self.hass.bus.async_listen(EVENT_HASP_PLATE_OFFLINE, offline)
 
+
 class HASPBackLight(HASPLight, RestoreEntity):
     """Representation of HASP LVGL Backlight."""
 
@@ -106,7 +110,6 @@ class HASPBackLight(HASPLight, RestoreEntity):
         self._awake_brightness = 100
         self._brightness = 0
         self._idle_brightness = brightness
-
 
     @property
     def supported_features(self):
@@ -243,7 +246,7 @@ class HASPBackLight(HASPLight, RestoreEntity):
         )
 
     async def async_turn_on(self, **kwargs):
-        """Turn on the moodlight."""
+        """Turn on the backlight."""
         if ATTR_BRIGHTNESS in kwargs:
             self._brightness = kwargs[ATTR_BRIGHTNESS]
             self._awake_brightness = ranged_value_to_percentage(
@@ -253,7 +256,7 @@ class HASPBackLight(HASPLight, RestoreEntity):
         await self.refresh()
 
     async def async_turn_off(self, **kwargs):
-        """Turn off the moodlight."""
+        """Turn off the backlight."""
         self._state = False
         await self.refresh()
 
@@ -313,8 +316,6 @@ class HASPMoodLight(HASPLight):
         self.hass.components.mqtt.async_publish(
             cmd_topic, "moodlight", qos=0, retain=False
         )
-
-
 
     async def refresh(self):
         """Sync local state back to plate."""
