@@ -36,7 +36,7 @@ class HASPEntity(Entity):
         @callback
         async def lwt_message_received(msg):
             """Process LWT."""
-
+            _LOGGER.debug("Received LWT = %s", msg.payload)
             try:
                 message = HASP_LWT_SCHEMA(msg.payload)
 
