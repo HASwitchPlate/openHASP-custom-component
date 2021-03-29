@@ -54,19 +54,14 @@ async def async_setup_platform(hass, _, async_add_entities, discovery_info=None)
         [HASPBackLight(plate, base_topic, brightness), HASPMoodLight(plate, base_topic)]
     )
 
-
-class HASPBackLight(LightEntity, RestoreEntity):
+class HASPLight(LightEntity):
     """Representation of HASP LVGL Backlight."""
-
-    def __init__(self, plate, topic, brightness):
+    def __init__(self, plate, topic):
         """Initialize the light."""
         super().__init__()
         self._topic = topic
         self._state = False
         self._plate = plate
-        self._awake_brightness = 100
-        self._brightness = 0
-        self._idle_brightness = brightness
         self._available = False
 
     @property
@@ -78,6 +73,40 @@ class HASPBackLight(LightEntity, RestoreEntity):
     def is_on(self):
         """Return true if device is on."""
         return self._state
+
+    async def refresh(self):
+        """Sync local state back to plate."""
+        raise NotImplementedError()
+
+    async def async_added_to_hass(self):
+        """Run when entity about to be added."""
+        await super().async_added_to_hass()
+
+        @callback
+        async def online(event):
+            if event["plate"] == self._plate:
+                await self.refresh()
+
+        self.hass.bus.async_listen(EVENT_HASP_PLATE_ONLINE, online)
+
+        @callback
+        async def offline(event):
+            if event["plate"] == self._plate:
+                self._available = False
+                self.async_write_ha_state()
+
+        self.hass.bus.async_listen(EVENT_HASP_PLATE_OFFLINE, offline)
+
+class HASPBackLight(HASPLight, RestoreEntity):
+    """Representation of HASP LVGL Backlight."""
+
+    def __init__(self, plate, topic, brightness):
+        """Initialize the light."""
+        super().__init__(plate, topic)
+        self._awake_brightness = 100
+        self._brightness = 0
+        self._idle_brightness = brightness
+
 
     @property
     def supported_features(self):
@@ -154,21 +183,6 @@ class HASPBackLight(LightEntity, RestoreEntity):
             cmd_topic, 'json ["light", "dim"]', qos=0, retain=False
         )
 
-        @callback
-        async def online(event):
-            if event["plate"] == self._plate:
-                await self.refresh()
-
-        self.hass.bus.async_listen(EVENT_HASP_PLATE_ONLINE, online)
-
-        @callback
-        async def offline(event):
-            if event["plate"] == self._plate:
-                self._available = False
-                self.async_write_ha_state()
-
-        self.hass.bus.async_listen(EVENT_HASP_PLATE_OFFLINE, offline)
-
     async def async_listen_idleness(self):
         """Listen to messages on MQTT for HASP idleness."""
         state_topic = f"{self._topic}/state/idle"
@@ -244,27 +258,14 @@ class HASPBackLight(LightEntity, RestoreEntity):
         await self.refresh()
 
 
-class HASPMoodLight(LightEntity):
+class HASPMoodLight(HASPLight):
     """Representation of HASP LVGL Moodlight."""
 
     def __init__(self, plate, topic):
         """Initialize the light."""
-        super().__init__()
-        self._topic = topic
-        self._state = False
-        self._plate = plate
+        super().__init__(plate, topic)
         self._hs = [0, 0]
         self._available = False
-
-    @property
-    def available(self):
-        """Return if entity is available."""
-        return self._available
-
-    @property
-    def is_on(self):
-        """Return true if device is on."""
-        return self._state
 
     @property
     def supported_features(self):
@@ -313,20 +314,7 @@ class HASPMoodLight(LightEntity):
             cmd_topic, "moodlight", qos=0, retain=False
         )
 
-        @callback
-        async def online(event):
-            if event["plate"] == self._plate:
-                await self.refresh()
 
-        self.hass.bus.async_listen(EVENT_HASP_PLATE_ONLINE, online)
-
-        @callback
-        async def offline(event):
-            if event["plate"] == self._plate:
-                self._available = False
-                self.async_write_ha_state()
-
-        self.hass.bus.async_listen(EVENT_HASP_PLATE_OFFLINE, offline)
 
     async def refresh(self):
         """Sync local state back to plate."""
