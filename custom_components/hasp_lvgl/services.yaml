@@ -1,6 +1,6 @@
 load_pages:
   name: Load pages.jsonl
-  description: Clears plate and loads new layout from pages.jsonl file (or optional path)
+  description: Loads new design from pages.jsonl file from full path. The file must be located in an authorised location defined by allowlist_external_dirs in Home Assistant's main configuration.
   target:
   fields:
     path:
@@ -13,7 +13,7 @@ load_pages:
 
 wakeup:
   name: Wakeup
-  description: This is helpful e.g. when you want to wake up the display when an external event has occurred, like a PIR motion sensor.
+  description: This is helpful e.g. when you want to wake up the display when an external event has occurred, like a presence or PIR motion sensor.
   target:
 
 next_page:
@@ -26,14 +26,14 @@ prev_page:
   description: Changes plate to the previous page
   target:
 
-clearpage:
+clear_page:
   name: Clear Page
-  description: Clears the contents of the provided page
+  description: Clears the contents of the specified page number.
   target:
   fields:
     page:
       name: Page
-      description: Page number to clear (if not set clear all pages)
+      description: Page number to clear (if not specified, clear all pages)
       required: false
       selector:
         number:
@@ -42,7 +42,7 @@ clearpage:
 
 change_page:
   name: Change Page
-  description: Changes plate to the provided page
+  description: Changes plate directly to the specified page number.
   target:
   fields:
     page:
