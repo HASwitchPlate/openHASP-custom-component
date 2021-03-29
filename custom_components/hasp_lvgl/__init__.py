@@ -285,6 +285,11 @@ class SwitchPlate(HASPEntity, RestoreEntity):
             cmd_topic, f"clearpage {page}", qos=0, retain=False
         )
 
+        if page == "all":
+            self.hass.components.mqtt.async_publish(
+                cmd_topic, "page 1", qos=0, retain=False
+            )
+
     async def async_change_page(self, page):
         """Change page to number."""
         cmd_topic = f"{self._topic}/command/page"
@@ -350,17 +355,13 @@ class SwitchPlate(HASPEntity, RestoreEntity):
 
         try:
             with open(path) as pages_jsonl:
-                # clear current pages
-                await self.async_clearpage()
-                self.hass.components.mqtt.async_publish(
-                    cmd_topic, "page 1", qos=0, retain=False
-                )
                 # load line by line
                 for line in pages_jsonl:
                     if line:
                         self.hass.components.mqtt.async_publish(
                             f"{cmd_topic}/jsonl", line, qos=0, retain=False
                         )
+                self.refresh()
 
         except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError):
             _LOGGER.warning(
