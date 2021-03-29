@@ -270,7 +270,8 @@ class SwitchPlate(HASPEntity, RestoreEntity):
         if self._statusupdate:
             attributes = {**attributes, **self._statusupdate}
 
-        del attributes[ATTR_PAGE]  # Page is tracked in the state, don't confuse users
+        if ATTR_PAGE in attributes:
+            del attributes[ATTR_PAGE]  # Page is tracked in the state, don't confuse users
 
         return attributes
 
