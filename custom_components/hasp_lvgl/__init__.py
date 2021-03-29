@@ -371,10 +371,10 @@ class SwitchPlate(HASPEntity, RestoreEntity):
 
 
 class HASPObject:
-    """Representation of an HASP-LVGL."""
+    """Representation of an HASP-LVGL object."""
 
     def __init__(self, hass, plate_topic, config):
-        """Initialize a object."""
+        """Initialize an object."""
 
         self.hass = hass
         self.obj_id = config[CONF_OBJID]
@@ -437,9 +437,9 @@ class HASPObject:
         property_template.async_refresh()
 
     async def refresh(self):
-        """Force template eval."""
+        """Refresh based on cached values."""
         for _property, result in self.cached_properties.items():
-            _LOGGER.debug("Refresh %s.%s = %s", self.obj_id, _property, result)
+            _LOGGER.debug("Refresh object %s.%s = %s", self.obj_id, _property, result)
             self.hass.components.mqtt.async_publish(
                 self.command_topic + _property, result
             )
@@ -473,7 +473,7 @@ class HASPObject:
                 )
 
         _LOGGER.debug(
-            "Subscribe for '%s' events on '%s'", self.obj_id, self.state_topic
+            "Subscribe to '%s' events on '%s'", self.obj_id, self.state_topic
         )
         await self.hass.components.mqtt.async_subscribe(
             self.state_topic, message_received
