@@ -48,6 +48,7 @@ Assuming your plate's configured MQTT topic is `plate35`, add the following to y
 hasp_lvgl:
   plate_my_room:
     topic: "hasp/plate35"
+    idle_brightness: 8
     pages:
       prev_obj: "p0b1"
       home_obj: "p0b2"
@@ -87,6 +88,9 @@ hasp_lvgl:
 **topic:**\
   *(string)* *(Required)* The MQTT topic your plate is configured with.
 
+**idle_brightness:**\
+  *(int)* *(Optional)* The brightness of the screen when idle (before long idle). Numeric value between 0 and 100. Default 10. 
+
 **pages:**\
   *(Optional)* Page navigation objects: `prev_obj`, `home_obj`, `next_obj` are the dedicated objects on the screen which will navigate the pages in previous, home and next directions, respectively. (_Note:_ objects on page `0`, have `p0` in their name, they appear on all pages).
 
@@ -108,9 +112,6 @@ _Note:_ Any variable coming from the MQTT message can be used between curly brac
 
 This component implements some specific services to make interactions with the plate even more comfortable.
 
-**hasp_lvgl.load_pages**\
-  Clears plate and loads new layout from pages.jsonl file at optional _full path_ (e.g. `/config/pages.jsonl` in case of hassio). The file must be located in an authorised location defined by [allowlist_external_dirs](https://www.home-assistant.io/docs/configuration/basic/#allowlist_external_dirs).
-  
 **hasp_lvgl.wakeup**\
   Wakes up the display when an external event has occurred, like a presence or a PIR motion sensor.
 
@@ -121,14 +122,14 @@ This component implements some specific services to make interactions with the p
   Changes plate to the previous page.
 
 **hasp_lvgl.change_page**\
-  Changes plate to the specified page number. For example jump to page 1:
-```yaml
-    - service: hasp_lvgl.change_page
-      target:
-        entity_id: hasp_lvgl.plate_my_room
-      data:
-        page: 1
-```
+  Changes plate directly to the specified page number.
+
+**hasp_lvgl.clear_page**\
+  Clears the contents of the specified page number. If not specified, clears all the pages.
+
+**hasp_lvgl.load_pages**\
+  Loads new design from pages.jsonl file from _full path_ (e.g. `/config/pages.jsonl` in case of hassio). The file must be located in an authorised location defined by [allowlist_external_dirs](https://www.home-assistant.io/docs/configuration/basic/#allowlist_external_dirs). _Important:_ the contents of the file are loaded line by line thus `"page":X` has to be defined for each object.
+
 
 ### Examples
 
