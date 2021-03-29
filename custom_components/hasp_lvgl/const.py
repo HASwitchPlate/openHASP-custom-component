@@ -15,6 +15,7 @@ CONF_OBJECTS = "objects"
 CONF_VAL = "val"
 CONF_IDLE_BRIGHTNESS = "idle_brightness"
 CONF_AWAKE_BRIGHTNESS = "awake_brightness"
+CONF_PLATE = "plate"
 
 DEFAULT_TOPIC = "hasp"
 DEFAULT_PATH = "pages.jsonl"

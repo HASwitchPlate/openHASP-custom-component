@@ -21,6 +21,7 @@ from .const import (
     ATTR_PAGE,
     ATTR_PATH,
     ATTR_IDLE,
+    CONF_PLATE,
     CONF_EVENT,
     CONF_OBJECTS,
     CONF_OBJID,
@@ -152,16 +153,19 @@ async def async_setup(hass, config):
         component.async_register_entity_service(
             SERVICE_CLEAR_PAGE, {vol.Optional(ATTR_PAGE): int}, "async_clearpage"
         )
+
+        discovery_info = {
+            CONF_PLATE: plate,
+            CONF_TOPIC: config[DOMAIN][plate][CONF_TOPIC],
+            CONF_IDLE_BRIGHTNESS: config[DOMAIN][plate][CONF_IDLE_BRIGHTNESS],
+        }
+
         hass.async_create_task(
             discovery.async_load_platform(
                 hass,
                 LIGHT_DOMAIN,
                 DOMAIN,
-                (
-                    plate,
-                    config[DOMAIN][plate][CONF_TOPIC],
-                    config[DOMAIN][plate][CONF_IDLE_BRIGHTNESS],
-                ),
+                discovery_info,
                 config,
             )
         )
@@ -177,18 +181,18 @@ class SwitchPlate(RestoreEntity):
         super().__init__()
         self._plate = plate
         self._topic = config[CONF_TOPIC]
-        self._home_btn = config[CONF_PAGES].get(CONF_PAGES_HOME)
-        self._prev_btn = config[CONF_PAGES].get(CONF_PAGES_PREV)
-        self._next_btn = config[CONF_PAGES].get(CONF_PAGES_NEXT)
+        self._buttons = (
+            config[CONF_PAGES].get(CONF_PAGES_PREV),
+            config[CONF_PAGES].get(CONF_PAGES_HOME),
+            config[CONF_PAGES].get(CONF_PAGES_NEXT),
+        )
         self._pages_jsonl = config.get(CONF_PAGES_PATH)
 
-        # Setup remaining objects
         self._objects = []
         for obj in config[CONF_OBJECTS]:
             new_obj = HASPObject(hass, self._topic, obj)
 
             self.add_object(new_obj)
-
         self._statusupdate = {HASP_NUM_PAGES: HASP_MAX_PAGES}
         self._available = False
         self._page = 1
@@ -371,17 +375,19 @@ class SwitchPlate(RestoreEntity):
                 if cmd[HASP_EVENT] != HASP_EVENT_DOWN:
                     return
 
-                if msg.topic.endswith(self._prev_btn):
+                _prev_btn, _home_btn, _next_btn = self._buttons
+
+                if msg.topic.endswith(_prev_btn):
                     await self.async_change_page_prev()
-                if msg.topic.endswith(self._home_btn):
+                if msg.topic.endswith(_home_btn):
                     await self.async_change_page(HASP_HOME_PAGE)
-                if msg.topic.endswith(self._next_btn):
+                if msg.topic.endswith(_next_btn):
                     await self.async_change_page_next()
 
             except vol.error.Invalid as err:
                 _LOGGER.error(err)
 
-        for obj in [self._prev_btn, self._home_btn, self._next_btn]:
+        for obj in self._buttons:
             if obj is None:
                 continue
 

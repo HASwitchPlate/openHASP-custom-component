@@ -27,6 +27,9 @@ from .const import (
     HASP_IDLE_SHORT,
     EVENT_HASP_PLATE_ONLINE,
     EVENT_HASP_PLATE_OFFLINE,
+    CONF_PLATE,
+    CONF_TOPIC,
+    CONF_IDLE_BRIGHTNESS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,13 +46,16 @@ HASP_MOODLIGHT_SCHEMA = vol.Schema(
 HASP_BACKLIGHT_SCHEMA = vol.Schema(vol.Any(cv.boolean, vol.Coerce(int)))
 
 
-async def async_setup_platform(hass, _, async_add_entities, discovery_info=None):
+async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the HASP LVGL moodlight."""
     if discovery_info is None:
         _LOGGER.error("This platform is only available through discovery")
         return
 
-    plate, base_topic, brightness = discovery_info
+    plate = discovery_info[CONF_PLATE]
+    base_topic = discovery_info[CONF_TOPIC]
+    brightness = discovery_info[CONF_IDLE_BRIGHTNESS]
+
     async_add_entities(
         [HASPBackLight(plate, base_topic, brightness), HASPMoodLight(plate, base_topic)]
     )
