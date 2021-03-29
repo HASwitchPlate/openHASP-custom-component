@@ -182,17 +182,6 @@ class SwitchPlate(HASPEntity, RestoreEntity):
         """Track objects in plate."""
         self._objects.append(obj)
 
-    async def refresh(self):
-        """Refresh objects in the SwitchPlate."""
-
-        if self._pages_jsonl:
-            await self.async_load_page(self._pages_jsonl)
-
-        for obj in self._objects:
-            await obj.refresh()
-
-        await self.async_change_page(self._page)
-
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
@@ -344,6 +333,17 @@ class SwitchPlate(HASPEntity, RestoreEntity):
                 state_topic, page_message_received
             )
 
+    async def refresh(self):
+        """Refresh objects in the SwitchPlate."""
+
+        if self._pages_jsonl:
+            await self.async_load_page(self._pages_jsonl)
+
+        for obj in self._objects:
+            await obj.refresh()
+
+        await self.async_change_page(self._page)
+
     async def async_load_page(self, path):
         """Clear current pages and load new ones."""
         cmd_topic = f"{self._topic}/command"
@@ -361,7 +361,6 @@ class SwitchPlate(HASPEntity, RestoreEntity):
                         self.hass.components.mqtt.async_publish(
                             f"{cmd_topic}/jsonl", line, qos=0, retain=False
                         )
-                self.refresh()
 
         except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError):
             _LOGGER.warning(
