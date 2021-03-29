@@ -48,9 +48,13 @@ from .const import (
     SERVICE_PAGE_PREV,
     SERVICE_WAKEUP,
     SERVICE_CLEAR_PAGE,
+    EVENT_HASP_PLATE_ONLINE,
+    EVENT_HASP_PLATE_OFFLINE,
+    HASP_LWT,
+    HASP_ONLINE,
 )
 
-from .common import HASPEntity, HASP_IDLE_SCHEMA
+from .common import HASP_IDLE_SCHEMA
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -120,6 +124,8 @@ HASP_STATUSUPDATE_SCHEMA = vol.Schema(
     extra=vol.ALLOW_EXTRA,
 )
 
+HASP_LWT_SCHEMA = vol.Schema(vol.Any(*HASP_LWT))
+
 
 async def async_setup(hass, config):
     """Set up the MQTT async example component."""
@@ -163,7 +169,7 @@ async def async_setup(hass, config):
     return True
 
 
-class SwitchPlate(HASPEntity, RestoreEntity):
+class SwitchPlate(RestoreEntity):
     """Representation of an HASP-LVGL Plate."""
 
     def __init__(self, hass, plate, config):
@@ -194,9 +200,6 @@ class SwitchPlate(HASPEntity, RestoreEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
-
-        if self._pages_jsonl:
-            await self.async_load_page(self._pages_jsonl)
 
         state = await self.async_get_last_state()
         if state and state.state not in [STATE_UNAVAILABLE, STATE_UNKNOWN, None]:
@@ -242,6 +245,34 @@ class SwitchPlate(HASPEntity, RestoreEntity):
             self._topic + "/state/idle", idle_message_received
         )
 
+        @callback
+        async def lwt_message_received(msg):
+            """Process LWT."""
+            _LOGGER.debug("Received LWT = %s", msg.payload)
+            try:
+                message = HASP_LWT_SCHEMA(msg.payload)
+
+                if message == HASP_ONLINE:
+                    self._available = True
+                    self.hass.bus.async_fire(
+                        EVENT_HASP_PLATE_ONLINE, {"plate": self._plate}
+                    )
+                    await self.refresh()
+                else:
+                    self._available = False
+                    self.hass.bus.async_fire(
+                        EVENT_HASP_PLATE_OFFLINE, {"plate": self._plate}
+                    )
+
+                self.async_write_ha_state()
+
+            except vol.error.Invalid as err:
+                _LOGGER.error(err)
+
+        await self.hass.components.mqtt.async_subscribe(
+            f"{self._topic}/LWT", lwt_message_received
+        )
+
     @property
     def unique_id(self):
         """Return the plate identifier."""
@@ -271,7 +302,9 @@ class SwitchPlate(HASPEntity, RestoreEntity):
             attributes = {**attributes, **self._statusupdate}
 
         if ATTR_PAGE in attributes:
-            del attributes[ATTR_PAGE]  # Page is tracked in the state, don't confuse users
+            del attributes[
+                ATTR_PAGE
+            ]  # Page is tracked in the state, don't confuse users
 
         return attributes
 
@@ -361,6 +394,7 @@ class SwitchPlate(HASPEntity, RestoreEntity):
     async def refresh(self):
         """Refresh objects in the SwitchPlate."""
 
+        _LOGGER.warning("Refreshing %s", self._plate)
         if self._pages_jsonl:
             await self.async_load_page(self._pages_jsonl)
 

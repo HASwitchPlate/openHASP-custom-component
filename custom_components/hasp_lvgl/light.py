@@ -18,13 +18,15 @@ from homeassistant.util.percentage import (
 )
 from homeassistant.helpers.restore_state import RestoreEntity
 import voluptuous as vol
-from .common import HASPEntity, HASP_IDLE_SCHEMA
+from .common import HASP_IDLE_SCHEMA
 from .const import (
     ATTR_AWAKE_BRIGHTNESS,
     ATTR_IDLE_BRIGHTNESS,
     HASP_IDLE_LONG,
     HASP_IDLE_OFF,
     HASP_IDLE_SHORT,
+    EVENT_HASP_PLATE_ONLINE,
+    EVENT_HASP_PLATE_OFFLINE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,7 +55,7 @@ async def async_setup_platform(hass, _, async_add_entities, discovery_info=None)
     )
 
 
-class HASPBackLight(HASPEntity, LightEntity, RestoreEntity):
+class HASPBackLight(LightEntity, RestoreEntity):
     """Representation of HASP LVGL Backlight."""
 
     def __init__(self, plate, topic, brightness):
@@ -61,11 +63,16 @@ class HASPBackLight(HASPEntity, LightEntity, RestoreEntity):
         super().__init__()
         self._topic = topic
         self._state = False
-
-        self._identifier = f"{plate} backlight"
+        self._plate = plate
         self._awake_brightness = 100
         self._brightness = 0
         self._idle_brightness = brightness
+        self._available = False
+
+    @property
+    def available(self):
+        """Return if entity is available."""
+        return self._available
 
     @property
     def is_on(self):
@@ -80,7 +87,7 @@ class HASPBackLight(HASPEntity, LightEntity, RestoreEntity):
     @property
     def unique_id(self):
         """Return the identifier of the light."""
-        return self._identifier
+        return f"{self._plate} backlight"
 
     @property
     def state_attributes(self):
@@ -146,6 +153,21 @@ class HASPBackLight(HASPEntity, LightEntity, RestoreEntity):
         self.hass.components.mqtt.async_publish(
             cmd_topic, 'json ["light", "dim"]', qos=0, retain=False
         )
+
+        @callback
+        async def online(event):
+            if event["plate"] == self._plate:
+                await self.refresh()
+
+        self.hass.bus.async_listen(EVENT_HASP_PLATE_ONLINE, online)
+
+        @callback
+        async def offline(event):
+            if event["plate"] == self._plate:
+                self._available = False
+                self.async_write_ha_state()
+
+        self.hass.bus.async_listen(EVENT_HASP_PLATE_OFFLINE, offline)
 
     async def async_listen_idleness(self):
         """Listen to messages on MQTT for HASP idleness."""
@@ -222,7 +244,7 @@ class HASPBackLight(HASPEntity, LightEntity, RestoreEntity):
         await self.refresh()
 
 
-class HASPMoodLight(HASPEntity, LightEntity):
+class HASPMoodLight(LightEntity):
     """Representation of HASP LVGL Moodlight."""
 
     def __init__(self, plate, topic):
@@ -230,8 +252,14 @@ class HASPMoodLight(HASPEntity, LightEntity):
         super().__init__()
         self._topic = topic
         self._state = False
-        self._identifier = f"{plate} moodlight"
+        self._plate = plate
         self._hs = [0, 0]
+        self._available = False
+
+    @property
+    def available(self):
+        """Return if entity is available."""
+        return self._available
 
     @property
     def is_on(self):
@@ -246,7 +274,7 @@ class HASPMoodLight(HASPEntity, LightEntity):
     @property
     def unique_id(self):
         """Return the identifier of the light."""
-        return self._identifier
+        return f"{self._plate} moodlight"
 
     @property
     def hs_color(self):
@@ -272,7 +300,6 @@ class HASPMoodLight(HASPEntity, LightEntity):
                 self._hs = color_util.color_RGB_to_hs(
                     message["color"]["r"], message["color"]["g"], message["color"]["b"]
                 )
-
                 self.async_write_ha_state()
 
             except vol.error.Invalid as err:
@@ -285,6 +312,21 @@ class HASPMoodLight(HASPEntity, LightEntity):
         self.hass.components.mqtt.async_publish(
             cmd_topic, "moodlight", qos=0, retain=False
         )
+
+        @callback
+        async def online(event):
+            if event["plate"] == self._plate:
+                await self.refresh()
+
+        self.hass.bus.async_listen(EVENT_HASP_PLATE_ONLINE, online)
+
+        @callback
+        async def offline(event):
+            if event["plate"] == self._plate:
+                self._available = False
+                self.async_write_ha_state()
+
+        self.hass.bus.async_listen(EVENT_HASP_PLATE_OFFLINE, offline)
 
     async def refresh(self):
         """Sync local state back to plate."""

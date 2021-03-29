@@ -63,3 +63,6 @@ SERVICE_LOAD_PAGE = "load_pages"
 SERVICE_PAGE_CHANGE = "change_page"
 SERVICE_PAGE_NEXT = "next_page"
 SERVICE_PAGE_PREV = "prev_page"
+
+EVENT_HASP_PLATE_ONLINE = "hasp_lvgl_plate_online"
+EVENT_HASP_PLATE_OFFLINE = "hasp_lvgl_plate_offline"
