@@ -26,7 +26,7 @@ prev_page:
   description: Changes plate to the previous page
   target:
 
-clearpage:
+clear_page:
   name: Clear Page
   description: Clears the contents of the provided page
   target:
