@@ -12,6 +12,10 @@ from homeassistant.components.light import (
 from homeassistant.core import callback
 import homeassistant.helpers.config_validation as cv
 import homeassistant.util.color as color_util
+from homeassistant.util.percentage import (
+    ranged_value_to_percentage,
+    percentage_to_ranged_value,
+)
 from homeassistant.helpers.restore_state import RestoreEntity
 import voluptuous as vol
 from .common import HASPEntity, HASP_IDLE_SCHEMA
@@ -126,9 +130,7 @@ class HASPBackLight(HASPEntity, LightEntity, RestoreEntity):
                 if isinstance(message, bool):
                     self._state = message
                 else:
-                    self._brightness = int(
-                        message * 255 / 100
-                    )  # convert to HA 0-255 range
+                    self._brightness = percentage_to_ranged_value((0, 255), message)
 
                 self.async_write_ha_state()
 
@@ -188,9 +190,7 @@ class HASPBackLight(HASPEntity, LightEntity, RestoreEntity):
     async def refresh(self):
         """Sync local state back to plate."""
         cmd_topic = f"{self._topic}/command"
-        brightness = int(
-            self._brightness * 100 / 255
-        )  # convert to HASP-LVGL 0-100 range
+        brightness = ranged_value_to_percentage((0, 255), self._brightness)
 
         self.hass.components.mqtt.async_publish(
             cmd_topic,
@@ -210,9 +210,9 @@ class HASPBackLight(HASPEntity, LightEntity, RestoreEntity):
         """Turn on the moodlight."""
         if ATTR_BRIGHTNESS in kwargs:
             self._brightness = kwargs[ATTR_BRIGHTNESS]
-            self._awake_brightness = int(
-                self._brightness * 100 / 255
-            )  # convert to HASP-LVGL 0-100 range #save this value for later recall
+            self._awake_brightness = ranged_value_to_percentage(
+                (0, 255), self._brightness
+            )  # save this value for later recall
         self._state = True
         await self.refresh()
 
