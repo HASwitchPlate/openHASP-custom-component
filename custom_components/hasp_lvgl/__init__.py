@@ -285,6 +285,9 @@ class SwitchPlate(HASPEntity, RestoreEntity):
             cmd_topic, f"clearpage {page}", qos=0, retain=False
         )
 
+        if page == "all":
+            self._page = 1
+        
     async def async_change_page(self, page):
         """Change page to number."""
         cmd_topic = f"{self._topic}/command/page"
