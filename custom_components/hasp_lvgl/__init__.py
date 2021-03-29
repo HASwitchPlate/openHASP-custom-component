@@ -21,7 +21,6 @@ from .const import (
     ATTR_PAGE,
     ATTR_PATH,
     CONF_EVENT,
-    CONF_IDLE_BRIGHTNESS,
     CONF_OBJECTS,
     CONF_OBJID,
     CONF_PAGES,
@@ -32,6 +31,7 @@ from .const import (
     CONF_PROPERTIES,
     CONF_TOPIC,
     CONF_TRACK,
+    CONF_IDLE_BRIGHTNESS,
     DEFAULT_IDLE_BRIGHNESS,
     DOMAIN,
     HASP_EVENT,
@@ -147,7 +147,15 @@ async def async_setup(hass, config):
         )
         hass.async_create_task(
             discovery.async_load_platform(
-                hass, LIGHT_DOMAIN, DOMAIN, (plate, config[DOMAIN][plate]), config
+                hass,
+                LIGHT_DOMAIN,
+                DOMAIN,
+                (
+                    plate,
+                    config[DOMAIN][plate][CONF_TOPIC],
+                    config[DOMAIN][plate][CONF_IDLE_BRIGHTNESS],
+                ),
+                config,
             )
         )
 
@@ -472,9 +480,7 @@ class HASPObject:
                     "Could not handle event '%s' on '%s'", msg.payload, msg.topic
                 )
 
-        _LOGGER.debug(
-            "Subscribe to '%s' events on '%s'", self.obj_id, self.state_topic
-        )
+        _LOGGER.debug("Subscribe to '%s' events on '%s'", self.obj_id, self.state_topic)
         await self.hass.components.mqtt.async_subscribe(
             self.state_topic, message_received
         )

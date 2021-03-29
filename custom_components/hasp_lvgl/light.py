@@ -22,8 +22,6 @@ from .const import (
     HASP_IDLE_OFF,
     HASP_IDLE_SHORT,
     HASP_IDLE_STATES,
-    CONF_IDLE_BRIGHTNESS,
-    CONF_TOPIC,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -47,25 +45,25 @@ async def async_setup_platform(hass, _, async_add_entities, discovery_info=None)
         _LOGGER.error("This platform is only available through discovery")
         return
 
-    plate, config = discovery_info
+    plate, base_topic, brightness = discovery_info
     async_add_entities(
-        [HASPBackLight(plate, config), HASPMoodLight(hass, plate, config)]
+        [HASPBackLight(plate, base_topic, brightness), HASPMoodLight(plate, base_topic)]
     )
 
 
 class HASPBackLight(HASPEntity, LightEntity, RestoreEntity):
     """Representation of HASP LVGL Backlight."""
 
-    def __init__(self, plate, config):
+    def __init__(self, plate, topic, brightness):
         """Initialize the light."""
         super().__init__()
-        self._topic = config[CONF_TOPIC]
+        self._topic = topic
         self._state = False
 
         self._identifier = f"{plate} backlight"
         self._awake_brightness = 100
         self._brightness = 0
-        self._idle_brightness = config[CONF_IDLE_BRIGHTNESS]
+        self._idle_brightness = brightness
 
     @property
     def is_on(self):
@@ -109,6 +107,7 @@ class HASPBackLight(HASPEntity, LightEntity, RestoreEntity):
         state = await self.async_get_last_state()
         if state:
             self._awake_brightness = state.attributes.get(ATTR_AWAKE_BRIGHTNESS)
+            _LOGGER.debug("Restoring awake_brightness = %s", self._awake_brightness)
 
         await self.async_listen_idleness()
 
@@ -227,11 +226,10 @@ class HASPBackLight(HASPEntity, LightEntity, RestoreEntity):
 class HASPMoodLight(HASPEntity, LightEntity):
     """Representation of HASP LVGL Moodlight."""
 
-    def __init__(self, hass, plate, config):
+    def __init__(self, plate, topic):
         """Initialize the light."""
         super().__init__()
-        self.hass = hass
-        self._topic = config[CONF_TOPIC]
+        self._topic = topic
         self._state = False
         self._identifier = f"{plate} moodlight"
         self._hs = [0, 0]
