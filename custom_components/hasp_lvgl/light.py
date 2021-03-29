@@ -14,14 +14,13 @@ import homeassistant.helpers.config_validation as cv
 import homeassistant.util.color as color_util
 from homeassistant.helpers.restore_state import RestoreEntity
 import voluptuous as vol
-from .common import HASPEntity
+from .common import HASPEntity, HASP_IDLE_SCHEMA
 from .const import (
     ATTR_AWAKE_BRIGHTNESS,
     ATTR_IDLE_BRIGHTNESS,
     HASP_IDLE_LONG,
     HASP_IDLE_OFF,
     HASP_IDLE_SHORT,
-    HASP_IDLE_STATES,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,7 +35,6 @@ HASP_MOODLIGHT_SCHEMA = vol.Schema(
 )
 
 HASP_BACKLIGHT_SCHEMA = vol.Schema(vol.Any(cv.boolean, vol.Coerce(int)))
-HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 
 
 async def async_setup_platform(hass, _, async_add_entities, discovery_info=None):

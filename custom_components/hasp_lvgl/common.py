@@ -5,11 +5,12 @@ import voluptuous as vol
 from homeassistant.core import callback
 from homeassistant.helpers.entity import Entity
 
-from .const import HASP_LWT, HASP_ONLINE
+from .const import HASP_LWT, HASP_ONLINE, HASP_IDLE_STATES
 
 _LOGGER = logging.getLogger(__name__)
 
 HASP_LWT_SCHEMA = vol.Schema(vol.Any(*HASP_LWT))
+HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 
 
 class HASPEntity(Entity):

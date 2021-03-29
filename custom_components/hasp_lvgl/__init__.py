@@ -20,6 +20,7 @@ import voluptuous as vol
 from .const import (
     ATTR_PAGE,
     ATTR_PATH,
+    ATTR_IDLE,
     CONF_EVENT,
     CONF_OBJECTS,
     CONF_OBJID,
@@ -49,7 +50,7 @@ from .const import (
     SERVICE_CLEAR_PAGE,
 )
 
-from .common import HASPEntity
+from .common import HASPEntity, HASP_IDLE_SCHEMA
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -228,6 +229,19 @@ class SwitchPlate(HASPEntity, RestoreEntity):
             self._topic + "/command", "statusupdate", qos=0, retain=False
         )
 
+        @callback
+        async def idle_message_received(msg):
+            """Process idle message."""
+            try:
+                self._statusupdate[ATTR_IDLE] = HASP_IDLE_SCHEMA(msg.payload)
+                self.async_write_ha_state()
+            except vol.error.Invalid as err:
+                _LOGGER.error(err)
+
+        await self.hass.components.mqtt.async_subscribe(
+            self._topic + "/state/idle", idle_message_received
+        )
+
     @property
     def unique_id(self):
         """Return the plate identifier."""
@@ -255,6 +269,8 @@ class SwitchPlate(HASPEntity, RestoreEntity):
 
         if self._statusupdate:
             attributes = {**attributes, **self._statusupdate}
+
+        del attributes[ATTR_PAGE]  # Page is tracked in the state, don't confuse users
 
         return attributes
 
