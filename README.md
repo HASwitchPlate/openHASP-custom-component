@@ -48,6 +48,7 @@ Assuming your plate's configured MQTT topic is `plate35`, add the following to y
 hasp_lvgl:
   plate_my_room:
     topic: "hasp/plate35"
+    path: "/config/hasp-lvgl/pages_my_room.jsonl"
     idle_brightness: 8
     pages:
       prev_obj: "p0b1"
@@ -87,6 +88,9 @@ hasp_lvgl:
 
 **topic:**\
   *(string)* *(Required)* The MQTT topic your plate is configured with.
+
+**path:**\
+  *(path)* *(Optional)* Path to a `pages.jsonl` file containing design for this plate, to be loaded a Home Assistant startup. _Note:_ Don't use any `pages.jsonl` file uploaded to the plate's flash memory at all! This assumes your plate pages are empty at boot. See further down for requirements to use this.
 
 **idle_brightness:**\
   *(int)* *(Optional)* The brightness of the screen when idle (before long idle). Numeric value between 0 and 100. Default 10. 
