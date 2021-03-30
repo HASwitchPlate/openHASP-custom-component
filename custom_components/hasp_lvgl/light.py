@@ -20,6 +20,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 import voluptuous as vol
 from .common import HASP_IDLE_SCHEMA
 from .const import (
+    DEFAULT_AWAKE_BRIGHNESS,
     ATTR_AWAKE_BRIGHTNESS,
     ATTR_IDLE_BRIGHTNESS,
     HASP_IDLE_LONG,
@@ -92,7 +93,7 @@ class HASPLight(LightEntity):
 
         @callback
         async def online(event):
-            if event["plate"] == self._plate:
+            if event.data["plate"] == self._plate:
                 self._available = True
                 await self.refresh()
 
@@ -100,7 +101,7 @@ class HASPLight(LightEntity):
 
         @callback
         async def offline(event):
-            if event["plate"] == self._plate:
+            if event.data["plate"] == self._plate:
                 self._available = False
                 self.async_write_ha_state()
 
@@ -153,8 +154,8 @@ class HASPBackLight(HASPLight, RestoreEntity):
 
         state = await self.async_get_last_state()
         if state:
-            self._brightness = state.attributes.get(ATTR_BRIGHTNESS)
-            self._awake_brightness = state.attributes.get(ATTR_AWAKE_BRIGHTNESS)
+            self._brightness = state.attributes.get(ATTR_BRIGHTNESS, DEFAULT_AWAKE_BRIGHNESS)
+            self._awake_brightness = state.attributes.get(ATTR_AWAKE_BRIGHTNESS, DEFAULT_AWAKE_BRIGHNESS)
             _LOGGER.debug("Restoring awake_brightness = %s", self._awake_brightness)
 
         await self.async_listen_idleness()
