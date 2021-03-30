@@ -154,8 +154,12 @@ class HASPBackLight(HASPLight, RestoreEntity):
 
         state = await self.async_get_last_state()
         if state:
-            self._brightness = state.attributes.get(ATTR_BRIGHTNESS, DEFAULT_AWAKE_BRIGHNESS)
-            self._awake_brightness = state.attributes.get(ATTR_AWAKE_BRIGHTNESS, DEFAULT_AWAKE_BRIGHNESS)
+            self._brightness = state.attributes.get(
+                ATTR_BRIGHTNESS, DEFAULT_AWAKE_BRIGHNESS
+            )
+            self._awake_brightness = state.attributes.get(
+                ATTR_AWAKE_BRIGHTNESS, DEFAULT_AWAKE_BRIGHNESS
+            )
             _LOGGER.debug("Restoring awake_brightness = %s", self._awake_brightness)
 
         await self.async_listen_idleness()

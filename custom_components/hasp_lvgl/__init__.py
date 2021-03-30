@@ -261,7 +261,10 @@ class SwitchPlate(RestoreEntity):
                     self.hass.bus.async_fire(
                         EVENT_HASP_PLATE_ONLINE, {"plate": self._plate}
                     )
-                    await self.refresh()
+                    if self._pages_jsonl:
+                        await self.async_load_page(self._pages_jsonl)
+                    else:
+                        await self.refresh()
                 else:
                     self._available = False
                     self.hass.bus.async_fire(
@@ -401,9 +404,6 @@ class SwitchPlate(RestoreEntity):
         """Refresh objects in the SwitchPlate."""
 
         _LOGGER.warning("Refreshing %s", self._plate)
-        if self._pages_jsonl:
-            await self.async_load_page(self._pages_jsonl)
-
         for obj in self._objects:
             await obj.refresh()
 
@@ -426,6 +426,7 @@ class SwitchPlate(RestoreEntity):
                         self.hass.components.mqtt.async_publish(
                             f"{cmd_topic}/jsonl", line, qos=0, retain=False
                         )
+            await self.refresh()
 
         except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError):
             _LOGGER.warning(
