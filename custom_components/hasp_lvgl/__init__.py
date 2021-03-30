@@ -470,7 +470,7 @@ class HASPObject:
             template = track_template_result.template
             result = track_template_result.result
 
-            if isinstance(result, TemplateError):
+            if isinstance(result, TemplateError) or result is None:
                 entity = event and event.data.get("entity_id")
                 _LOGGER.error(
                     "TemplateError('%s') "
