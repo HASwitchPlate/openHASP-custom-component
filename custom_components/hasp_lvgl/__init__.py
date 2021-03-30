@@ -427,6 +427,8 @@ class SwitchPlate(RestoreEntity):
                             f"{cmd_topic}/jsonl", line, qos=0, retain=False
                         )
 
+            await self.refresh()
+
         except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError):
             _LOGGER.warning(
                 "File or data not present at the moment: %s",
