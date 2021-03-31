@@ -53,6 +53,7 @@ from .const import (
     EVENT_HASP_PLATE_OFFLINE,
     HASP_LWT,
     HASP_ONLINE,
+    HASP_EVENT_CHANGED,
 )
 
 from .common import HASP_IDLE_SCHEMA
@@ -172,7 +173,7 @@ async def async_setup(hass, config):
 
     return True
 
-
+# pylint: disable=R0902
 class SwitchPlate(RestoreEntity):
     """Representation of an HASP-LVGL Plate."""
 
@@ -435,7 +436,7 @@ class SwitchPlate(RestoreEntity):
             )
             return
 
-
+# pylint: disable=R0902
 class HASPObject:
     """Representation of an HASP-LVGL object."""
 
@@ -450,6 +451,7 @@ class HASPObject:
 
         self.properties = config.get(CONF_PROPERTIES)
         self.event_services = config.get(CONF_EVENT)
+        self._last_event = None
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
@@ -482,6 +484,11 @@ class HASPObject:
                 )
                 return
 
+            self.cached_properties[_property] = result
+            if self._last_event == HASP_EVENT_CHANGED:
+                # Skip update to plate to avoid feedback loops
+                return
+
             _LOGGER.debug(
                 "%s.%s - %s changed, updating with: %s",
                 self.obj_id,
@@ -490,7 +497,6 @@ class HASPObject:
                 result,
             )
 
-            self.cached_properties[_property] = result
             self.hass.components.mqtt.async_publish(
                 self.command_topic + _property, result
             )
@@ -519,6 +525,7 @@ class HASPObject:
             try:
                 message = HASP_EVENT_SCHEMA(json.loads(msg.payload))
 
+                self._last_event = message[HASP_EVENT]
                 for event in self.event_services:
                     if event in message[HASP_EVENT]:
                         _LOGGER.debug(
