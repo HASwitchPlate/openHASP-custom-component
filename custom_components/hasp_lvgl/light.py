@@ -129,17 +129,12 @@ class HASPBackLight(HASPLight, RestoreEntity):
         return f"{self._plate} backlight"
 
     @property
-    def state_attributes(self):
+    def extra_state_attributes(self):
         """Return the state attributes."""
-        light_attributes = super().state_attributes
-
         attributes = {
             ATTR_AWAKE_BRIGHTNESS: self._awake_brightness,
             ATTR_IDLE_BRIGHTNESS: self._idle_brightness,
         }
-
-        if light_attributes:
-            attributes = {**attributes, **light_attributes}
 
         return attributes
 
