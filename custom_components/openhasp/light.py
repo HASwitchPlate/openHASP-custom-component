@@ -1,7 +1,6 @@
 """Support for HASP LVGL moodlights."""
 import json
 import logging
-import voluptuous as vol
 
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
@@ -12,23 +11,25 @@ from homeassistant.components.light import (
 )
 from homeassistant.core import callback
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.restore_state import RestoreEntity
 import homeassistant.util.color as color_util
 from homeassistant.util.percentage import (
-    ranged_value_to_percentage,
     percentage_to_ranged_value,
+    ranged_value_to_percentage,
 )
-from homeassistant.helpers.restore_state import RestoreEntity
+import voluptuous as vol
+
 from .common import HASP_IDLE_SCHEMA, HASPToggleEntity
 from .const import (
-    DEFAULT_AWAKE_BRIGHNESS,
     ATTR_AWAKE_BRIGHTNESS,
     ATTR_IDLE_BRIGHTNESS,
+    CONF_IDLE_BRIGHTNESS,
+    CONF_PLATE,
+    CONF_TOPIC,
+    DEFAULT_AWAKE_BRIGHNESS,
     HASP_IDLE_LONG,
     HASP_IDLE_OFF,
     HASP_IDLE_SHORT,
-    CONF_PLATE,
-    CONF_TOPIC,
-    CONF_IDLE_BRIGHTNESS,
 )
 
 _LOGGER = logging.getLogger(__name__)

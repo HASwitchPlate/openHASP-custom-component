@@ -4,13 +4,13 @@ import logging
 import os
 import re
 
+from homeassistant.components import mqtt
 from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
 from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
-from homeassistant.components import mqtt
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import callback
-from homeassistant.helpers import discovery
 from homeassistant.exceptions import TemplateError
+from homeassistant.helpers import discovery
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.event import TrackTemplate, async_track_template_result
@@ -18,12 +18,15 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.service import async_call_from_config
 import voluptuous as vol
 
+from .common import HASP_IDLE_SCHEMA
 from .const import (
+    ATTR_IDLE,
     ATTR_PAGE,
     ATTR_PATH,
-    ATTR_IDLE,
-    CONF_PLATE,
     CONF_EVENT,
+    CONF_GPIO,
+    CONF_IDLE_BRIGHTNESS,
+    CONF_LEDS,
     CONF_OBJECTS,
     CONF_OBJID,
     CONF_PAGES,
@@ -31,37 +34,33 @@ from .const import (
     CONF_PAGES_NEXT,
     CONF_PAGES_PATH,
     CONF_PAGES_PREV,
+    CONF_PLATE,
     CONF_PROPERTIES,
+    CONF_PWMS,
+    CONF_RELAYS,
     CONF_TOPIC,
     CONF_TRACK,
-    CONF_IDLE_BRIGHTNESS,
-    CONF_GPIO,
-    CONF_RELAYS,
-    CONF_LEDS,
-    CONF_PWMS,
     DEFAULT_IDLE_BRIGHNESS,
     DOMAIN,
+    EVENT_HASP_PLATE_OFFLINE,
+    EVENT_HASP_PLATE_ONLINE,
     HASP_EVENT,
+    HASP_EVENT_CHANGED,
     HASP_EVENT_DOWN,
     HASP_EVENTS,
     HASP_HOME_PAGE,
-    HASP_NUM_PAGES,
+    HASP_LWT,
     HASP_MAX_PAGES,
+    HASP_NUM_PAGES,
+    HASP_ONLINE,
     HASP_VAL,
+    SERVICE_CLEAR_PAGE,
     SERVICE_LOAD_PAGE,
     SERVICE_PAGE_CHANGE,
     SERVICE_PAGE_NEXT,
     SERVICE_PAGE_PREV,
     SERVICE_WAKEUP,
-    SERVICE_CLEAR_PAGE,
-    EVENT_HASP_PLATE_ONLINE,
-    EVENT_HASP_PLATE_OFFLINE,
-    HASP_LWT,
-    HASP_ONLINE,
-    HASP_EVENT_CHANGED,
 )
-
-from .common import HASP_IDLE_SCHEMA
 
 _LOGGER = logging.getLogger(__name__)
 

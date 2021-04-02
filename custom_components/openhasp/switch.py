@@ -1,18 +1,13 @@
 """Allows to configure a switch using GPIO."""
-import logging
 import json
-import voluptuous as vol
+import logging
 
 from homeassistant.core import callback
 import homeassistant.helpers.config_validation as cv
+import voluptuous as vol
 
 from .common import HASPToggleEntity
-
-from .const import (
-    CONF_PLATE,
-    CONF_RELAYS,
-    CONF_TOPIC,
-)
+from .const import CONF_PLATE, CONF_RELAYS, CONF_TOPIC
 
 _LOGGER = logging.getLogger(__name__)
 
