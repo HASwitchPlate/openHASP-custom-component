@@ -30,19 +30,16 @@ Make sure you have your plates connected to the network and each of them has a u
 To add a openhasp plate to your installation with a sample configuration, upload a `pages.jsonl` file with the folowing content to your plate first:
 
 ```
-{"page":1,"comment":"---------- Page 1 ----------"}
-{"obj":"btn","id":1,"x":0,"y":0,"w":240,"h":30,"text":"MY ROOM SWITCH","value_font":22,"bg_color":"#2C3E50","text_color":"#FFFFFF","radius":0,"border_side":0}
-{"obj":"btn","id":2,"x":10,"y":40,"w":105,"h":90,"toggle":true,"text":"Light","text_font":26,"mode":"break","align":1}
+{"page":1,"id":1,"obj":"btn","x":0,"y":0,"w":240,"h":30,"text":"MY ROOM SWITCH","value_font":22,"bg_color":"#2C3E50","text_color":"#FFFFFF","radius":0,"border_side":0}
+{"page":1,"id":2,"obj":"btn","x":10,"y":40,"w":105,"h":90,"toggle":true,"text":"Light","text_font":26,"mode":"break","align":1}
 
-{"page":2,"comment":"---------- Page 2 ----------"}
-{"obj":"btn","id":1,"x":0,"y":0,"w":240,"h":30,"text":"MY ROOM OPTION","value_font":22,"bg_color":"#2C3E50","text_color":"#FFFFFF","radius":0,"border_side":0}
-{"obj":"dropdown","id":2,"x":10,"y":40,"w":160,"h":30,"options":"Apple\nBanana\nOrange\nMelon"}
+{"page":2,"id":1,"obj":"btn","x":0,"y":0,"w":240,"h":30,"text":"MY ROOM OPTION","value_font":22,"bg_color":"#2C3E50","text_color":"#FFFFFF","radius":0,"border_side":0}
+{"page":2,"id":2,"obj":"dropdown","x":10,"y":40,"w":160,"h":30,"options":"Apple\nBanana\nOrange\nMelon"}
 
-{"page":0,"comment":"---------- All pages ----------"}
-{"obj":"btn","id":1,"page":0,"x":0,"y":285,"w":79,"h":35,"bg_color":"#2C3E50","text":"\uf060","text_color":"#FFFFFF","radius":0,"border_side":0,"text_font":28}
-{"obj":"btn","id":2,"page":0,"x":80,"y":285,"w":80,"h":35,"bg_color":"#2C3E50","text":"\uf015","text_color":"#FFFFFF","radius":0,"border_side":0,"text_font":28}
-{"obj":"btn","id":3,"page":0,"x":161,"y":285,"w":79,"h":35,"bg_color":"#2C3E50","text":"\uf061","text_color":"#FFFFFF","radius":0,"border_side":0,"text_font":28}
-{"obj":"label","id":4,"x":175,"y":5,"h":30,"w":62,"text":"00.0°C","align":2,"bg_color":"#2C3E50","text_color":"#FFFFFF"}
+{"page":0,"id":1,"obj":"btn","page":0,"x":0,"y":285,"w":79,"h":35,"bg_color":"#2C3E50","text":"\uf060","text_color":"#FFFFFF","radius":0,"border_side":0,"text_font":28}
+{"page":0,"id":2,"obj":"btn","page":0,"x":80,"y":285,"w":80,"h":35,"bg_color":"#2C3E50","text":"\uf015","text_color":"#FFFFFF","radius":0,"border_side":0,"text_font":28}
+{"page":0,"id":3,"obj":"btn","page":0,"x":161,"y":285,"w":79,"h":35,"bg_color":"#2C3E50","text":"\uf061","text_color":"#FFFFFF","radius":0,"border_side":0,"text_font":28}
+{"page":0,"id":4,"obj":"label","x":175,"y":5,"h":30,"w":62,"text":"00.0°C","align":2,"bg_color":"#2C3E50","text_color":"#FFFFFF"}
 ```
 
 Assuming your plate's configured MQTT topic is `plate35`, add the following to your `configuration.yaml` file:
