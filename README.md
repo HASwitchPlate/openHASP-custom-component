@@ -1,6 +1,6 @@
 # HASP - Open SwitchPlate Custom Component
 
-This custom component simplifies synchronization of a [HASP - Open SwitchPlate](https://fvanroie.github.io/hasp-docs/#) objects with Home Assistant entities.
+This custom component simplifies synchronization of objects on one or more [HASP - Open SwitchPlates](https://fvanroie.github.io/hasp-docs/) with Home Assistant entities.
 
 ## Installation
 
