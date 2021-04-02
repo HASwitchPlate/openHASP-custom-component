@@ -1,38 +1,9 @@
-## CUSTOM HEADER
+# HASP - Open SwitchPlate Custom Component
 
-This will assist you in getting started with [HASP-lvgl](https://fvanroie.github.io/hasp-docs/#) and Home Assistant.
+This custom component simplifies synchronization of objects on one or more hasp-lvgl [HASP - Open SwitchPlates](https://fvanroie.github.io/hasp-docs/) with Home Assistant entities. An Open SwitchPlate is basically a small touchscreen device which you can mount on the wall in place of a switch, and you can design your custom user interface for it using json. You can build your own hardware but you can also buy them ready-made.
 
-### [Docs eventually](https://github.com/dgomes/hasp-lvgl)
+![mediaplayer](https://user-images.githubusercontent.com/1550668/113399036-d5bdc900-939f-11eb-8534-643b5a7bfa7b.png)
+![thermostat](https://user-images.githubusercontent.com/1550668/112160012-09536300-8bea-11eb-867d-53c64894c324.png)
 
-### Features
-
-Still a long way to go...
-
-```yaml
-hasp_lvgl:
-  plate_123456:
-    topic: "hasp/plate_123456"
-    pages:
-      prev_obj: "p0b1"
-      home_obj: "p0b2"
-      next_obj: "p0b3"
-    objects:
-      - obj: "p1b2"
-        track: "sensor.power"
-      - obj: "p1b6"
-        event:
-          down:
-            service: light.turn_on
-            target:
-              entity_id: "light.hasp_plate_123456_moodlight"
-          long:
-            service: light.turn_off
-            target:
-              entity_id: "light.hasp_plate_123456_moodlight"
-      - obj: "p1b8"
-        track: "light.dining_light_light"
-```
-
-
-This is a work in progress custom_component, We break all the time :)
+For more information check out the [repository](https://github.com/dgomes/hasp-lvgl-custom-component), and the [wiki](wiki) with examples how to configure some basic designs integrated with Home Assistant entities.
 
