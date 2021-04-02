@@ -1,6 +1,7 @@
 """Support for HASP LVGL moodlights."""
 import json
 import logging
+import voluptuous as vol
 
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
@@ -17,8 +18,7 @@ from homeassistant.util.percentage import (
     percentage_to_ranged_value,
 )
 from homeassistant.helpers.restore_state import RestoreEntity
-import voluptuous as vol
-from .common import HASP_IDLE_SCHEMA
+from .common import HASP_IDLE_SCHEMA, HASPToggleEntity
 from .const import (
     DEFAULT_AWAKE_BRIGHNESS,
     ATTR_AWAKE_BRIGHTNESS,
@@ -26,8 +26,6 @@ from .const import (
     HASP_IDLE_LONG,
     HASP_IDLE_OFF,
     HASP_IDLE_SHORT,
-    EVENT_HASP_PLATE_ONLINE,
-    EVENT_HASP_PLATE_OFFLINE,
     CONF_PLATE,
     CONF_TOPIC,
     CONF_IDLE_BRIGHTNESS,
@@ -46,6 +44,7 @@ HASP_MOODLIGHT_SCHEMA = vol.Schema(
 
 HASP_BACKLIGHT_SCHEMA = vol.Schema(vol.Any(cv.boolean, vol.Coerce(int)))
 
+
 # pylint: disable=W0613
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the HASP LVGL moodlight."""
@@ -62,53 +61,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     )
 
 
-class HASPLight(LightEntity):
-    """Representation of HASP LVGL Backlight."""
-
-    def __init__(self, plate, topic):
-        """Initialize the light."""
-        super().__init__()
-        self._topic = topic
-        self._state = False
-        self._plate = plate
-        self._available = False
-
-    @property
-    def available(self):
-        """Return if entity is available."""
-        return self._available
-
-    @property
-    def is_on(self):
-        """Return true if device is on."""
-        return self._state
-
-    async def refresh(self):
-        """Sync local state back to plate."""
-        raise NotImplementedError()
-
-    async def async_added_to_hass(self):
-        """Run when entity about to be added."""
-        await super().async_added_to_hass()
-
-        @callback
-        async def online(event):
-            if event.data["plate"] == self._plate:
-                self._available = True
-                await self.refresh()
-
-        self.hass.bus.async_listen(EVENT_HASP_PLATE_ONLINE, online)
-
-        @callback
-        async def offline(event):
-            if event.data["plate"] == self._plate:
-                self._available = False
-                self.async_write_ha_state()
-
-        self.hass.bus.async_listen(EVENT_HASP_PLATE_OFFLINE, offline)
-
-
-class HASPBackLight(HASPLight, RestoreEntity):
+class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
     """Representation of HASP LVGL Backlight."""
 
     def __init__(self, plate, topic, brightness):
@@ -267,14 +220,13 @@ class HASPBackLight(HASPLight, RestoreEntity):
         await self.refresh()
 
 
-class HASPMoodLight(HASPLight):
+class HASPMoodLight(HASPToggleEntity, LightEntity):
     """Representation of HASP LVGL Moodlight."""
 
     def __init__(self, plate, topic):
         """Initialize the light."""
         super().__init__(plate, topic)
         self._hs = [0, 0]
-        self._available = False
 
     @property
     def supported_features(self):

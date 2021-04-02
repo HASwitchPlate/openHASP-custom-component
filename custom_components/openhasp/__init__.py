@@ -5,6 +5,7 @@ import os
 import re
 
 from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
+from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
 from homeassistant.components import mqtt
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import callback
@@ -34,6 +35,10 @@ from .const import (
     CONF_TOPIC,
     CONF_TRACK,
     CONF_IDLE_BRIGHTNESS,
+    CONF_GPIO,
+    CONF_RELAYS,
+    CONF_LEDS,
+    CONF_PWMS,
     DEFAULT_IDLE_BRIGHNESS,
     DOMAIN,
     HASP_EVENT,
@@ -90,11 +95,20 @@ PAGES_SCHEMA = vol.Schema(
     }
 )
 
+GPIO_SCHEMA = vol.Schema(
+    {
+        vol.Optional(CONF_RELAYS): vol.All(cv.ensure_list, [cv.positive_int]),
+        vol.Optional(CONF_LEDS): vol.All(cv.ensure_list, [cv.positive_int]),
+        vol.Optional(CONF_PWMS): vol.All(cv.ensure_list, [cv.positive_int]),
+    }
+)
+
 PLATE_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_OBJECTS): vol.All(cv.ensure_list, [OBJECT_SCHEMA]),
         vol.Required(CONF_PAGES): PAGES_SCHEMA,
         vol.Required(CONF_TOPIC): mqtt.valid_subscribe_topic,
+        vol.Optional(CONF_GPIO): GPIO_SCHEMA,
         vol.Optional(CONF_IDLE_BRIGHTNESS, default=DEFAULT_IDLE_BRIGHNESS): vol.All(
             int, vol.Range(min=0, max=100)
         ),
@@ -171,7 +185,24 @@ async def async_setup(hass, config):
             )
         )
 
+        if (
+            CONF_GPIO in config[DOMAIN][plate]
+            and CONF_RELAYS in config[DOMAIN][plate][CONF_GPIO]
+        ):
+            discovery_info[CONF_RELAYS] = config[DOMAIN][plate][CONF_GPIO][CONF_RELAYS]
+
+            hass.async_create_task(
+                discovery.async_load_platform(
+                    hass,
+                    SWITCH_DOMAIN,
+                    DOMAIN,
+                    discovery_info,
+                    config,
+                )
+            )
+
     return True
+
 
 # pylint: disable=R0902
 class SwitchPlate(RestoreEntity):
@@ -435,6 +466,7 @@ class SwitchPlate(RestoreEntity):
                 os.path.basename(path),
             )
             return
+
 
 # pylint: disable=R0902
 class HASPObject:
