@@ -16,8 +16,11 @@ Using your HA configuration directory (folder) as a starting point you should no
 
 ```text
 custom_components/hasp-lvgl/__init__.py
+custom_components/hasp-lvgl/common.py
 custom_components/hasp-lvgl/const.py
+custom_components/hasp-lvgl/light.json
 custom_components/hasp-lvgl/manifest.json
+custom_components/hasp-lvgl/services.yaml
 ```
 
 ### Configuration
