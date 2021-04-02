@@ -1,6 +1,6 @@
 """Constants for HASP Open Hardware Edition custom component."""
 
-DOMAIN = "hasp_lvgl"
+DOMAIN = "openhasp"
 CONF_OBJID = "obj"
 CONF_PROPERTIES = "properties"
 CONF_EVENT = "event"
@@ -65,5 +65,5 @@ SERVICE_PAGE_CHANGE = "change_page"
 SERVICE_PAGE_NEXT = "next_page"
 SERVICE_PAGE_PREV = "prev_page"
 
-EVENT_HASP_PLATE_ONLINE = "hasp_lvgl_plate_online"
-EVENT_HASP_PLATE_OFFLINE = "hasp_lvgl_plate_offline"
+EVENT_HASP_PLATE_ONLINE = "openhasp_plate_online"
+EVENT_HASP_PLATE_OFFLINE = "openhasp_plate_offline"

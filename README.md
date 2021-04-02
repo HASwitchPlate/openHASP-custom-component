@@ -1,13 +1,13 @@
-# HASP - Open SwitchPlate Custom Component
+# openHASP - openHASP Custom Component
 
-This custom component simplifies synchronization of objects on one or more hasp-lvgl [HASP - Open SwitchPlates](https://fvanroie.github.io/hasp-docs/) with Home Assistant entities. An Open SwitchPlate is basically a small touchscreen device which you can mount on the wall in place of a switch, and you can design your custom user interface for it using json. You can build your own hardware but you can also buy them ready-made.
+This custom component simplifies synchronization of objects on one or more openhasp [HASP - Open SwitchPlates](https://fvanroie.github.io/hasp-docs/) with Home Assistant entities. An Open SwitchPlate is basically a small touchscreen device which you can mount on the wall in place of a switch, and you can design your custom user interface for it using json. You can build your own hardware but you can also buy them ready-made.
 
 ## Installation
 
 1. Using the tool of choice open the directory (folder) for your HA configuration (where you find `configuration.yaml`).
 2. If you do not have a `custom_components` directory (folder) there, you need to create it.
-3. In the `custom_components` directory (folder) create a new folder called `hasp-lvgl`.
-4. Download _all_ the files from the `custom_components/hasp-lvgl/` directory (folder) in this repository.
+3. In the `custom_components` directory (folder) create a new folder called `openhasp`.
+4. Download _all_ the files from the `custom_components/openhasp/` directory (folder) in this repository.
 5. Place the files you downloaded in the new directory (folder) you created.
 6. Edit your `configuration.yaml` file add an entry similar to the example below.
 7. Restart Home Assistant
@@ -15,19 +15,19 @@ This custom component simplifies synchronization of objects on one or more hasp-
 Using your HA configuration directory (folder) as a starting point you should now also have this:
 
 ```text
-custom_components/hasp-lvgl/__init__.py
-custom_components/hasp-lvgl/common.py
-custom_components/hasp-lvgl/const.py
-custom_components/hasp-lvgl/light.json
-custom_components/hasp-lvgl/manifest.json
-custom_components/hasp-lvgl/services.yaml
+custom_components/openhasp/__init__.py
+custom_components/openhasp/common.py
+custom_components/openhasp/const.py
+custom_components/openhasp/light.json
+custom_components/openhasp/manifest.json
+custom_components/openhasp/services.yaml
 ```
 
 ### Configuration
 
 Make sure you have your plates connected to the network and each of them has a unique MQTT topic. Static DHCP or fixed IP are not needed as communication only happes through MQTT. 
 
-To add a hasp-lvgl plate to your installation with a sample configuration, upload a `pages.jsonl` file with the folowing content to your plate first:
+To add a openhasp plate to your installation with a sample configuration, upload a `pages.jsonl` file with the folowing content to your plate first:
 
 ```
 {"page":1,"comment":"---------- Page 1 ----------"}
@@ -48,10 +48,10 @@ To add a hasp-lvgl plate to your installation with a sample configuration, uploa
 Assuming your plate's configured MQTT topic is `plate35`, add the following to your `configuration.yaml` file:
 
 ```yaml
-hasp_lvgl:
+openhasp:
   plate_my_room:
     topic: "hasp/plate35"
-    path: "/config/hasp-lvgl/pages_my_room.jsonl"
+    path: "/config/openhasp/pages_my_room.jsonl"
     idle_brightness: 8
     pages:
       prev_obj: "p0b1"
@@ -83,8 +83,8 @@ hasp_lvgl:
 
 ### Configuration Variables
 
-**hasp_lvgl:**\
-  *(Required)* Your platform identifier. Can be replaced with `hasp_lvgl: !include zz_etc/hasp_lvgl.yaml` which will allow you to store all further options in a separate configuration file located at `zz_etc/hasp_lvgl.yaml`.
+**openhasp:**\
+  *(Required)* Your platform identifier. Can be replaced with `openhasp: !include zz_etc/hasp_lvgl.yaml` which will allow you to store all further options in a separate configuration file located at `zz_etc/hasp_lvgl.yaml`.
 
 **plate_my_room:**\
   *(Required)* Your plate identifier. For each plate in your sytem, such an entry is required, has to be unique.
@@ -108,7 +108,7 @@ hasp_lvgl:
    *(string)* *(Required)* The object identifier which we want to integrate with Home Assistant. Its name has the form `pXbY` where `X` represents the page where the object is located, and `Y` represents the `id` of the object on that page.
 
 **properties:**\
-  *(Optional)* List containing the properties of the object which we want to modify based on changes occurring in Home Assistant. In the example above `text` property gets updated whenever `sensor.my_room_temperature` changes. Various properties are available for the objects, full details in [hasp-lvgl documentation](https://fvanroie.github.io/hasp-docs/#objects/).
+  *(Optional)* List containing the properties of the object which we want to modify based on changes occurring in Home Assistant. In the example above `text` property gets updated whenever `sensor.my_room_temperature` changes. Various properties are available for the objects, full details in [openhasp documentation](https://fvanroie.github.io/hasp-docs/#objects/).
   
 **event:**\
   *(Optional)* List containing the events generated by the object when touched on the screen. These are object-specific, and can be observed accurately with an MQTT client. In the example above, when object `p1b2` (which is a toggle button) generates the `on` event, `light.my_room` will be turned on by the service call `light.turn_on` as specified in the event config. And similarily when `off` event comes through MQTT, the light will be turned off by the corresponding service call.
@@ -119,28 +119,28 @@ _Note:_ Any variable coming from the MQTT message can be used between curly brac
 
 This component implements some specific services to make interactions with the plate even more comfortable.
 
-**hasp_lvgl.wakeup**\
+**openhasp.wakeup**\
   Wakes up the display when an external event has occurred, like a presence or a PIR motion sensor.
 
-**hasp_lvgl.next_page**\
+**openhasp.next_page**\
   Changes plate to the next page.
 
-**hasp_lvgl.prev_page**\
+**openhasp.prev_page**\
   Changes plate to the previous page.
 
-**hasp_lvgl.change_page**\
+**openhasp.change_page**\
   Changes plate directly to the specified page number.
 
-**hasp_lvgl.clear_page**\
+**openhasp.clear_page**\
   Clears the contents of the specified page number. If not specified, clears all the pages.
 
-**hasp_lvgl.load_pages**\
+**openhasp.load_pages**\
   Loads new design from pages.jsonl file from _full path_ (e.g. `/config/pages.jsonl` in case of hassio). The file must be located in an authorised location defined by [allowlist_external_dirs](https://www.home-assistant.io/docs/configuration/basic/#allowlist_external_dirs). _Important:_ the contents of the file are loaded line by line thus `"page":X` has to be defined for each object. Unless you clear the page first, the objects will be updated.
 
 
 ### Examples
 
-You can find further configuration examples in [Wiki](https://github.com/dgomes/hasp-lvgl-custom-component/wiki).
+You can find further configuration examples in [Wiki](https://github.com/HASwitchPlate/openHASP-custom-component/wiki).
 
 ### Contributions are welcome!
 

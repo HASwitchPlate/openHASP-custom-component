@@ -1,8 +1,8 @@
 {
-    "name": "HASP - Open Hardware edition",
+    "name": "openHASP",
     "hacs": "1.6.0",
     "domains": [
-        "hasp_lvgl",
+        "openHASP",
         "light"
     ],
     "render_readme": true,
