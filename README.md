@@ -1,6 +1,6 @@
 # HASP - Open SwitchPlate Custom Component
 
-This custom component simplifies synchronization of a [HASP - Open SwitchPlate](https://fvanroie.github.io/hasp-docs/#) objects with Home Assistant entities.
+This custom component simplifies synchronization of objects on one or more hasp-lvgl [HASP - Open SwitchPlates](https://fvanroie.github.io/hasp-docs/) with Home Assistant entities. An Open SwitchPlate is basically a small touchscreen device which you can mount on the wall in place of a switch, and you can design your custom user interface for it using json. You can build your own hardware but you can also buy them ready-made.
 
 ## Installation
 
@@ -16,8 +16,11 @@ Using your HA configuration directory (folder) as a starting point you should no
 
 ```text
 custom_components/hasp-lvgl/__init__.py
+custom_components/hasp-lvgl/common.py
 custom_components/hasp-lvgl/const.py
+custom_components/hasp-lvgl/light.json
 custom_components/hasp-lvgl/manifest.json
+custom_components/hasp-lvgl/services.yaml
 ```
 
 ### Configuration
