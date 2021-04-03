@@ -267,7 +267,7 @@ class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
 
             try:
                 self._available = True
-                _LOGGER.debug("moodlight = %s", msg.payload)
+                _LOGGER.debug("moodlight %s: %s", msg.topic, msg.payload)
                 message = HASP_MOODLIGHT_SCHEMA(json.loads(msg.payload))
 
                 self._state = message["state"]
@@ -291,6 +291,8 @@ class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
         """Sync local state back to plate."""
         cmd_topic = f"{self._topic}/command"
 
+        _LOGGER.debug("refresh %s - %s", self.name, self._hs)
+
         rgb = color_util.color_hs_to_RGB(*self._hs)
         self.hass.components.mqtt.async_publish(
             cmd_topic,
@@ -305,9 +307,11 @@ class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
             self._hs = kwargs[ATTR_HS_COLOR]
 
         self._state = True
+        _LOGGER.debug("Turn on %s - %s", self.name, self._hs)
         await self.refresh()
 
     async def async_turn_off(self, **kwargs):
         """Turn off the moodlight."""
         self._state = False
+        _LOGGER.debug"Turn off %s", self.name)
         await self.refresh()
