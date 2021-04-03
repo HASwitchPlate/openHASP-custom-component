@@ -68,8 +68,8 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
     def __init__(self, plate, topic, brightness):
         """Initialize the light."""
         super().__init__(plate, topic)
-        self._awake_brightness = 100
-        self._brightness = 0
+        self._awake_brightness = None
+        self._brightness = None
         self._idle_brightness = brightness
 
     @property
@@ -104,12 +104,8 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
         state = await self.async_get_last_state()
         if state:
             self._state = state.state
-            self._brightness = state.attributes.get(
-                ATTR_BRIGHTNESS, DEFAULT_AWAKE_BRIGHNESS
-            )
-            self._awake_brightness = state.attributes.get(
-                ATTR_AWAKE_BRIGHTNESS, DEFAULT_AWAKE_BRIGHNESS
-            )
+            self._brightness = state.attributes.get(                ATTR_BRIGHTNESS            )
+            self._awake_brightness = state.attributes.get(                ATTR_AWAKE_BRIGHTNESS            )
             _LOGGER.debug("Restoring awake_brightness = %s", self._awake_brightness)
 
         await self.async_listen_idleness()
@@ -175,9 +171,12 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
                 dim,
                 backlight,
             )
+            
+            if dim:
+                dim_str = f', "dim {dim}"'
             self.hass.components.mqtt.async_publish(
                 cmd_topic,
-                f'json ["light {backlight}", "dim {dim}"]',
+                f'json ["light {backlight}"{dim_str}]',
                 qos=0,
                 retain=False,
             )
