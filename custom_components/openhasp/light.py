@@ -290,7 +290,7 @@ class HASPMoodLight(HASPToggleEntity, LightEntity):
         _LOGGER.debug("refresh %s - %s", self._topic, colors)
         self.hass.components.mqtt.async_publish(
             cmd_topic,
-            f'moodlight {{"state":"{self._state}{colors}}}',
+            f'moodlight {{"state":"{self._state}"{colors}}}',
             qos=0,
             retain=False,
         )
