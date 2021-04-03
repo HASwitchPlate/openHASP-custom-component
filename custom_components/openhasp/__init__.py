@@ -411,11 +411,11 @@ class SwitchPlate(RestoreEntity):
 
                 _prev_btn, _home_btn, _next_btn = self._buttons
 
-                if msg.topic.endswith(_prev_btn):
+                if _prev_btn and msg.topic.endswith(_prev_btn):
                     await self.async_change_page_prev()
-                if msg.topic.endswith(_home_btn):
+                if _home_btn and msg.topic.endswith(_home_btn):
                     await self.async_change_page(HASP_HOME_PAGE)
-                if msg.topic.endswith(_next_btn):
+                if _next_btn and msg.topic.endswith(_next_btn):
                     await self.async_change_page_next()
 
             except vol.error.Invalid as err:
