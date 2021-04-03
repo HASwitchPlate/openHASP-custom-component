@@ -51,6 +51,10 @@ class HASPSwitch(HASPToggleEntity):
         """Sync local state back to plate."""
         cmd_topic = f"{self._topic}/command/relay{self._gpio}"
 
+        if not self._state:
+            # Don't do anything before we know the state
+            return
+
         self.hass.components.mqtt.async_publish(
             cmd_topic,
             int(self._state),
