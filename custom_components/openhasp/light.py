@@ -86,8 +86,8 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
     def extra_state_attributes(self):
         """Return the state attributes."""
         attributes = {
-            ATTR_AWAKE_BRIGHTNESS: self._awake_brightness,
-            ATTR_IDLE_BRIGHTNESS: self._idle_brightness,
+            ATTR_AWAKE_BRIGHTNESS: int(self._awake_brightness),
+            ATTR_IDLE_BRIGHTNESS: int(self._idle_brightness),
         }
 
         return attributes
