@@ -171,7 +171,8 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
                 dim,
                 backlight,
             )
-            
+
+            dim_str = ""
             if dim:
                 dim_str = f', "dim {dim}"'
             self.hass.components.mqtt.async_publish(
