@@ -229,7 +229,7 @@ class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
     def __init__(self, plate, topic):
         """Initialize the light."""
         super().__init__(plate, topic)
-        self._hs = [0, 0]
+        self._hs = None
 
     @property
     def supported_features(self):
@@ -291,15 +291,23 @@ class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
         """Sync local state back to plate."""
         cmd_topic = f"{self._topic}/command"
 
-        _LOGGER.debug("refresh %s - %s", self.name, self._hs)
+        _LOGGER.debug("refresh %s - %s", self._topic, self._hs)
 
-        rgb = color_util.color_hs_to_RGB(*self._hs)
-        self.hass.components.mqtt.async_publish(
-            cmd_topic,
-            f'moodlight {{"state":"{self._state}","r":{rgb[0]},"g":{rgb[1]},"b":{rgb[2]}}}',
-            qos=0,
-            retain=False,
-        )
+        if self._hs:
+            rgb = color_util.color_hs_to_RGB(*self._hs)
+            self.hass.components.mqtt.async_publish(
+                cmd_topic,
+                f'moodlight {{"state":"{self._state}","r":{rgb[0]},"g":{rgb[1]},"b":{rgb[2]}}}',
+                qos=0,
+                retain=False,
+            )
+        else:
+            self.hass.components.mqtt.async_publish(
+                cmd_topic,
+                f'moodlight {{"state":"{self._state}"}}',
+                qos=0,
+                retain=False,
+            )
 
     async def async_turn_on(self, **kwargs):
         """Turn on the moodlight."""
@@ -307,11 +315,11 @@ class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
             self._hs = kwargs[ATTR_HS_COLOR]
 
         self._state = True
-        _LOGGER.debug("Turn on %s - %s", self.name, self._hs)
+        _LOGGER.debug("Turn on %s - %s", self._topic, self._hs)
         await self.refresh()
 
     async def async_turn_off(self, **kwargs):
         """Turn off the moodlight."""
         self._state = False
-        _LOGGER.debug("Turn off %s", self.name)
+        _LOGGER.debug("Turn off %s", self._topic)
         await self.refresh()
