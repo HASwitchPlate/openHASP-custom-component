@@ -26,7 +26,6 @@ from .const import (
     CONF_IDLE_BRIGHTNESS,
     CONF_PLATE,
     CONF_TOPIC,
-    DEFAULT_AWAKE_BRIGHNESS,
     HASP_IDLE_LONG,
     HASP_IDLE_OFF,
     HASP_IDLE_SHORT,
@@ -86,8 +85,8 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
     def extra_state_attributes(self):
         """Return the state attributes."""
         attributes = {
-            ATTR_AWAKE_BRIGHTNESS: self._awake_brightness if self._awake_brightness else 0,
-            ATTR_IDLE_BRIGHTNESS: self._idle_brightness if self._idle_brightness else 0,
+            ATTR_AWAKE_BRIGHTNESS: self._awake_brightness,
+            ATTR_IDLE_BRIGHTNESS: self._idle_brightness,
         }
 
         return attributes
@@ -104,8 +103,8 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
         state = await self.async_get_last_state()
         if state:
             self._state = state.state
-            self._brightness = state.attributes.get(                ATTR_BRIGHTNESS            )
-            self._awake_brightness = state.attributes.get(                ATTR_AWAKE_BRIGHTNESS            )
+            self._brightness = state.attributes.get(ATTR_BRIGHTNESS)
+            self._awake_brightness = state.attributes.get(ATTR_AWAKE_BRIGHTNESS)
             _LOGGER.debug("Restoring awake_brightness = %s", self._awake_brightness)
 
         await self.async_listen_idleness()
