@@ -27,7 +27,6 @@ from .const import (
     CONF_PLATE,
     CONF_TOPIC,
     DEFAULT_AWAKE_BRIGHNESS,
-    DEFAULT_HS,
     HASP_IDLE_LONG,
     HASP_IDLE_OFF,
     HASP_IDLE_SHORT,
@@ -253,9 +252,7 @@ class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
         state = await self.async_get_last_state()
         if state:
             self._state = state.state
-            self._hs = state.attributes.get(
-                ATTR_HS_COLOR, DEFAULT_HS
-            )
+            self._hs = state.attributes.get(ATTR_HS_COLOR)
             _LOGGER.debug("Restoring HS = %s", self._hs)
 
         cmd_topic = f"{self._topic}/command"
@@ -291,9 +288,9 @@ class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
         """Sync local state back to plate."""
         cmd_topic = f"{self._topic}/command"
 
-        _LOGGER.debug("refresh %s - %s", self._topic, self._hs)
 
         if self._hs:
+            _LOGGER.debug("refresh %s - %s", self._topic, self._hs)
             rgb = color_util.color_hs_to_RGB(*self._hs)
             self.hass.components.mqtt.async_publish(
                 cmd_topic,
@@ -302,6 +299,7 @@ class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
                 retain=False,
             )
         else:
+            _LOGGER.debug("refresh %s", self._topic)
             self.hass.components.mqtt.async_publish(
                 cmd_topic,
                 f'moodlight {{"state":"{self._state}"}}',
