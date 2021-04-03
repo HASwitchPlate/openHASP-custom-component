@@ -27,6 +27,7 @@ from .const import (
     CONF_PLATE,
     CONF_TOPIC,
     DEFAULT_AWAKE_BRIGHNESS,
+    DEFAULT_HS,
     HASP_IDLE_LONG,
     HASP_IDLE_OFF,
     HASP_IDLE_SHORT,
@@ -221,7 +222,7 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
         await self.refresh()
 
 
-class HASPMoodLight(HASPToggleEntity, LightEntity):
+class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
     """Representation of HASP LVGL Moodlight."""
 
     def __init__(self, plate, topic):
@@ -247,6 +248,14 @@ class HASPMoodLight(HASPToggleEntity, LightEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
+
+        state = await self.async_get_last_state()
+        if state:
+            self._hs = state.attributes.get(
+                ATTR_HS_COLOR, DEFAULT_HS
+            )
+            _LOGGER.debug("Restoring HS = %s", self._hs)
+
         cmd_topic = f"{self._topic}/command"
         state_topic = f"{self._topic}/state/moodlight"
 
