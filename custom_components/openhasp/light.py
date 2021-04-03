@@ -222,7 +222,7 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
         await self.refresh()
 
 
-class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
+class HASPMoodLight(HASPToggleEntity, LightEntity):
     """Representation of HASP LVGL Moodlight."""
 
     def __init__(self, plate, topic):
@@ -248,12 +248,6 @@ class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
-
-        state = await self.async_get_last_state()
-        if state:
-            self._state = state.state
-            self._hs = state.attributes.get(ATTR_HS_COLOR)
-            _LOGGER.debug("Restoring HS = %s", self._hs)
 
         cmd_topic = f"{self._topic}/command"
         state_topic = f"{self._topic}/state/moodlight"
@@ -288,24 +282,18 @@ class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
         """Sync local state back to plate."""
         cmd_topic = f"{self._topic}/command"
 
-
+        colors = ""
         if self._hs:
-            _LOGGER.debug("refresh %s - %s", self._topic, self._hs)
             rgb = color_util.color_hs_to_RGB(*self._hs)
-            self.hass.components.mqtt.async_publish(
-                cmd_topic,
-                f'moodlight {{"state":"{self._state}","r":{rgb[0]},"g":{rgb[1]},"b":{rgb[2]}}}',
-                qos=0,
-                retain=False,
-            )
-        else:
-            _LOGGER.debug("refresh %s", self._topic)
-            self.hass.components.mqtt.async_publish(
-                cmd_topic,
-                f'moodlight {{"state":"{self._state}"}}',
-                qos=0,
-                retain=False,
-            )
+            colors = f', "r":{rgb[0]},"g":{rgb[1]},"b":{rgb[2]}'
+
+        _LOGGER.debug("refresh %s - %s", self._topic, colors)
+        self.hass.components.mqtt.async_publish(
+            cmd_topic,
+            f'moodlight {{"state":"{self._state}{colors}}}',
+            qos=0,
+            retain=False,
+        )
 
     async def async_turn_on(self, **kwargs):
         """Turn on the moodlight."""
