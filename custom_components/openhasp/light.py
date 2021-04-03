@@ -104,6 +104,7 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
 
         state = await self.async_get_last_state()
         if state:
+            self._state = state.state
             self._brightness = state.attributes.get(
                 ATTR_BRIGHTNESS, DEFAULT_AWAKE_BRIGHNESS
             )
@@ -124,7 +125,7 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
 
             try:
                 self._available = True
-                _LOGGER.debug("backlight = %s", msg.payload)
+                _LOGGER.debug("backlight %s: %s", msg.topic, msg.payload)
                 message = HASP_BACKLIGHT_SCHEMA(msg.payload)
 
                 if isinstance(message, bool):
@@ -251,6 +252,7 @@ class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
 
         state = await self.async_get_last_state()
         if state:
+            self._state = state.state
             self._hs = state.attributes.get(
                 ATTR_HS_COLOR, DEFAULT_HS
             )

@@ -3,7 +3,9 @@ from homeassistant.core import callback
 from homeassistant.helpers.entity import ToggleEntity
 import voluptuous as vol
 
-from .const import EVENT_HASP_PLATE_OFFLINE, EVENT_HASP_PLATE_ONLINE, HASP_IDLE_STATES
+from .const import (
+    CONF_PLATE,
+EVENT_HASP_PLATE_OFFLINE, EVENT_HASP_PLATE_ONLINE, HASP_IDLE_STATES)
 
 HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 
@@ -15,7 +17,7 @@ class HASPToggleEntity(ToggleEntity):
         """Initialize the light."""
         super().__init__()
         self._topic = topic
-        self._state = False
+        self._state = None
         self._plate = plate
         self._available = False
 
@@ -39,7 +41,7 @@ class HASPToggleEntity(ToggleEntity):
 
         @callback
         async def online(event):
-            if event.data["plate"] == self._plate:
+            if event.data[CONF_PLATE] == self._plate:
                 self._available = True
                 await self.refresh()
 
@@ -47,7 +49,7 @@ class HASPToggleEntity(ToggleEntity):
 
         @callback
         async def offline(event):
-            if event.data["plate"] == self._plate:
+            if event.data[CONF_PLATE] == self._plate:
                 self._available = False
                 self.async_write_ha_state()
 

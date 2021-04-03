@@ -290,7 +290,7 @@ class SwitchPlate(RestoreEntity):
                 if message == HASP_ONLINE:
                     self._available = True
                     self.hass.bus.async_fire(
-                        EVENT_HASP_PLATE_ONLINE, {"plate": self._plate}
+                        EVENT_HASP_PLATE_ONLINE, {CONF_PLATE: self._plate}
                     )
                     if self._pages_jsonl:
                         await self.async_load_page(self._pages_jsonl)
@@ -299,7 +299,7 @@ class SwitchPlate(RestoreEntity):
                 else:
                     self._available = False
                     self.hass.bus.async_fire(
-                        EVENT_HASP_PLATE_OFFLINE, {"plate": self._plate}
+                        EVENT_HASP_PLATE_OFFLINE, {CONF_PLATE: self._plate}
                     )
 
                 self.async_write_ha_state()
