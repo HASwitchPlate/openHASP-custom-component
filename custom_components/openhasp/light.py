@@ -313,5 +313,5 @@ class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
     async def async_turn_off(self, **kwargs):
         """Turn off the moodlight."""
         self._state = False
-        _LOGGER.debug"Turn off %s", self.name)
+        _LOGGER.debug("Turn off %s", self.name)
         await self.refresh()
