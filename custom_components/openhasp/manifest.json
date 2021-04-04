@@ -1,7 +1,7 @@
 {
   "domain": "openhasp",
   "name": "HASP-Open Hardware Edition",
-  "documentation": "https://https://openhasp-docs.github.com/",
+  "documentation": "https://haswitchplate.github.io/openHASP-docs/",
   "issue_tracker": "https://github.com/HASwitchPlate/openHASP-custom-component/issues",
   "dependencies": ["mqtt"],
   "version": "0.0.1",
