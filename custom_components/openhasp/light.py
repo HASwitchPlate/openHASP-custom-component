@@ -13,10 +13,7 @@ from homeassistant.core import callback
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.restore_state import RestoreEntity
 import homeassistant.util.color as color_util
-from homeassistant.util.percentage import (
-    percentage_to_ranged_value,
-    ranged_value_to_percentage,
-)
+
 import voluptuous as vol
 
 from .common import HASP_IDLE_SCHEMA, HASPToggleEntity
@@ -125,7 +122,7 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
                 if isinstance(message, bool):
                     self._state = message
                 else:
-                    self._brightness = percentage_to_ranged_value((0, 255), message)
+                    self._brightness = message
 
                 self.async_write_ha_state()
 
@@ -189,7 +186,7 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
     async def refresh(self):
         """Sync local state back to plate."""
         cmd_topic = f"{self._topic}/command"
-        brightness = ranged_value_to_percentage((0, 255), self._brightness)
+        brightness = self._brightness
 
         self.hass.components.mqtt.async_publish(
             cmd_topic,
@@ -209,8 +206,8 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
         """Turn on the backlight."""
         if ATTR_BRIGHTNESS in kwargs:
             self._brightness = kwargs[ATTR_BRIGHTNESS]
-            self._awake_brightness = ranged_value_to_percentage(
-                (0, 255), self._brightness
+            self._awake_brightness = (
+                self._brightness
             )  # save this value for later recall
         self._state = True
         await self.refresh()
