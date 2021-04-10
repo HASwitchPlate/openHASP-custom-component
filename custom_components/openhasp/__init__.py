@@ -109,7 +109,7 @@ PLATE_SCHEMA = vol.Schema(
         vol.Required(CONF_TOPIC): mqtt.valid_subscribe_topic,
         vol.Optional(CONF_GPIO): GPIO_SCHEMA,
         vol.Optional(CONF_IDLE_BRIGHTNESS, default=DEFAULT_IDLE_BRIGHNESS): vol.All(
-            int, vol.Range(min=0, max=100)
+            int, vol.Range(min=0, max=255)
         ),
         vol.Optional(CONF_PAGES_PATH): cv.isfile,
     },
