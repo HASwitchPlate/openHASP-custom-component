@@ -482,7 +482,7 @@ class HASPObject:
 
         self.properties = config.get(CONF_PROPERTIES)
         self.event_services = config.get(CONF_EVENT)
-        self._last_event = None
+        self._pressed = True
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
@@ -516,7 +516,7 @@ class HASPObject:
                 return
 
             self.cached_properties[_property] = result
-            if self._last_event == HASP_EVENT_CHANGED:
+            if self._pressed:
                 # Skip update to plate to avoid feedback loops
                 return
 
@@ -556,7 +556,11 @@ class HASPObject:
             try:
                 message = HASP_EVENT_SCHEMA(json.loads(msg.payload))
 
-                self._last_event = message[HASP_EVENT]
+                if message[HASP_EVENT] == HASP_EVENT_DOWN:
+                    self._pressed = True
+                elif message[HASP_EVENT] in [HASP_EVENT_UP, HASP_EVENT_RELEASE]:
+                    self._pressed = False
+
                 for event in self.event_services:
                     if event in message[HASP_EVENT]:
                         _LOGGER.debug(
