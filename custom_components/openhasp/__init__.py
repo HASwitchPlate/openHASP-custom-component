@@ -484,7 +484,7 @@ class HASPObject:
 
         self.properties = config.get(CONF_PROPERTIES)
         self.event_services = config.get(CONF_EVENT)
-        self._pressed = True
+        self._pressed = False
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
