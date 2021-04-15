@@ -75,7 +75,7 @@ def hasp_object(value):
 
 
 # Configuration YAML schemas
-EVENT_SCHEMA = cv.schema_with_slug_keys(cv.SERVICE_SCHEMA)
+EVENT_SCHEMA = cv.schema_with_slug_keys([cv.SERVICE_SCHEMA])
 
 PROPERTY_SCHEMA = cv.schema_with_slug_keys(cv.template)
 
@@ -572,12 +572,13 @@ class HASPObject:
                             msg.topic,
                             message
                         )
-                        await async_call_from_config(
-                            self.hass,
-                            self.event_services[event],
-                            validate_config=False,
-                            variables=message,
-                        )
+                        for service in self.event_services[event]:
+                            await async_call_from_config(
+                                self.hass,
+                                service,
+                                validate_config=False,
+                                variables=message,
+                            )
             except vol.error.Invalid:
                 _LOGGER.warning(
                     "Could not handle event '%s' on '%s'", msg.payload, msg.topic
