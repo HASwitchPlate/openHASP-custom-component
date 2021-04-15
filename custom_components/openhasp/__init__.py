@@ -566,15 +566,16 @@ class HASPObject:
                 for event in self.event_services:
                     if event in message[HASP_EVENT]:
                         _LOGGER.debug(
-                            "Service call for '%s' triggered by '%s' on '%s'",
+                            "Service call for '%s' triggered by '%s' on '%s' with variables %s",
                             event,
                             msg.payload,
                             msg.topic,
+                            message
                         )
                         await async_call_from_config(
                             self.hass,
                             self.event_services[event],
-                            validate_config=True,
+                            validate_config=False,
                             variables=message,
                         )
             except vol.error.Invalid:
