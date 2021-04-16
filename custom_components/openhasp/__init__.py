@@ -583,6 +583,8 @@ class HASPObject:
                 _LOGGER.warning(
                     "Could not handle event '%s' on '%s'", msg.payload, msg.topic
                 )
+            except json.decoder.JSONDecodeError as err:
+                _LOGGER.error("Error decoding JSON: %s", msg)
 
         _LOGGER.debug("Subscribe to '%s' events on '%s'", self.obj_id, self.state_topic)
         await self.hass.components.mqtt.async_subscribe(
