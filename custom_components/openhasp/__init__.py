@@ -3,7 +3,6 @@ import json
 import logging
 import os
 import re
-from enum import IntEnum
 
 from homeassistant.components import mqtt
 from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
@@ -66,14 +65,6 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-
-
-class PressedObject(IntEnum):
-    """Object states."""
-
-    DOWN = -1
-    CHANGING = 0
-    UP = 1
 
 
 def hasp_object(value):
@@ -493,7 +484,7 @@ class HASPObject:
 
         self.properties = config.get(CONF_PROPERTIES)
         self.event_services = config.get(CONF_EVENT)
-        self._button_state = PressedObject.UP
+        self._state_properties = []
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
@@ -527,10 +518,7 @@ class HASPObject:
                 return
 
             self.cached_properties[_property] = result
-            if self._button_state == PressedObject.DOWN:
-                # Process this update, skip nexts
-                self._button_state = PressedObject.CHANGING
-            elif self._button_state == PressedObject.CHANGING:
+            if _property in self._state_properties:
                 # Skip update to plate to avoid feedback loops
                 return
 
@@ -571,9 +559,9 @@ class HASPObject:
                 message = HASP_EVENT_SCHEMA(json.loads(msg.payload))
 
                 if message[HASP_EVENT] == HASP_EVENT_DOWN:
-                    self._button_state = PressedObject.DOWN
+                    self._state_properties = message.keys()
                 elif message[HASP_EVENT] in [HASP_EVENT_UP, HASP_EVENT_RELEASE]:
-                    self._button_state = PressedObject.UP
+                    self._state_properties = []
 
                 for event in self.event_services:
                     if event in message[HASP_EVENT]:
