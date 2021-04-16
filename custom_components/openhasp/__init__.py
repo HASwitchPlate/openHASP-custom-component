@@ -562,6 +562,7 @@ class HASPObject:
                     self._pressed = True
                 elif message[HASP_EVENT] in [HASP_EVENT_UP, HASP_EVENT_RELEASE]:
                     self._pressed = False
+                    await self.refresh()
 
                 for event in self.event_services:
                     if event in message[HASP_EVENT]:
