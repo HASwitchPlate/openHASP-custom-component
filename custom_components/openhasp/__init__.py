@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+from enum import IntEnum
 
 from homeassistant.components import mqtt
 from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
@@ -65,6 +66,14 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class PressedObject(IntEnum):
+    """Object states."""
+
+    DOWN = -1
+    CHANGING = 0
+    UP = 1
 
 
 def hasp_object(value):
@@ -484,7 +493,7 @@ class HASPObject:
 
         self.properties = config.get(CONF_PROPERTIES)
         self.event_services = config.get(CONF_EVENT)
-        self._pressed = False
+        self._button_state = PressedObject.UP
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
@@ -518,7 +527,10 @@ class HASPObject:
                 return
 
             self.cached_properties[_property] = result
-            if self._pressed:
+            if self._button_state == PressedObject.DOWN:
+                # Process this update, skip nexts
+                self._button_state = PressedObject.CHANGING
+            elif self._button_state == PressedObject.CHANGING:
                 # Skip update to plate to avoid feedback loops
                 return
 
@@ -559,9 +571,9 @@ class HASPObject:
                 message = HASP_EVENT_SCHEMA(json.loads(msg.payload))
 
                 if message[HASP_EVENT] == HASP_EVENT_DOWN:
-                    self._pressed = True
+                    self._button_state = PressedObject.DOWN
                 elif message[HASP_EVENT] in [HASP_EVENT_UP, HASP_EVENT_RELEASE]:
-                    self._pressed = False
+                    self._button_state = PressedObject.UP
 
                 for event in self.event_services:
                     if event in message[HASP_EVENT]:
@@ -570,7 +582,7 @@ class HASPObject:
                             event,
                             msg.payload,
                             msg.topic,
-                            message
+                            message,
                         )
                         for service in self.event_services[event]:
                             await async_call_from_config(
@@ -584,7 +596,9 @@ class HASPObject:
                     "Could not handle event '%s' on '%s'", msg.payload, msg.topic
                 )
             except json.decoder.JSONDecodeError as err:
-                _LOGGER.error("Error decoding received JSON message: %s on %s", err.doc, msg.topic)
+                _LOGGER.error(
+                    "Error decoding received JSON message: %s on %s", err.doc, msg.topic
+                )
 
         _LOGGER.debug("Subscribe to '%s' events on '%s'", self.obj_id, self.state_topic)
         await self.hass.components.mqtt.async_subscribe(
