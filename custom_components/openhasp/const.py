@@ -1,5 +1,9 @@
 """Constants for HASP Open Hardware Edition custom component."""
 
+# Version
+MAJOR = "0"
+MINOR = "5"
+
 DOMAIN = "openhasp"
 CONF_OBJID = "obj"
 CONF_PROPERTIES = "properties"
@@ -8,9 +12,6 @@ CONF_TRACK = "track"
 CONF_TOPIC = "topic"
 CONF_PAGES = "pages"
 CONF_PAGES_PATH = "path"
-CONF_PAGES_PREV = "prev_obj"
-CONF_PAGES_HOME = "home_obj"
-CONF_PAGES_NEXT = "next_obj"
 CONF_OBJECTS = "objects"
 CONF_VAL = "val"
 CONF_IDLE_BRIGHTNESS = "idle_brightness"
@@ -25,7 +26,6 @@ DEFAULT_TOPIC = "hasp"
 DEFAULT_PATH = "pages.jsonl"
 DEFAULT_IDLE_BRIGHNESS = 25
 
-HASP_HOME_PAGE = 1
 HASP_NUM_PAGES = "numPages"
 HASP_MAX_PAGES = 12
 HASP_VAL = "val"

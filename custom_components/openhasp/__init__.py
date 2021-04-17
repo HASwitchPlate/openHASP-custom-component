@@ -29,11 +29,7 @@ from .const import (
     CONF_LEDS,
     CONF_OBJECTS,
     CONF_OBJID,
-    CONF_PAGES,
-    CONF_PAGES_HOME,
-    CONF_PAGES_NEXT,
     CONF_PAGES_PATH,
-    CONF_PAGES_PREV,
     CONF_PLATE,
     CONF_PROPERTIES,
     CONF_PWMS,
@@ -45,12 +41,10 @@ from .const import (
     EVENT_HASP_PLATE_OFFLINE,
     EVENT_HASP_PLATE_ONLINE,
     HASP_EVENT,
-    HASP_EVENT_RELEASE,
-    HASP_EVENT_CHANGED,
-    HASP_EVENT_UP,
     HASP_EVENT_DOWN,
+    HASP_EVENT_RELEASE,
+    HASP_EVENT_UP,
     HASP_EVENTS,
-    HASP_HOME_PAGE,
     HASP_LWT,
     HASP_MAX_PAGES,
     HASP_NUM_PAGES,
@@ -62,6 +56,8 @@ from .const import (
     SERVICE_PAGE_NEXT,
     SERVICE_PAGE_PREV,
     SERVICE_WAKEUP,
+    MAJOR,
+    MINOR,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -88,14 +84,6 @@ OBJECT_SCHEMA = vol.Schema(
     }
 )
 
-PAGES_SCHEMA = vol.Schema(
-    {
-        vol.Optional(CONF_PAGES_PREV): hasp_object,
-        vol.Optional(CONF_PAGES_HOME): hasp_object,
-        vol.Required(CONF_PAGES_NEXT): hasp_object,
-    }
-)
-
 GPIO_SCHEMA = vol.Schema(
     {
         vol.Optional(CONF_RELAYS): vol.All(cv.ensure_list, [cv.positive_int]),
@@ -107,7 +95,6 @@ GPIO_SCHEMA = vol.Schema(
 PLATE_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_OBJECTS): vol.All(cv.ensure_list, [OBJECT_SCHEMA]),
-        vol.Required(CONF_PAGES): PAGES_SCHEMA,
         vol.Required(CONF_TOPIC): mqtt.valid_subscribe_topic,
         vol.Optional(CONF_GPIO): GPIO_SCHEMA,
         vol.Optional(CONF_IDLE_BRIGHTNESS, default=DEFAULT_IDLE_BRIGHNESS): vol.All(
@@ -214,11 +201,6 @@ class SwitchPlate(RestoreEntity):
         super().__init__()
         self._plate = plate
         self._topic = config[CONF_TOPIC]
-        self._buttons = (
-            config[CONF_PAGES].get(CONF_PAGES_PREV),
-            config[CONF_PAGES].get(CONF_PAGES_HOME),
-            config[CONF_PAGES].get(CONF_PAGES_NEXT),
-        )
         self._pages_jsonl = config.get(CONF_PAGES_PATH)
 
         self._objects = []
@@ -242,8 +224,6 @@ class SwitchPlate(RestoreEntity):
         if state and state.state not in [STATE_UNAVAILABLE, STATE_UNKNOWN, None]:
             self._page = int(state.state)
 
-        await self.async_setup_pages()
-
         for obj in self._objects:
             await obj.async_added_to_hass()
 
@@ -254,6 +234,18 @@ class SwitchPlate(RestoreEntity):
             try:
                 message = HASP_STATUSUPDATE_SCHEMA(json.loads(msg.payload))
 
+                major, minor, _ = message["version"].split(".")
+                if (major, minor) != (MAJOR, MINOR):
+                    self.hass.components.persistent_notification.create(
+                        f"You require firmware version {MAJOR}.{MINOR}.x \
+                            for this component to work properly.\
+                            <br>Some features will simply not work!",
+                        title="openHASP Firmware mismatch",
+                        notification_id="openhasp_firmware_notification",
+                    )
+                    _LOGGER.error(
+                        "Firmware mismatch %s <> %s", (major, minor), (MAJOR, MINOR)
+                    )
                 self._available = True
                 self._statusupdate = message
                 self._page = message[ATTR_PAGE]
@@ -358,11 +350,19 @@ class SwitchPlate(RestoreEntity):
 
     async def async_change_page_next(self):
         """Change page to next one."""
-        await self.async_change_page(self._page + 1)
+        cmd_topic = f"{self._topic}/command/page"
+
+        self.hass.components.mqtt.async_publish(
+            cmd_topic, "page next", qos=0, retain=False
+        )
 
     async def async_change_page_prev(self):
         """Change page to previous one."""
-        await self.async_change_page(self._page - 1)
+        cmd_topic = f"{self._topic}/command/page"
+
+        self.hass.components.mqtt.async_publish(
+            cmd_topic, "page prev", qos=0, retain=False
+        )
 
     async def async_clearpage(self, page="all"):
         """Clear page."""
@@ -397,41 +397,6 @@ class SwitchPlate(RestoreEntity):
             cmd_topic, self._page, qos=0, retain=False
         )
         self.async_write_ha_state()
-
-    async def async_setup_pages(self):
-        """Listen to messages on MQTT for HASP Page changes."""
-
-        async def page_message_received(msg):
-            """Process MQTT message from plate."""
-            _LOGGER.debug("Page button received: %s ", msg.topic)
-
-            try:
-                cmd = HASP_EVENT_SCHEMA(json.loads(msg.payload))
-
-                if cmd[HASP_EVENT] != HASP_EVENT_DOWN:
-                    return
-
-                _prev_btn, _home_btn, _next_btn = self._buttons
-
-                if _prev_btn and msg.topic.endswith(_prev_btn):
-                    await self.async_change_page_prev()
-                if _home_btn and msg.topic.endswith(_home_btn):
-                    await self.async_change_page(HASP_HOME_PAGE)
-                if _next_btn and msg.topic.endswith(_next_btn):
-                    await self.async_change_page_next()
-
-            except vol.error.Invalid as err:
-                _LOGGER.error(err)
-
-        for obj in self._buttons:
-            if obj is None:
-                continue
-
-            state_topic = f"{self._topic}/state/{obj}"
-            _LOGGER.debug("Track page button: %s -> %s", obj, state_topic)
-            await self.hass.components.mqtt.async_subscribe(
-                state_topic, page_message_received
-            )
 
     async def refresh(self):
         """Refresh objects in the SwitchPlate."""
@@ -484,7 +449,7 @@ class HASPObject:
 
         self.properties = config.get(CONF_PROPERTIES)
         self.event_services = config.get(CONF_EVENT)
-        self._state_properties = []
+        self._freeze_properties = []
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
@@ -518,7 +483,7 @@ class HASPObject:
                 return
 
             self.cached_properties[_property] = result
-            if _property in self._state_properties:
+            if _property in self._freeze_properties:
                 # Skip update to plate to avoid feedback loops
                 return
 
@@ -559,9 +524,11 @@ class HASPObject:
                 message = HASP_EVENT_SCHEMA(json.loads(msg.payload))
 
                 if message[HASP_EVENT] == HASP_EVENT_DOWN:
-                    self._state_properties = message.keys()
+                    self._freeze_properties = (
+                        message.keys()
+                    )  # store properties that shouldn't be updated while button pressed
                 elif message[HASP_EVENT] in [HASP_EVENT_UP, HASP_EVENT_RELEASE]:
-                    self._state_properties = []
+                    self._freeze_properties = []
 
                 for event in self.event_services:
                     if event in message[HASP_EVENT]:
