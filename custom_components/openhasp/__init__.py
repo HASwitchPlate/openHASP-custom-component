@@ -238,13 +238,13 @@ class SwitchPlate(RestoreEntity):
                 if (major, minor) != (MAJOR, MINOR):
                     self.hass.components.persistent_notification.create(
                         f"You require firmware version {MAJOR}.{MINOR}.x \
-                            for this component to work properly.\
+                            in plate {self._plate} for this component to work properly.\
                             <br>Some features will simply not work!",
                         title="openHASP Firmware mismatch",
                         notification_id="openhasp_firmware_notification",
                     )
                     _LOGGER.error(
-                        "Firmware mismatch %s <> %s", (major, minor), (MAJOR, MINOR)
+                        "%s firmware mismatch %s <> %s", self._plate, (major, minor), (MAJOR, MINOR)
                     )
                 self._available = True
                 self._statusupdate = message
