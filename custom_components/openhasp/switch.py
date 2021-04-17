@@ -35,7 +35,7 @@ class HASPSwitch(HASPToggleEntity):
         """Initialize the relay."""
         super().__init__(plate, topic)
         self._gpio = gpio
-        _LOGGER.error("init %s", self.name)
+        _LOGGER.error("init %s", self.unique_id)
 
     @property
     def unique_id(self):

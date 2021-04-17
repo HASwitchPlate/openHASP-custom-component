@@ -130,6 +130,8 @@ HASP_STATUSUPDATE_SCHEMA = vol.Schema(
 
 HASP_LWT_SCHEMA = vol.Schema(vol.Any(*HASP_LWT))
 
+HASP_PAGE_SCHEMA = vol.Schema(vol.All(vol.Coerce(int), vol.Range(min=0, max=12)))
+
 
 async def async_setup(hass, config):
     """Set up the MQTT async example component."""
@@ -228,6 +230,20 @@ class SwitchPlate(RestoreEntity):
             await obj.async_added_to_hass()
 
         @callback
+        async def page_update_received(msg):
+            """Process page state."""
+            try:
+                self._page = HASP_PAGE_SCHEMA(msg.payload)
+                _LOGGER.debug("Page changed to %s", self._page)
+                self.async_write_ha_state()
+            except vol.error.Invalid as err:
+                _LOGGER.error("%s in %s", err, msg.payload)
+
+        await self.hass.components.mqtt.async_subscribe(
+            self._topic + "/state/page", page_update_received
+        )
+
+        @callback
         async def statusupdate_message_received(msg):
             """Process statusupdate."""
 
@@ -244,7 +260,10 @@ class SwitchPlate(RestoreEntity):
                         notification_id="openhasp_firmware_notification",
                     )
                     _LOGGER.error(
-                        "%s firmware mismatch %s <> %s", self._plate, (major, minor), (MAJOR, MINOR)
+                        "%s firmware mismatch %s <> %s",
+                        self._plate,
+                        (major, minor),
+                        (MAJOR, MINOR),
                     )
                 self._available = True
                 self._statusupdate = message
