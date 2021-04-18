@@ -543,9 +543,8 @@ class HASPObject:
                 message = HASP_EVENT_SCHEMA(json.loads(msg.payload))
 
                 if message[HASP_EVENT] == HASP_EVENT_DOWN:
-                    self._freeze_properties = (
-                        message.keys()
-                    )  # store properties that shouldn't be updated while button pressed
+                    # store properties that shouldn't be updated while button pressed
+                    self._freeze_properties = message.keys()
                 elif message[HASP_EVENT] in [HASP_EVENT_UP, HASP_EVENT_RELEASE]:
                     self._freeze_properties = []
 
@@ -567,7 +566,9 @@ class HASPObject:
                             )
             except vol.error.Invalid:
                 _LOGGER.warning(
-                    "Could not handle event '%s' on '%s'", msg.payload, msg.topic
+                    "Could not handle openHASP event: '%s' on '%s'",
+                    msg.payload,
+                    msg.topic,
                 )
             except json.decoder.JSONDecodeError as err:
                 _LOGGER.error(
