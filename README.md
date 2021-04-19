@@ -1,8 +1,4 @@
-[![GitHub Release][releases-shield]][releases]
-[![GitHub Activity][commits-shield]][commits]
-[![License][license-shield]][license]
-
-[![hacs][hacs-shield]][hacs]
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/HASwitchPlate/openHASP-custom-component)
 
 # openHASP - Custom Component for Home Assistant
 
