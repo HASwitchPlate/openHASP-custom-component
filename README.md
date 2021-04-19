@@ -1,3 +1,9 @@
+[![GitHub Release][releases-shield]][releases]
+[![GitHub Activity][commits-shield]][commits]
+[![License][license-shield]][license]
+
+[![hacs][hacs-shield]][hacs]
+
 # openHASP - Custom Component for Home Assistant
 
 This custom component simplifies synchronization of objects on one or more openHASP [HASP - Open SwitchPlates](https://haswitchplate.github.io/openHASP-docs/) with Home Assistant entities. An Open SwitchPlate is basically a small touchscreen device which you can mount on the wall in place of a switch, and you can design your custom user interface for it using json. You can build your own hardware but you can also buy them ready-made.
