@@ -102,7 +102,13 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
             self._state = state.state
             self._brightness = state.attributes.get(ATTR_BRIGHTNESS)
             self._awake_brightness = state.attributes.get(ATTR_AWAKE_BRIGHTNESS, 255)
-            _LOGGER.debug("Restoring awake_brightness = %s", self._awake_brightness)
+            _LOGGER.debug(
+                "Restoring self.brigthness = %s; awake_brightness = %s",
+                self._brightness,
+                self._awake_brightness,
+            )
+            if not self._brightness:
+                self._brightness = self._awake_brightness
 
         await self.async_listen_idleness()
 
@@ -127,13 +133,18 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
                 self.async_write_ha_state()
 
             except vol.error.Invalid as err:
-                _LOGGER.error(err)
+                _LOGGER.error("While proccessing backlight: %s", err)
 
-        await self.hass.components.mqtt.async_subscribe(
-            light_state_topic, backlight_message_received
+        self._subscriptions.append(
+            await self.hass.components.mqtt.async_subscribe(
+                light_state_topic, backlight_message_received
+            )
         )
-        await self.hass.components.mqtt.async_subscribe(
-            dim_state_topic, backlight_message_received
+
+        self._subscriptions.append(
+            await self.hass.components.mqtt.async_subscribe(
+                dim_state_topic, backlight_message_received
+            )
         )
         self.hass.components.mqtt.async_publish(
             cmd_topic, 'json ["light", "dim"]', qos=0, retain=False
@@ -168,36 +179,33 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
                 backlight,
             )
 
-            dim_str = ""
-            if dim:
-                dim_str = f', "dim {dim}"'
             self.hass.components.mqtt.async_publish(
                 cmd_topic,
-                f'json ["light {backlight}"{dim_str}]',
+                f'json ["light {self._state}, dim {self._brightness}]',
                 qos=0,
                 retain=False,
             )
             self.async_write_ha_state()
 
-        await self.hass.components.mqtt.async_subscribe(
-            state_topic, idle_message_received
+        self._subscriptions.append(
+            await self.hass.components.mqtt.async_subscribe(
+                state_topic, idle_message_received
+            )
         )
 
     async def refresh(self):
         """Sync local state back to plate."""
         cmd_topic = f"{self._topic}/command"
-        brightness = self._brightness
 
-        self.hass.components.mqtt.async_publish(
-            cmd_topic,
-            f"dim {brightness}",
-            qos=0,
-            retain=False,
+        _LOGGER.debug(
+            "refresh() backlight brightness = %s, light = %s",
+            self._brightness,
+            self._state,
         )
 
         self.hass.components.mqtt.async_publish(
             cmd_topic,
-            f"light {self._state}",
+            f'json ["light {self._state}, dim {self._brightness}]',
             qos=0,
             retain=False,
         )
@@ -264,10 +272,12 @@ class HASPMoodLight(HASPToggleEntity, LightEntity):
                 self.async_write_ha_state()
 
             except vol.error.Invalid as err:
-                _LOGGER.error(err)
+                _LOGGER.error("While proccessing moodlight: %s", err)
 
-        await self.hass.components.mqtt.async_subscribe(
-            state_topic, moodlight_message_received
+        self._subscriptions.append(
+            await self.hass.components.mqtt.async_subscribe(
+                state_topic, moodlight_message_received
+            )
         )
 
         self.hass.components.mqtt.async_publish(

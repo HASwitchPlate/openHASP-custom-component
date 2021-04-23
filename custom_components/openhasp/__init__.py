@@ -209,14 +209,19 @@ class SwitchPlate(RestoreEntity):
         for obj in config[CONF_OBJECTS]:
             new_obj = HASPObject(hass, self._topic, obj)
 
-            self.add_object(new_obj)
+            self._objects.append(new_obj)
         self._statusupdate = {HASP_NUM_PAGES: HASP_MAX_PAGES}
         self._available = False
         self._page = 1
 
-    def add_object(self, obj):
-        """Track objects in plate."""
-        self._objects.append(obj)
+        self._subscriptions = []
+
+    async def async_will_remove_from_hass(self):
+        """Run when entity about to be removed."""
+        await super().async_will_remove_from_hass()
+
+        for subscription in self._subscriptions:
+            subscription()
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
@@ -225,9 +230,6 @@ class SwitchPlate(RestoreEntity):
         state = await self.async_get_last_state()
         if state and state.state not in [STATE_UNAVAILABLE, STATE_UNKNOWN, None]:
             self._page = int(state.state)
-
-        for obj in self._objects:
-            await obj.async_added_to_hass()
 
         @callback
         async def page_update_received(msg):
@@ -239,8 +241,10 @@ class SwitchPlate(RestoreEntity):
             except vol.error.Invalid as err:
                 _LOGGER.error("%s in %s", err, msg.payload)
 
-        await self.hass.components.mqtt.async_subscribe(
-            self._topic + "/state/page", page_update_received
+        self._subscriptions.append(
+            await self.hass.components.mqtt.async_subscribe(
+                self._topic + "/state/page", page_update_received
+            )
         )
 
         @callback
@@ -271,10 +275,12 @@ class SwitchPlate(RestoreEntity):
                 self.async_write_ha_state()
 
             except vol.error.Invalid as err:
-                _LOGGER.error(err)
+                _LOGGER.error("While processing status update: %s", err)
 
-        await self.hass.components.mqtt.async_subscribe(
-            self._topic + "/state/statusupdate", statusupdate_message_received
+        self._subscriptions.append(
+            await self.hass.components.mqtt.async_subscribe(
+                self._topic + "/state/statusupdate", statusupdate_message_received
+            )
         )
         self.hass.components.mqtt.async_publish(
             self._topic + "/command", "statusupdate", qos=0, retain=False
@@ -289,8 +295,10 @@ class SwitchPlate(RestoreEntity):
             except vol.error.Invalid as err:
                 _LOGGER.error(err)
 
-        await self.hass.components.mqtt.async_subscribe(
-            self._topic + "/state/idle", idle_message_received
+        self._subscriptions.append(
+            await self.hass.components.mqtt.async_subscribe(
+                self._topic + "/state/idle", idle_message_received
+            )
         )
 
         @callback
@@ -309,19 +317,26 @@ class SwitchPlate(RestoreEntity):
                         await self.async_load_page(self._pages_jsonl)
                     else:
                         await self.refresh()
+
+                    for obj in self._objects:
+                        await obj.enable_object()
                 else:
                     self._available = False
                     self.hass.bus.async_fire(
                         EVENT_HASP_PLATE_OFFLINE, {CONF_PLATE: self._plate}
                     )
+                    for obj in self._objects:
+                        await obj.disable_object()
 
                 self.async_write_ha_state()
 
             except vol.error.Invalid as err:
-                _LOGGER.error(err)
+                _LOGGER.error("While processing LWT: %s", err)
 
-        await self.hass.components.mqtt.async_subscribe(
-            f"{self._topic}/LWT", lwt_message_received
+        self._subscriptions.append(
+            await self.hass.components.mqtt.async_subscribe(
+                f"{self._topic}/LWT", lwt_message_received
+            )
         )
 
     @property
@@ -468,17 +483,34 @@ class HASPObject:
 
         self.properties = config.get(CONF_PROPERTIES)
         self.event_services = config.get(CONF_EVENT)
+        self._tracked_property_templates = []
         self._freeze_properties = []
+        self._subscriptions = []
 
-    async def async_added_to_hass(self):
-        """Run when entity about to be added."""
+    async def enable_object(self):
+        """Initialize object events and properties subscriptions."""
 
         if self.event_services:
             _LOGGER.debug("Setup event_services for '%s'", self.obj_id)
-            await self.async_listen_hasp_events()
+            self._subscriptions.append(await self.async_listen_hasp_events())
 
         for _property, template in self.properties.items():
-            await self.async_set_property(_property, template)
+            self._tracked_property_templates.append(
+                await self.async_set_property(_property, template)
+            )
+
+    async def disable_object(self):
+        """Remove subscriptions and event tracking."""
+        _LOGGER.debug("remove_object %s", self.obj_id)
+        for subscription in self._subscriptions:
+            _LOGGER.debug("event")
+            subscription()
+        self._subscriptions = []
+
+        for tracked_template in self._tracked_property_templates:
+            _LOGGER.debug("template")
+            tracked_template.async_remove()
+        self._tracked_property_templates = []
 
     async def async_set_property(self, _property, template):
         """Set HASP Object property to template value."""
@@ -524,6 +556,8 @@ class HASPObject:
             _async_template_result_changed,
         )
         property_template.async_refresh()
+
+        return property_template
 
     async def refresh(self):
         """Refresh based on cached values."""
@@ -576,6 +610,6 @@ class HASPObject:
                 )
 
         _LOGGER.debug("Subscribe to '%s' events on '%s'", self.obj_id, self.state_topic)
-        await self.hass.components.mqtt.async_subscribe(
+        return await self.hass.components.mqtt.async_subscribe(
             self.state_topic, message_received
         )

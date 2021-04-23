@@ -1,7 +1,8 @@
 """HASP-LVGL Commonalities."""
+import logging
+import voluptuous as vol
 from homeassistant.core import callback
 from homeassistant.helpers.entity import ToggleEntity
-import voluptuous as vol
 
 from .const import (
     CONF_PLATE,
@@ -9,6 +10,9 @@ from .const import (
     EVENT_HASP_PLATE_ONLINE,
     HASP_IDLE_STATES,
 )
+
+_LOGGER = logging.getLogger(__name__)
+
 
 HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 
@@ -23,6 +27,7 @@ class HASPToggleEntity(ToggleEntity):
         self._state = None
         self._plate = plate
         self._available = False
+        self._subscriptions = []
 
     @property
     def available(self):
@@ -48,7 +53,9 @@ class HASPToggleEntity(ToggleEntity):
                 self._available = True
                 await self.refresh()
 
-        self.hass.bus.async_listen(EVENT_HASP_PLATE_ONLINE, online)
+        self._subscriptions.append(
+            self.hass.bus.async_listen(EVENT_HASP_PLATE_ONLINE, online)
+        )
 
         @callback
         async def offline(event):
@@ -56,4 +63,13 @@ class HASPToggleEntity(ToggleEntity):
                 self._available = False
                 self.async_write_ha_state()
 
-        self.hass.bus.async_listen(EVENT_HASP_PLATE_OFFLINE, offline)
+        self._subscriptions.append(
+            self.hass.bus.async_listen(EVENT_HASP_PLATE_OFFLINE, offline)
+        )
+
+    async def async_will_remove_from_hass(self):
+        """Run when entity about to be removed."""
+        await super().async_will_remove_from_hass()
+
+        for subscription in self._subscriptions:
+            subscription()
