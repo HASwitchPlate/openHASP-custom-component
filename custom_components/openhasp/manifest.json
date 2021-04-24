@@ -9,5 +9,8 @@
   "codeowners": [
     "@dgomes"
   ],
-  "requirements": []
+  "requirements": [],
+  "mqtt": [
+    "hasp/+/state/statusupdate"
+  ]
 }

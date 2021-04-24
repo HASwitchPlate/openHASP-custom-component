@@ -12,7 +12,8 @@
         }
       },
       "error": {
-        "cannot_connect": "Cannot Connect"
+        "cannot_connect": "Cannot Connect",
+        "invalid_discovery_info": "Invalid plate topic"
       },
       "abort": {
         "already_configured": "Already configured device"
