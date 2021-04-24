@@ -1,6 +1,7 @@
 """Support for HASP LVGL moodlights."""
 import json
 import logging
+from typing import Callable
 
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
@@ -9,10 +10,12 @@ from homeassistant.components.light import (
     SUPPORT_COLOR,
     LightEntity,
 )
-from homeassistant.core import callback
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.restore_state import RestoreEntity
 import homeassistant.util.color as color_util
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_NAME
 
 import voluptuous as vol
 
@@ -21,7 +24,6 @@ from .const import (
     ATTR_AWAKE_BRIGHTNESS,
     ATTR_IDLE_BRIGHTNESS,
     CONF_IDLE_BRIGHTNESS,
-    CONF_PLATE,
     CONF_TOPIC,
     HASP_IDLE_LONG,
     HASP_IDLE_OFF,
@@ -45,17 +47,26 @@ HASP_BACKLIGHT_SCHEMA = vol.Schema(vol.Any(cv.boolean, vol.Coerce(int)))
 # pylint: disable=W0613
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the HASP LVGL moodlight."""
-    if discovery_info is None:
-        _LOGGER.error("This platform is only available through discovery")
-        return
+    return False
 
-    plate = discovery_info[CONF_PLATE]
-    base_topic = discovery_info[CONF_TOPIC]
-    brightness = discovery_info[CONF_IDLE_BRIGHTNESS]
+
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: Callable
+):
+    """Set up Plate Light sensors based on a config entry."""
 
     async_add_entities(
-        [HASPBackLight(plate, base_topic, brightness), HASPMoodLight(plate, base_topic)]
+        [
+            HASPBackLight(
+                entry.data[CONF_NAME],
+                entry.data[CONF_TOPIC],
+                entry.data[CONF_IDLE_BRIGHTNESS],
+            ),
+            HASPMoodLight(entry.data[CONF_NAME], entry.data[CONF_TOPIC]),
+        ]
     )
+
+    return True
 
 
 class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
@@ -181,7 +192,7 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
 
             self.hass.components.mqtt.async_publish(
                 cmd_topic,
-                f'json ["light {self._state}, dim {self._brightness}]',
+                f'json ["light {self._state}", "dim {self._brightness}"]',
                 qos=0,
                 retain=False,
             )
@@ -205,7 +216,7 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
 
         self.hass.components.mqtt.async_publish(
             cmd_topic,
-            f'json ["light {self._state}, dim {self._brightness}]',
+            f'json ["light {self._state}", "dim {self._brightness}"]',
             qos=0,
             retain=False,
         )

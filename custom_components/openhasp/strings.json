@@ -1,0 +1,21 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Setup your OpenHASP Plate",
+                "description": "Enter your Plate data",
+                "data": {
+                    "name": "[%key:common::config_flow::data::name%]",
+                    "topic": "OpenHASP MQTT base topic",
+                    "idle_brightness": "Brightness level to awake the panel to"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]"
+        },
+        "abort": {
+            "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
+        }
+    }
+}

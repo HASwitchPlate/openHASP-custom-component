@@ -5,6 +5,8 @@ MAJOR = "0"
 MINOR = "5"
 
 DOMAIN = "openhasp"
+
+CONF_CONFIG = "config"
 CONF_OBJID = "obj"
 CONF_PROPERTIES = "properties"
 CONF_EVENT = "event"
@@ -25,6 +27,9 @@ CONF_GPIO = "gpio"
 DEFAULT_TOPIC = "hasp"
 DEFAULT_PATH = "pages.jsonl"
 DEFAULT_IDLE_BRIGHNESS = 25
+
+DISCOVERED_FIRMWARE = "firmware"
+DISCOVERED_MODEL = "model"
 
 HASP_NUM_PAGES = "numPages"
 HASP_MAX_PAGES = 12

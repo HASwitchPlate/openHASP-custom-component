@@ -1,0 +1,22 @@
+{
+    "config": {
+      "step": {
+        "user": {
+          "title": "Setup your OpenHASP Plate",
+          "description": "This data must match your YAML configuration",
+          "data": {
+            "name": "Name",
+            "topic": "OpenHASP MQTT base topic",
+            "idle_brightness": "Brightness level when plate is idle"
+          }
+        }
+      },
+      "error": {
+        "cannot_connect": "Cannot Connect"
+      },
+      "abort": {
+        "already_configured": "Already configured device"
+      }
+    }
+  }
+  

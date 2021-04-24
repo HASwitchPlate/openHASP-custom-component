@@ -5,6 +5,7 @@ from homeassistant.core import callback
 from homeassistant.helpers.entity import ToggleEntity
 
 from .const import (
+    DOMAIN,
     CONF_PLATE,
     EVENT_HASP_PLATE_OFFLINE,
     EVENT_HASP_PLATE_ONLINE,
@@ -73,3 +74,10 @@ class HASPToggleEntity(ToggleEntity):
 
         for subscription in self._subscriptions:
             subscription()
+
+    @property
+    def device_info(self):
+        """Return device information."""
+        return {
+            "identifiers": {(DOMAIN, self._plate)},
+        }
