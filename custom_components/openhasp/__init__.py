@@ -10,7 +10,7 @@ from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN, CONF_NAME
 from homeassistant.core import callback
 from homeassistant.exceptions import TemplateError
-from homeassistant.helpers import discovery
+from homeassistant.helpers import discovery, entity_registry
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.event import TrackTemplate, async_track_template_result
@@ -162,11 +162,23 @@ async def async_setup_entry(hass, entry) -> bool:
         _LOGGER.error("No YAML configuration for plate: %s", plate)
         return False
 
+    device_registry = await dr.async_get_registry(hass)
+
+    device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, plate)},
+        manufacturer="OpenHASP",
+        suggested_area="Living Room",
+        name=plate,
+    )
+
     component = EntityComponent(_LOGGER, DOMAIN, hass)
 
     plate_entity = SwitchPlate(hass, plate, config[plate], entry)
 
     await component.async_add_entities([plate_entity])
+
+    hass.data[DOMAIN][plate] = plate_entity
 
     component.async_register_entity_service(SERVICE_WAKEUP, {}, "async_wakeup")
     component.async_register_entity_service(
@@ -202,22 +214,14 @@ async def async_setup_entry(hass, entry) -> bool:
     #        )
     #    )
 
-    device_registry = await dr.async_get_registry(hass)
-
-    device_registry.async_get_or_create(
-        config_entry_id=entry.entry_id,
-        identifiers={(DOMAIN, plate)},
-        manufacturer="OpenHASP",
-        suggested_area="Living Room",
-        name=plate,
-    )
-
     return True
 
 
 async def async_unload_entry(hass, config_entry):
     """Remove a config entry."""
-    _LOGGER.debug("Unload entry for plate %s", config_entry.data[CONF_NAME])
+    plate = config_entry.data[CONF_NAME]
+
+    _LOGGER.debug("Unload entry for plate %s", plate)
 
     hass.services.async_remove(DOMAIN, SERVICE_WAKEUP)
     hass.services.async_remove(DOMAIN, SERVICE_PAGE_NEXT)
@@ -228,7 +232,18 @@ async def async_unload_entry(hass, config_entry):
 
     await hass.config_entries.async_forward_entry_unload(config_entry, LIGHT_DOMAIN)
 
-    del hass.data[DOMAIN]
+    await hass.data[DOMAIN][plate].remove()
+
+    device_registry = await dr.async_get_registry(hass)
+    dev = device_registry.async_get_device(identifiers={(DOMAIN, plate)})
+    if config_entry.entry_id in dev.config_entries:
+        _LOGGER.debug("Removing device %s", dev)
+        device_registry.async_remove_device(dev.id)
+
+    registry = await entity_registry.async_get_registry(hass)
+    registry.async_remove(hass.data[DOMAIN][plate].entity_id)
+
+    del hass.data[DOMAIN][plate]
 
     return True
 
@@ -255,11 +270,13 @@ class SwitchPlate(RestoreEntity):
 
         self._subscriptions = []
 
-    async def async_will_remove_from_hass(self):
+    async def remove(self):
         """Run when entity about to be removed."""
-        await super().async_will_remove_from_hass()
-
         _LOGGER.debug("Remove plate %s", self._plate)
+
+        for obj in self._objects:
+            await obj.disable_object()
+
         for subscription in self._subscriptions:
             subscription()
 
@@ -313,8 +330,8 @@ class SwitchPlate(RestoreEntity):
                 self._statusupdate = message
 
                 dev_reg = await dr.async_get_registry(self.hass)
-                device = dev_reg.async_get_device({(DOMAIN, self._entry.entry_id)})
-                dev_reg.async_update_device(device.id, sw_version=message["version"], manufacturer=message["core"])
+                device = dev_reg.async_get_device({(DOMAIN, self._plate)})
+                dev_reg.async_update_device(device.id, sw_version=message["version"])
 
                 self._page = message[ATTR_PAGE]
                 self.async_write_ha_state()
@@ -383,17 +400,6 @@ class SwitchPlate(RestoreEntity):
                 f"{self._topic}/LWT", lwt_message_received
             )
         )
-
-    @property
-    def device_info(self):
-        """Return device information."""
-        return {
-            "identifiers": {(DOMAIN, self._plate)},
-            "name": self._plate,
-            "manufacturer": "openHASP",
-            "model": "Lanbon L8",
-            "sw_version": "0.5.0",
-        }
 
     @property
     def unique_id(self):
