@@ -17,6 +17,7 @@ from homeassistant.helpers.event import TrackTemplate, async_track_template_resu
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.service import async_call_from_config
+from homeassistant.helpers.reload import async_integration_yaml_config
 import voluptuous as vol
 
 from .common import HASP_IDLE_SCHEMA
@@ -25,6 +26,7 @@ from .const import (
     ATTR_PAGE,
     ATTR_PATH,
     CONF_EVENT,
+    CONF_COMPONENT,
     CONF_GPIO,
     CONF_IDLE_BRIGHTNESS,
     CONF_LEDS,
@@ -37,7 +39,6 @@ from .const import (
     CONF_RELAYS,
     CONF_TOPIC,
     CONF_TRACK,
-    CONF_CONFIG,
     DEFAULT_IDLE_BRIGHNESS,
     DOMAIN,
     DISCOVERED_FIRMWARE,
@@ -143,42 +144,14 @@ async def async_setup(hass, config):
 
     if conf is None:
         # We still depend in YAML so we must fail
+        _LOGGER.error("openHASP requires you to setup your plate objects in your YAML configuration.")
         return False
 
-    conf = dict(conf)
+    hass.data.setdefault(DOMAIN, {CONF_PLATE: {}})
 
-    hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][CONF_CONFIG] = conf
-
-    return True
-
-
-async def async_setup_entry(hass, entry) -> bool:
-    """Set up OpenHASP via a config entry."""
-    plate = entry.data[CONF_NAME]
-    config = hass.data[DOMAIN][CONF_CONFIG]
-
-    if plate not in config:
-        _LOGGER.error("No YAML configuration for plate: %s", plate)
-        return False
-
-    device_registry = await dr.async_get_registry(hass)
-
-    device_registry.async_get_or_create(
-        config_entry_id=entry.entry_id,
-        identifiers={(DOMAIN, plate)},
-        manufacturer="OpenHASP",
-        suggested_area="Living Room",
-        name=plate,
+    component = hass.data[DOMAIN][CONF_COMPONENT] = EntityComponent(
+        _LOGGER, DOMAIN, hass
     )
-
-    component = EntityComponent(_LOGGER, DOMAIN, hass)
-
-    plate_entity = SwitchPlate(hass, plate, config[plate], entry)
-
-    await component.async_add_entities([plate_entity])
-
-    hass.data[DOMAIN][plate] = plate_entity
 
     component.async_register_entity_service(SERVICE_WAKEUP, {}, "async_wakeup")
     component.async_register_entity_service(
@@ -196,6 +169,36 @@ async def async_setup_entry(hass, entry) -> bool:
     component.async_register_entity_service(
         SERVICE_CLEAR_PAGE, {vol.Optional(ATTR_PAGE): int}, "async_clearpage"
     )
+
+    return True
+
+
+async def async_setup_entry(hass, entry) -> bool:
+    """Set up OpenHASP via a config entry."""
+    plate = entry.data[CONF_NAME]
+    hass_config = await async_integration_yaml_config(hass, DOMAIN)
+
+    if DOMAIN not in hass_config or plate not in hass_config[DOMAIN]:
+        _LOGGER.error("No YAML configuration for plate: %s", plate)
+        return False
+    
+    config = hass_config[DOMAIN]
+
+    #Register Plate device
+    device_registry = await dr.async_get_registry(hass)
+    dev = device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, plate)},
+        manufacturer="OpenHASP",
+        suggested_area="Living Room",
+        name=plate,
+    )
+
+    # Add entity to component
+    component = hass.data[DOMAIN][CONF_COMPONENT]
+    plate_entity = SwitchPlate(hass, plate, config[plate], entry)
+    await component.async_add_entities([plate_entity])
+    hass.data[DOMAIN][CONF_PLATE][plate] = plate_entity
 
     hass.async_create_task(
         hass.config_entries.async_forward_entry_setup(entry, LIGHT_DOMAIN)
@@ -223,16 +226,16 @@ async def async_unload_entry(hass, config_entry):
 
     _LOGGER.debug("Unload entry for plate %s", plate)
 
-    hass.services.async_remove(DOMAIN, SERVICE_WAKEUP)
-    hass.services.async_remove(DOMAIN, SERVICE_PAGE_NEXT)
-    hass.services.async_remove(DOMAIN, SERVICE_PAGE_PREV)
-    hass.services.async_remove(DOMAIN, SERVICE_PAGE_CHANGE)
-    hass.services.async_remove(DOMAIN, SERVICE_LOAD_PAGE)
-    hass.services.async_remove(DOMAIN, SERVICE_CLEAR_PAGE)
+    #Only remove services if it is the last
+    if len(hass.data[DOMAIN][CONF_PLATE]) == 1:
+        hass.services.async_remove(DOMAIN, SERVICE_WAKEUP)
+        hass.services.async_remove(DOMAIN, SERVICE_PAGE_NEXT)
+        hass.services.async_remove(DOMAIN, SERVICE_PAGE_PREV)
+        hass.services.async_remove(DOMAIN, SERVICE_PAGE_CHANGE)
+        hass.services.async_remove(DOMAIN, SERVICE_LOAD_PAGE)
+        hass.services.async_remove(DOMAIN, SERVICE_CLEAR_PAGE)
 
     await hass.config_entries.async_forward_entry_unload(config_entry, LIGHT_DOMAIN)
-
-    await hass.data[DOMAIN][plate].remove()
 
     device_registry = await dr.async_get_registry(hass)
     dev = device_registry.async_get_device(identifiers={(DOMAIN, plate)})
@@ -240,10 +243,15 @@ async def async_unload_entry(hass, config_entry):
         _LOGGER.debug("Removing device %s", dev)
         device_registry.async_remove_device(dev.id)
 
-    registry = await entity_registry.async_get_registry(hass)
-    registry.async_remove(hass.data[DOMAIN][plate].entity_id)
+    component = hass.data[DOMAIN][CONF_COMPONENT]
+    await component.async_remove_entity(hass.data[DOMAIN][CONF_PLATE][plate].entity_id)
 
-    del hass.data[DOMAIN][plate]
+    #Component does not remove entity from entity_registry, so we must do it
+    registry = await entity_registry.async_get_registry(hass)
+    registry.async_remove(hass.data[DOMAIN][CONF_PLATE][plate].entity_id)
+
+    #Remove Plate entity
+    del hass.data[DOMAIN][CONF_PLATE][plate]
 
     return True
 
@@ -270,8 +278,7 @@ class SwitchPlate(RestoreEntity):
 
         self._subscriptions = []
 
-    async def remove(self):
-        """Run when entity about to be removed."""
+    async def async_will_remove_from_hass(self):
         _LOGGER.debug("Remove plate %s", self._plate)
 
         for obj in self._objects:
@@ -402,9 +409,16 @@ class SwitchPlate(RestoreEntity):
         )
 
     @property
+    def device_info(self):
+        """Return device information."""
+        return {
+            "identifiers": {(DOMAIN, self._plate)},
+        }
+
+    @property
     def unique_id(self):
         """Return the plate identifier."""
-        return self._plate
+        return f"{self._plate} plate"
 
     @property
     def icon(self):
@@ -563,14 +577,12 @@ class HASPObject:
 
     async def disable_object(self):
         """Remove subscriptions and event tracking."""
-        _LOGGER.debug("remove_object %s", self.obj_id)
+        _LOGGER.debug("Disabling HASPObject %s", self.obj_id)
         for subscription in self._subscriptions:
-            _LOGGER.debug("event")
             subscription()
         self._subscriptions = []
 
         for tracked_template in self._tracked_property_templates:
-            _LOGGER.debug("template")
             tracked_template.async_remove()
         self._tracked_property_templates = []
 

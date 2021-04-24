@@ -6,7 +6,7 @@ MINOR = "5"
 
 DOMAIN = "openhasp"
 
-CONF_CONFIG = "config"
+CONF_COMPONENT = "component"
 CONF_OBJID = "obj"
 CONF_PROPERTIES = "properties"
 CONF_EVENT = "event"

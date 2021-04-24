@@ -1,15 +1,9 @@
 """Config flow to configure OpenHASP component."""
-import voluptuous as vol
-
 from homeassistant import config_entries
 from homeassistant.const import CONF_NAME
+import voluptuous as vol
 
-from .const import (
-    DOMAIN,
-    CONF_TOPIC,
-    CONF_IDLE_BRIGHTNESS,
-    DEFAULT_IDLE_BRIGHNESS,
-)
+from .const import CONF_IDLE_BRIGHTNESS, CONF_TOPIC, DEFAULT_IDLE_BRIGHNESS, DOMAIN
 
 
 @config_entries.HANDLERS.register(DOMAIN)

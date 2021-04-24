@@ -1,12 +1,13 @@
 """HASP-LVGL Commonalities."""
 import logging
-import voluptuous as vol
+
 from homeassistant.core import callback
 from homeassistant.helpers.entity import ToggleEntity
+import voluptuous as vol
 
 from .const import (
-    DOMAIN,
     CONF_PLATE,
+    DOMAIN,
     EVENT_HASP_PLATE_OFFLINE,
     EVENT_HASP_PLATE_ONLINE,
     HASP_IDLE_STATES,
