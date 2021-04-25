@@ -1,11 +1,11 @@
 {
     "config": {
         "step": {
-            "user": {
+            "personalize": {
                 "title": "Setup your OpenHASP Plate",
-                "description": "This data must match your YAML configuration",
+                "description": "Don't forget to add your plate to YAML configuration",
                 "data": {
-                    "name": "Name",
+                    "name": "Name of the plate",
                     "topic": "OpenHASP MQTT base topic",
                     "idle_brightness": "Brightness level when plate is idle",
                     "relay": "GPIO's assigned to relays"
@@ -16,7 +16,9 @@
             "name_exists": "A Plate with that name is already configured",
             "invalid_discovery_info": "Invalid plate topic"
         },
-        "abort": {"already_configured": "Already configured device"}
+        "abort": {
+            "already_configured": "Plate already configured"
+        }
     },
     "options": {
         "step": {

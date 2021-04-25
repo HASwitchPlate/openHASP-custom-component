@@ -10,7 +10,7 @@ import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
 from .common import HASPToggleEntity
-from .const import CONF_RELAYS, CONF_TOPIC
+from .const import CONF_RELAYS, CONF_TOPIC, CONF_HWID
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ async def async_setup_entry(
     async_add_entities(
         [
             HASPSwitch(
-                entry.data[CONF_NAME],
+                entry.data[CONF_HWID],
                 entry.data[CONF_TOPIC],
                 gpio,
             )
@@ -40,16 +40,16 @@ async def async_setup_entry(
 class HASPSwitch(HASPToggleEntity):
     """Representation of an openHASP relay."""
 
-    def __init__(self, plate, topic, gpio):
+    def __init__(self, hwid, topic, gpio):
         """Initialize the relay."""
-        super().__init__(plate, topic)
+        super().__init__(hwid, topic)
         self._gpio = gpio
         _LOGGER.error("init %s", self.unique_id)
 
     @property
     def unique_id(self):
         """Return the identifier of the light."""
-        return f"{self._plate}/relay/{self._gpio}"
+        return f"{self._hwid}/relay/{self._gpio}"
 
     @property
     def should_poll(self):

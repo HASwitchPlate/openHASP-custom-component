@@ -22,12 +22,12 @@ HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 class HASPToggleEntity(ToggleEntity):
     """Representation of HASP ToggleEntity."""
 
-    def __init__(self, plate, topic):
+    def __init__(self, hwid, topic):
         """Initialize the light."""
         super().__init__()
         self._topic = topic
         self._state = None
-        self._plate = plate
+        self._hwid = hwid
         self._available = False
         self._subscriptions = []
 
@@ -51,7 +51,7 @@ class HASPToggleEntity(ToggleEntity):
 
         @callback
         async def online(event):
-            if event.data[CONF_PLATE] == self._plate:
+            if event.data[CONF_PLATE] == self._hwid:
                 self._available = True
                 await self.refresh()
 
@@ -61,7 +61,7 @@ class HASPToggleEntity(ToggleEntity):
 
         @callback
         async def offline(event):
-            if event.data[CONF_PLATE] == self._plate:
+            if event.data[CONF_PLATE] == self._hwid:
                 self._available = False
                 self.async_write_ha_state()
 
@@ -80,5 +80,5 @@ class HASPToggleEntity(ToggleEntity):
     def device_info(self):
         """Return device information."""
         return {
-            "identifiers": {(DOMAIN, self._plate)},
+            "identifiers": {(DOMAIN, self._hwid)},
         }

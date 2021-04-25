@@ -24,6 +24,7 @@ from .const import (
     ATTR_IDLE_BRIGHTNESS,
     CONF_IDLE_BRIGHTNESS,
     CONF_TOPIC,
+    CONF_HWID,
     HASP_IDLE_LONG,
     HASP_IDLE_OFF,
     HASP_IDLE_SHORT,
@@ -52,13 +53,13 @@ async def async_setup_entry(
     async_add_entities(
         [
             HASPBackLight(
-                entry.data[CONF_NAME],
+                entry.data[CONF_HWID],
                 entry.data[CONF_TOPIC],
                 entry.options.get(
                     CONF_IDLE_BRIGHTNESS, entry.data[CONF_IDLE_BRIGHTNESS]
                 ),
             ),
-            HASPMoodLight(entry.data[CONF_NAME], entry.data[CONF_TOPIC]),
+            HASPMoodLight(entry.data[CONF_HWID], entry.data[CONF_TOPIC]),
         ]
     )
 
@@ -68,9 +69,9 @@ async def async_setup_entry(
 class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
     """Representation of HASP LVGL Backlight."""
 
-    def __init__(self, plate, topic, brightness):
+    def __init__(self, hwid, topic, brightness):
         """Initialize the light."""
-        super().__init__(plate, topic)
+        super().__init__(hwid, topic)
         self._awake_brightness = None
         self._brightness = None
         self._idle_brightness = brightness
@@ -83,7 +84,7 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
     @property
     def unique_id(self):
         """Return the identifier of the light."""
-        return f"{self._plate} backlight"
+        return f"{self._hwid} backlight"
 
     @property
     def extra_state_attributes(self):
@@ -236,9 +237,9 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
 class HASPMoodLight(HASPToggleEntity, LightEntity):
     """Representation of HASP LVGL Moodlight."""
 
-    def __init__(self, plate, topic):
+    def __init__(self, hwid, topic):
         """Initialize the light."""
-        super().__init__(plate, topic)
+        super().__init__(hwid, topic)
         self._hs = None
 
     @property
@@ -249,7 +250,7 @@ class HASPMoodLight(HASPToggleEntity, LightEntity):
     @property
     def unique_id(self):
         """Return the identifier of the light."""
-        return f"{self._plate} moodlight"
+        return f"{self._hwid} moodlight"
 
     @property
     def hs_color(self):

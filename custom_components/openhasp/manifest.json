@@ -8,5 +8,5 @@
     "config_flow": true,
     "codeowners": ["@dgomes"],
     "requirements": [],
-    "mqtt": ["hasp/+/state/statusupdate"]
+    "mqtt": ["hasp/discovery"]
 }

@@ -2,7 +2,7 @@
 
 # Version
 MAJOR = "0"
-MINOR = "5"
+MINOR = "6"
 
 DOMAIN = "openhasp"
 
@@ -23,6 +23,8 @@ CONF_RELAYS = "relay"
 CONF_LEDS = "led"
 CONF_PWMS = "pwm"
 CONF_GPIO = "gpio"
+CONF_NODE = "node"
+CONF_HWID = "hwid"
 
 DEFAULT_TOPIC = "hasp"
 DEFAULT_PATH = "pages.jsonl"
@@ -33,7 +35,6 @@ DISCOVERED_VERSION = "firmware"
 DISCOVERED_MODEL = "model"
 
 HASP_NUM_PAGES = "numPages"
-HASP_MAX_PAGES = 12
 HASP_VAL = "val"
 HASP_EVENT = "event"
 HASP_EVENT_ON = "on"

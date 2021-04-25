@@ -18,6 +18,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.service import async_call_from_config
 from homeassistant.helpers.reload import async_integration_yaml_config
+from homeassistant.util import slugify
 import voluptuous as vol
 
 from .common import HASP_IDLE_SCHEMA
@@ -39,6 +40,8 @@ from .const import (
     CONF_RELAYS,
     CONF_TOPIC,
     CONF_TRACK,
+    CONF_NODE,
+    CONF_HWID,
     DEFAULT_IDLE_BRIGHNESS,
     DOMAIN,
     DISCOVERED_VERSION,
@@ -52,7 +55,6 @@ from .const import (
     HASP_EVENT_UP,
     HASP_EVENTS,
     HASP_LWT,
-    HASP_MAX_PAGES,
     HASP_NUM_PAGES,
     HASP_ONLINE,
     HASP_VAL,
@@ -90,22 +92,9 @@ OBJECT_SCHEMA = vol.Schema(
     }
 )
 
-GPIO_SCHEMA = vol.Schema(
-    {
-        vol.Optional(CONF_RELAYS): vol.All(cv.ensure_list, [cv.positive_int]),
-        vol.Optional(CONF_LEDS): vol.All(cv.ensure_list, [cv.positive_int]),
-        vol.Optional(CONF_PWMS): vol.All(cv.ensure_list, [cv.positive_int]),
-    }
-)
-
 PLATE_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_OBJECTS): vol.All(cv.ensure_list, [OBJECT_SCHEMA]),
-        vol.Required(CONF_TOPIC): mqtt.valid_subscribe_topic,
-        vol.Optional(CONF_GPIO): GPIO_SCHEMA,
-        vol.Optional(CONF_IDLE_BRIGHTNESS, default=DEFAULT_IDLE_BRIGHNESS): vol.All(
-            int, vol.Range(min=0, max=255)
-        ),
         vol.Optional(CONF_PAGES_PATH): cv.isfile,
     },
     extra=vol.ALLOW_EXTRA,
@@ -150,7 +139,7 @@ async def async_setup(hass, config):
         )
         return False
 
-    hass.data.setdefault(DOMAIN, {CONF_PLATE: {}})
+    hass.data[DOMAIN] = {CONF_PLATE: {}}
 
     component = hass.data[DOMAIN][CONF_COMPONENT] = EntityComponent(
         _LOGGER, DOMAIN, hass
@@ -186,17 +175,21 @@ async def async_setup_entry(hass, entry) -> bool:
     plate = entry.data[CONF_NAME]
     hass_config = await async_integration_yaml_config(hass, DOMAIN)
 
-    if DOMAIN not in hass_config or plate not in hass_config[DOMAIN]:
-        _LOGGER.error("No YAML configuration for plate: %s", plate)
+    if DOMAIN not in hass_config or slugify(plate) not in hass_config[DOMAIN]:
+        _LOGGER.error(
+            "No YAML configuration for %s, please create an entry under 'openhasp' with the slug: %s",
+            plate,
+            slugify(plate),
+        )
         return False
 
-    config = hass_config[DOMAIN]
+    config = hass_config[DOMAIN][slugify(plate)]
 
     # Register Plate device
     device_registry = await dr.async_get_registry(hass)
     device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
-        identifiers={(DOMAIN, plate)},
+        identifiers={(DOMAIN, entry.data[CONF_HWID])},
         manufacturer=entry.data[DISCOVERED_MANUFACTURER],
         model=entry.data[DISCOVERED_MODEL],
         sw_version=entry.data[DISCOVERED_VERSION],
@@ -205,7 +198,7 @@ async def async_setup_entry(hass, entry) -> bool:
 
     # Add entity to component
     component = hass.data[DOMAIN][CONF_COMPONENT]
-    plate_entity = SwitchPlate(hass, plate, config[plate], entry)
+    plate_entity = SwitchPlate(hass, plate, config, entry)
     await component.async_add_entities([plate_entity])
     hass.data[DOMAIN][CONF_PLATE][plate] = plate_entity
 
@@ -222,9 +215,9 @@ async def async_setup_entry(hass, entry) -> bool:
     return True
 
 
-async def async_unload_entry(hass, config_entry):
+async def async_unload_entry(hass, entry):
     """Remove a config entry."""
-    plate = config_entry.data[CONF_NAME]
+    plate = entry.data[CONF_NAME]
 
     _LOGGER.debug("Unload entry for plate %s", plate)
 
@@ -237,12 +230,12 @@ async def async_unload_entry(hass, config_entry):
         hass.services.async_remove(DOMAIN, SERVICE_LOAD_PAGE)
         hass.services.async_remove(DOMAIN, SERVICE_CLEAR_PAGE)
 
-    await hass.config_entries.async_forward_entry_unload(config_entry, LIGHT_DOMAIN)
-    await hass.config_entries.async_forward_entry_unload(config_entry, SWITCH_DOMAIN)
+    await hass.config_entries.async_forward_entry_unload(entry, LIGHT_DOMAIN)
+    await hass.config_entries.async_forward_entry_unload(entry, SWITCH_DOMAIN)
 
     device_registry = await dr.async_get_registry(hass)
-    dev = device_registry.async_get_device(identifiers={(DOMAIN, plate)})
-    if config_entry.entry_id in dev.config_entries:
+    dev = device_registry.async_get_device(identifiers={(DOMAIN, entry.data[CONF_HWID])})
+    if entry.entry_id in dev.config_entries:
         _LOGGER.debug("Removing device %s", dev)
         device_registry.async_remove_device(dev.id)
 
@@ -266,7 +259,6 @@ class SwitchPlate(RestoreEntity):
     def __init__(self, hass, plate, config, entry):
         """Initialize a plate."""
         super().__init__()
-        self._plate = plate
         self._entry = entry
         self._topic = entry.data[CONF_TOPIC]
         self._pages_jsonl = config.get(CONF_PAGES_PATH)
@@ -276,14 +268,14 @@ class SwitchPlate(RestoreEntity):
             new_obj = HASPObject(hass, self._topic, obj)
 
             self._objects.append(new_obj)
-        self._statusupdate = {HASP_NUM_PAGES: HASP_MAX_PAGES}
+        self._statusupdate = {HASP_NUM_PAGES: entry.data["num_pages"]}
         self._available = False
         self._page = 1
 
         self._subscriptions = []
 
     async def async_will_remove_from_hass(self):
-        _LOGGER.debug("Remove plate %s", self._plate)
+        _LOGGER.debug("Remove plate %s", self._entry.data[CONF_NAME])
 
         for obj in self._objects:
             await obj.disable_object()
@@ -326,14 +318,14 @@ class SwitchPlate(RestoreEntity):
                 if (major, minor) != (MAJOR, MINOR):
                     self.hass.components.persistent_notification.create(
                         f"You require firmware version {MAJOR}.{MINOR}.x \
-                            in plate {self._plate} for this component to work properly.\
+                            in plate {self._entry.data[CONF_NAME]} for this component to work properly.\
                             <br>Some features will simply not work!",
                         title="openHASP Firmware mismatch",
                         notification_id="openhasp_firmware_notification",
                     )
                     _LOGGER.error(
                         "%s firmware mismatch %s <> %s",
-                        self._plate,
+                        self._entry.data[CONF_NAME],
                         (major, minor),
                         (MAJOR, MINOR),
                     )
@@ -380,7 +372,8 @@ class SwitchPlate(RestoreEntity):
                 if message == HASP_ONLINE:
                     self._available = True
                     self.hass.bus.async_fire(
-                        EVENT_HASP_PLATE_ONLINE, {CONF_PLATE: self._plate}
+                        EVENT_HASP_PLATE_ONLINE,
+                        {CONF_PLATE: self._entry.data[CONF_HWID]},
                     )
                     if self._pages_jsonl:
                         await self.async_load_page(self._pages_jsonl)
@@ -392,7 +385,8 @@ class SwitchPlate(RestoreEntity):
                 else:
                     self._available = False
                     self.hass.bus.async_fire(
-                        EVENT_HASP_PLATE_OFFLINE, {CONF_PLATE: self._plate}
+                        EVENT_HASP_PLATE_OFFLINE,
+                        {CONF_PLATE: self._entry.data[CONF_HWID]},
                     )
                     for obj in self._objects:
                         await obj.disable_object()
@@ -411,7 +405,12 @@ class SwitchPlate(RestoreEntity):
     @property
     def unique_id(self):
         """Return the plate identifier."""
-        return f"{self._plate} plate"
+        return self._entry.data[CONF_HWID]
+
+    @property
+    def name(self):
+        """Return the name of the plate."""
+        return self._entry.data[CONF_NAME]
 
     @property
     def icon(self):
@@ -504,7 +503,7 @@ class SwitchPlate(RestoreEntity):
     async def refresh(self):
         """Refresh objects in the SwitchPlate."""
 
-        _LOGGER.warning("Refreshing %s", self._plate)
+        _LOGGER.warning("Refreshing %s", self._entry.data[CONF_NAME])
         for obj in self._objects:
             await obj.refresh()
 

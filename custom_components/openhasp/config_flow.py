@@ -10,8 +10,10 @@ import voluptuous as vol
 
 from .const import (
     CONF_RELAYS,
+    CONF_HWID,
     CONF_IDLE_BRIGHTNESS,
     CONF_TOPIC,
+    CONF_NODE,
     DEFAULT_IDLE_BRIGHNESS,
     DOMAIN,
     DISCOVERED_MANUFACTURER,
@@ -30,24 +32,31 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
     def __init__(self):
         """Init OpenHASPFlowHandler."""
         self._errors = {}
-        self.config_data = {DISCOVERED_MANUFACTURER: "openHASP", DISCOVERED_MODEL: None, CONF_RELAYS: []}
+        self.config_data = {
+            DISCOVERED_MANUFACTURER: "openHASP",
+            DISCOVERED_MODEL: None,
+            CONF_RELAYS: [],
+        }
 
     async def async_step_mqtt(self, discovery_info=None):
         """Handle a flow initialized by MQTT discovery."""
 
         _discovered = json.loads(discovery_info.payload)
 
-        name = discovery_info.topic.split("/")[1]
-        await self.async_set_unique_id(name)
+        name = _discovered["node"]
+        hwid = _discovered[CONF_HWID]
+        await self.async_set_unique_id(hwid)
         self._abort_if_unique_id_configured()
 
-        self.config_data[CONF_NAME] = name
+        self.config_data[CONF_HWID] = hwid
+        self.config_data[CONF_NODE] = self.config_data[CONF_NAME] = name
         self.config_data[CONF_TOPIC] = discovery_info.topic.split("/")[0]
         self.config_data[DISCOVERED_VERSION] = _discovered.get(DISCOVERED_VERSION)
+        self.config_data["num_pages"] = _discovered.get("num_pages")
 
-        return await self.async_step_user()
+        return await self.async_step_personalize()
 
-    async def async_step_user(self, user_input=None):
+    async def async_step_personalize(self, user_input=None):
         """Handle a flow initialized by the user."""
         self._errors = {}
 
@@ -76,10 +85,10 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
 
             self._errors[CONF_NAME] = "name_exists"
 
-        available_gpios = {str(n): n for n in range(1, 30)}
+        available_gpios = {str(n): n for n in range(20, 30)}
 
         return self.async_show_form(
-            step_id="user",
+            step_id="personalize",
             data_schema=vol.Schema(
                 {
                     vol.Required(
@@ -123,7 +132,10 @@ class OpenHASPOptionsFlowHandler(config_entries.OptionsFlow):
                 {
                     vol.Optional(
                         CONF_IDLE_BRIGHTNESS,
-                        default=self.config_entry.options.get(CONF_IDLE_BRIGHTNESS, self.config_entry.data[CONF_IDLE_BRIGHTNESS]),
+                        default=self.config_entry.options.get(
+                            CONF_IDLE_BRIGHTNESS,
+                            self.config_entry.data[CONF_IDLE_BRIGHTNESS],
+                        ),
                     ): vol.All(int, vol.Range(min=0, max=255)),
                 }
             ),
