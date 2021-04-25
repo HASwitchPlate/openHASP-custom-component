@@ -30,7 +30,7 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
     def __init__(self):
         """Init OpenHASPFlowHandler."""
         self._errors = {}
-        self.config_data = {DISCOVERED_MANUFACTURER: "openHASP", DISCOVERED_MODEL: None}
+        self.config_data = {DISCOVERED_MANUFACTURER: "openHASP", DISCOVERED_MODEL: None, CONF_RELAYS: []}
 
     async def async_step_mqtt(self, discovery_info=None):
         """Handle a flow initialized by MQTT discovery."""
@@ -123,7 +123,7 @@ class OpenHASPOptionsFlowHandler(config_entries.OptionsFlow):
                 {
                     vol.Optional(
                         CONF_IDLE_BRIGHTNESS,
-                        default=self.config_entry.options.get(CONF_IDLE_BRIGHTNESS),
+                        default=self.config_entry.options.get(CONF_IDLE_BRIGHTNESS, self.config_entry.data[CONF_IDLE_BRIGHTNESS]),
                     ): vol.All(int, vol.Range(min=0, max=255)),
                 }
             ),
