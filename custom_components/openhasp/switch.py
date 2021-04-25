@@ -5,19 +5,18 @@ from typing import Callable
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.const import CONF_NAME
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
 from .common import HASPToggleEntity
-from .const import CONF_RELAYS, CONF_TOPIC, CONF_HWID
+from .const import CONF_HWID, CONF_RELAYS, CONF_TOPIC
 
 _LOGGER = logging.getLogger(__name__)
 
 HASP_RELAY_SCHEMA = vol.Schema(vol.Any(cv.boolean, vol.Coerce(int)))
 
 
-# pylint: disable=W0613, R0801
+# pylint: disable=R0801, W0613
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: Callable
 ):
@@ -58,9 +57,9 @@ class HASPSwitch(HASPToggleEntity):
 
     async def refresh(self):
         """Sync local state back to plate."""
-        cmd_topic = f"{self._topic}/command/relay{self._gpio}"
+        cmd_topic = f"{self._topic}/command/gpio/output{self._gpio}"
 
-        if not self._state:
+        if self._state is None:
             # Don't do anything before we know the state
             return
 
@@ -86,8 +85,8 @@ class HASPSwitch(HASPToggleEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
-        cmd_topic = f"{self._topic}/command/relay{self._gpio}"
-        state_topic = f"{self._topic}/state/relay{self._gpio}"
+        cmd_topic = f"{self._topic}/command/gpio/output{self._gpio}"
+        state_topic = f"{self._topic}/state/gpio{self._gpio}"
 
         @callback
         async def state_message_received(msg):

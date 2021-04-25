@@ -1,24 +1,24 @@
 """Config flow to configure OpenHASP component."""
 import json
-from homeassistant import config_entries
-from homeassistant.const import CONF_NAME
-from homeassistant.components.mqtt import valid_subscribe_topic
-import homeassistant.helpers.config_validation as cv
-from homeassistant.core import callback
 
+from homeassistant import config_entries
+from homeassistant.components.mqtt import valid_subscribe_topic
+from homeassistant.const import CONF_NAME
+from homeassistant.core import callback
+import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
 from .const import (
-    CONF_RELAYS,
     CONF_HWID,
     CONF_IDLE_BRIGHTNESS,
-    CONF_TOPIC,
     CONF_NODE,
+    CONF_RELAYS,
+    CONF_TOPIC,
     DEFAULT_IDLE_BRIGHNESS,
-    DOMAIN,
     DISCOVERED_MANUFACTURER,
     DISCOVERED_MODEL,
     DISCOVERED_VERSION,
+    DOMAIN,
 )
 
 
@@ -52,9 +52,12 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
         self.config_data[CONF_NODE] = self.config_data[CONF_NAME] = name
         self.config_data[CONF_TOPIC] = discovery_info.topic.split("/")[0]
         self.config_data[DISCOVERED_VERSION] = _discovered.get(DISCOVERED_VERSION)
-        self.config_data[DISCOVERED_MANUFACTURER] = _discovered.get(DISCOVERED_MANUFACTURER)
+        self.config_data[DISCOVERED_MANUFACTURER] = _discovered.get(
+            DISCOVERED_MANUFACTURER
+        )
         self.config_data[DISCOVERED_MODEL] = _discovered.get(DISCOVERED_MODEL)
         self.config_data["num_pages"] = _discovered.get("num_pages")
+        self.config_data["relay"] = _discovered.get("relay")
 
         return await self.async_step_personalize()
 
@@ -87,7 +90,7 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
 
             self._errors[CONF_NAME] = "name_exists"
 
-        available_gpios = {str(n): n for n in range(20, 30)}
+        available_gpios = {str(n): f"GPIO {n}" for n in self.config_data["relay"]}
 
         return self.async_show_form(
             step_id="personalize",
@@ -113,6 +116,7 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
+        """Set the OptionsFlowHandler."""
         return OpenHASPOptionsFlowHandler(config_entry)
 
 

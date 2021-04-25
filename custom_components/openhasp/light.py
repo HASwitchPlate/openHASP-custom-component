@@ -11,7 +11,6 @@ from homeassistant.components.light import (
     LightEntity,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant, callback
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.restore_state import RestoreEntity
@@ -22,9 +21,9 @@ from .common import HASP_IDLE_SCHEMA, HASPToggleEntity
 from .const import (
     ATTR_AWAKE_BRIGHTNESS,
     ATTR_IDLE_BRIGHTNESS,
+    CONF_HWID,
     CONF_IDLE_BRIGHTNESS,
     CONF_TOPIC,
-    CONF_HWID,
     HASP_IDLE_LONG,
     HASP_IDLE_OFF,
     HASP_IDLE_SHORT,
@@ -44,7 +43,7 @@ HASP_MOODLIGHT_SCHEMA = vol.Schema(
 HASP_BACKLIGHT_SCHEMA = vol.Schema(vol.Any(cv.boolean, vol.Coerce(int)))
 
 
-# pylint: disable=W0613, R0801
+# pylint: disable=R0801, W0613
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: Callable
 ):

@@ -4,20 +4,18 @@ import logging
 import os
 import re
 
-from homeassistant.components import mqtt
 from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
 from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN, CONF_NAME
+from homeassistant.const import CONF_NAME, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import callback
 from homeassistant.exceptions import TemplateError
-from homeassistant.helpers import discovery, entity_registry
+from homeassistant.helpers import device_registry as dr, entity_registry
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.event import TrackTemplate, async_track_template_result
-from homeassistant.helpers.restore_state import RestoreEntity
-from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.service import async_call_from_config
 from homeassistant.helpers.reload import async_integration_yaml_config
+from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.helpers.service import async_call_from_config
 from homeassistant.util import slugify
 import voluptuous as vol
 
@@ -26,27 +24,20 @@ from .const import (
     ATTR_IDLE,
     ATTR_PAGE,
     ATTR_PATH,
-    CONF_EVENT,
     CONF_COMPONENT,
-    CONF_GPIO,
-    CONF_IDLE_BRIGHTNESS,
-    CONF_LEDS,
+    CONF_EVENT,
+    CONF_HWID,
     CONF_OBJECTS,
     CONF_OBJID,
     CONF_PAGES_PATH,
     CONF_PLATE,
     CONF_PROPERTIES,
-    CONF_PWMS,
-    CONF_RELAYS,
     CONF_TOPIC,
     CONF_TRACK,
-    CONF_NODE,
-    CONF_HWID,
-    DEFAULT_IDLE_BRIGHNESS,
-    DOMAIN,
-    DISCOVERED_VERSION,
     DISCOVERED_MANUFACTURER,
     DISCOVERED_MODEL,
+    DISCOVERED_VERSION,
+    DOMAIN,
     EVENT_HASP_PLATE_OFFLINE,
     EVENT_HASP_PLATE_ONLINE,
     HASP_EVENT,
@@ -58,14 +49,14 @@ from .const import (
     HASP_NUM_PAGES,
     HASP_ONLINE,
     HASP_VAL,
+    MAJOR,
+    MINOR,
     SERVICE_CLEAR_PAGE,
     SERVICE_LOAD_PAGE,
     SERVICE_PAGE_CHANGE,
     SERVICE_PAGE_NEXT,
     SERVICE_PAGE_PREV,
     SERVICE_WAKEUP,
-    MAJOR,
-    MINOR,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -177,7 +168,8 @@ async def async_setup_entry(hass, entry) -> bool:
 
     if DOMAIN not in hass_config or slugify(plate) not in hass_config[DOMAIN]:
         _LOGGER.error(
-            "No YAML configuration for %s, please create an entry under 'openhasp' with the slug: %s",
+            "No YAML configuration for %s, \
+            please create an entry under 'openhasp' with the slug: %s",
             plate,
             slugify(plate),
         )
@@ -198,7 +190,7 @@ async def async_setup_entry(hass, entry) -> bool:
 
     # Add entity to component
     component = hass.data[DOMAIN][CONF_COMPONENT]
-    plate_entity = SwitchPlate(hass, plate, config, entry)
+    plate_entity = SwitchPlate(hass, config, entry)
     await component.async_add_entities([plate_entity])
     hass.data[DOMAIN][CONF_PLATE][plate] = plate_entity
 
@@ -234,7 +226,9 @@ async def async_unload_entry(hass, entry):
     await hass.config_entries.async_forward_entry_unload(entry, SWITCH_DOMAIN)
 
     device_registry = await dr.async_get_registry(hass)
-    dev = device_registry.async_get_device(identifiers={(DOMAIN, entry.data[CONF_HWID])})
+    dev = device_registry.async_get_device(
+        identifiers={(DOMAIN, entry.data[CONF_HWID])}
+    )
     if entry.entry_id in dev.config_entries:
         _LOGGER.debug("Removing device %s", dev)
         device_registry.async_remove_device(dev.id)
@@ -256,12 +250,12 @@ async def async_unload_entry(hass, entry):
 class SwitchPlate(RestoreEntity):
     """Representation of an openHASP Plate."""
 
-    def __init__(self, hass, plate, config, entry):
+    def __init__(self, hass, config, entry):
         """Initialize a plate."""
         super().__init__()
         self._entry = entry
         self._topic = entry.data[CONF_TOPIC]
-        self._pages_jsonl = config.get(CONF_PAGES_PATH) #TODO move this into an option
+        self._pages_jsonl = config.get(CONF_PAGES_PATH)  # TODO move this into an option
 
         self._objects = []
         for obj in config[CONF_OBJECTS]:
@@ -275,6 +269,7 @@ class SwitchPlate(RestoreEntity):
         self._subscriptions = []
 
     async def async_will_remove_from_hass(self):
+        """Run before entity is removed."""
         _LOGGER.debug("Remove plate %s", self._entry.data[CONF_NAME])
 
         for obj in self._objects:
@@ -318,7 +313,8 @@ class SwitchPlate(RestoreEntity):
                 if (major, minor) != (MAJOR, MINOR):
                     self.hass.components.persistent_notification.create(
                         f"You require firmware version {MAJOR}.{MINOR}.x \
-                            in plate {self._entry.data[CONF_NAME]} for this component to work properly.\
+                            in plate {self._entry.data[CONF_NAME]} \
+                            for this component to work properly.\
                             <br>Some features will simply not work!",
                         title="openHASP Firmware mismatch",
                         notification_id="openhasp_firmware_notification",
