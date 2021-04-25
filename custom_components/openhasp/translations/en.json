@@ -1,23 +1,28 @@
 {
     "config": {
-      "step": {
-        "user": {
-          "title": "Setup your OpenHASP Plate",
-          "description": "This data must match your YAML configuration",
-          "data": {
-            "name": "Name",
-            "topic": "OpenHASP MQTT base topic",
-            "idle_brightness": "Brightness level when plate is idle"
-          }
+        "step": {
+            "user": {
+                "title": "Setup your OpenHASP Plate",
+                "description": "This data must match your YAML configuration",
+                "data": {
+                    "name": "Name",
+                    "topic": "OpenHASP MQTT base topic",
+                    "idle_brightness": "Brightness level when plate is idle"
+                }
+            }
+        },
+        "error": {
+            "name_exists": "A Plate with that name is already configured",
+            "invalid_discovery_info": "Invalid plate topic"
+        },
+        "abort": {"already_configured": "Already configured device"}
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "openHASP Plate Options",
+                "data": {"idle_brightness": "Brightness level when plate is idle"}
+            }
         }
-      },
-      "error": {
-        "cannot_connect": "Cannot Connect",
-        "invalid_discovery_info": "Invalid plate topic"
-      },
-      "abort": {
-        "already_configured": "Already configured device"
-      }
     }
-  }
-  
+}

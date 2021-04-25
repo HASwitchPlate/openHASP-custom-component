@@ -12,11 +12,19 @@
             }
         },
         "error": {
-            "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
+            "name_exists": "A Plate with that name is already configured",
             "invalid_discovery_info": "Invalid plate topic"
         },
         "abort": {
             "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "openHASP Plate Options",
+                "data": {"idle_brightness": "Brightness level when plate is idle"}
+            }
         }
     }
 }

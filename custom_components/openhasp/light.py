@@ -43,12 +43,7 @@ HASP_MOODLIGHT_SCHEMA = vol.Schema(
 HASP_BACKLIGHT_SCHEMA = vol.Schema(vol.Any(cv.boolean, vol.Coerce(int)))
 
 
-# pylint: disable=W0613
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """Set up the HASP LVGL moodlight."""
-    return False
-
-
+# pylint: disable=W0613, R0801
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: Callable
 ):
@@ -59,7 +54,9 @@ async def async_setup_entry(
             HASPBackLight(
                 entry.data[CONF_NAME],
                 entry.data[CONF_TOPIC],
-                entry.data[CONF_IDLE_BRIGHTNESS],
+                entry.options.get(
+                    CONF_IDLE_BRIGHTNESS, entry.data[CONF_IDLE_BRIGHTNESS]
+                ),
             ),
             HASPMoodLight(entry.data[CONF_NAME], entry.data[CONF_TOPIC]),
         ]

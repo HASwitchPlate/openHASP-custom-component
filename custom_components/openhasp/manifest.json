@@ -1,16 +1,12 @@
 {
-  "domain": "openhasp",
-  "name": "HASP-Open Hardware Edition",
-  "documentation": "https://haswitchplate.github.io/openHASP-docs/",
-  "issue_tracker": "https://github.com/HASwitchPlate/openHASP-custom-component/issues",
-  "dependencies": ["mqtt"],
-  "version": "0.5.1",
-  "config_flow": true,
-  "codeowners": [
-    "@dgomes"
-  ],
-  "requirements": [],
-  "mqtt": [
-    "hasp/+/state/statusupdate"
-  ]
+    "domain": "openhasp",
+    "name": "HASP-Open Hardware Edition",
+    "documentation": "https://haswitchplate.github.io/openHASP-docs/",
+    "issue_tracker": "https://github.com/HASwitchPlate/openHASP-custom-component/issues",
+    "dependencies": ["mqtt"],
+    "version": "0.5.1",
+    "config_flow": true,
+    "codeowners": ["@dgomes"],
+    "requirements": [],
+    "mqtt": ["hasp/+/state/statusupdate"]
 }

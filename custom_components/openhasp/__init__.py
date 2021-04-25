@@ -176,6 +176,11 @@ async def async_setup(hass, config):
     return True
 
 
+async def async_update_options(hass, entry):
+    """Handle options update."""
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
 async def async_setup_entry(hass, entry) -> bool:
     """Set up OpenHASP via a config entry."""
     plate = entry.data[CONF_NAME]
@@ -208,18 +213,11 @@ async def async_setup_entry(hass, entry) -> bool:
         hass.config_entries.async_forward_entry_setup(entry, LIGHT_DOMAIN)
     )
 
-    # if CONF_GPIO in config[plate] and CONF_RELAYS in config[plate][CONF_GPIO]:
-    #    discovery_info[CONF_RELAYS] = config[plate][CONF_GPIO][CONF_RELAYS]
-    #
-    #    hass.async_create_task(
-    #        discovery.async_load_platform(
-    #            hass,
-    #            SWITCH_DOMAIN,
-    #            DOMAIN,
-    #            discovery_info,
-    #            config,
-    #        )
-    #    )
+    entry.add_update_listener(async_update_options)
+
+    hass.async_create_task(
+        hass.config_entries.async_forward_entry_setup(entry, SWITCH_DOMAIN)
+    )
 
     return True
 
@@ -240,6 +238,7 @@ async def async_unload_entry(hass, config_entry):
         hass.services.async_remove(DOMAIN, SERVICE_CLEAR_PAGE)
 
     await hass.config_entries.async_forward_entry_unload(config_entry, LIGHT_DOMAIN)
+    await hass.config_entries.async_forward_entry_unload(config_entry, SWITCH_DOMAIN)
 
     device_registry = await dr.async_get_registry(hass)
     dev = device_registry.async_get_device(identifiers={(DOMAIN, plate)})

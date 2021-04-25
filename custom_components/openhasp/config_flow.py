@@ -3,9 +3,13 @@ import json
 from homeassistant import config_entries
 from homeassistant.const import CONF_NAME
 from homeassistant.components.mqtt import valid_subscribe_topic
+import homeassistant.helpers.config_validation as cv
+from homeassistant.core import callback
+
 import voluptuous as vol
 
 from .const import (
+    CONF_RELAYS,
     CONF_IDLE_BRIGHTNESS,
     CONF_TOPIC,
     DEFAULT_IDLE_BRIGHNESS,
@@ -50,9 +54,6 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
         if user_input is not None:
             self.config_data = {**self.config_data, **user_input}
 
-            await self.async_set_unique_id(self.config_data[CONF_NAME])
-            self._abort_if_unique_id_configured()
-
             if self.config_data[
                 CONF_NAME
             ] not in self.hass.config_entries.async_entries(DOMAIN):
@@ -75,6 +76,8 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
 
             self._errors[CONF_NAME] = "name_exists"
 
+        available_gpios = {str(n): n for n in range(1, 30)}
+
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(
@@ -88,7 +91,40 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
                     vol.Optional(
                         CONF_IDLE_BRIGHTNESS, default=DEFAULT_IDLE_BRIGHNESS
                     ): vol.All(int, vol.Range(min=0, max=255)),
+                    vol.Optional(
+                        CONF_RELAYS, default=self.config_data.get(CONF_RELAYS)
+                    ): cv.multi_select(available_gpios),
                 }
             ),
             errors=self._errors,
+        )
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        return OpenHASPOptionsFlowHandler(config_entry)
+
+
+class OpenHASPOptionsFlowHandler(config_entries.OptionsFlow):
+    """ConfigOptions flow for openHASP."""
+
+    def __init__(self, config_entry):
+        """Initialize openHASP options flow."""
+        self.config_entry = config_entry
+
+    async def async_step_init(self, user_input=None):
+        """Manage the options."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_IDLE_BRIGHTNESS,
+                        default=self.config_entry.options.get(CONF_IDLE_BRIGHTNESS),
+                    ): vol.All(int, vol.Range(min=0, max=255)),
+                }
+            ),
         )

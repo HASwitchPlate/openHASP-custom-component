@@ -1,31 +1,40 @@
 """Allows to configure a switch using GPIO."""
 import json
 import logging
+from typing import Callable
 
-from homeassistant.core import callback
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.const import CONF_NAME
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
 from .common import HASPToggleEntity
-from .const import CONF_PLATE, CONF_RELAYS, CONF_TOPIC
+from .const import CONF_RELAYS, CONF_TOPIC
 
 _LOGGER = logging.getLogger(__name__)
 
 HASP_RELAY_SCHEMA = vol.Schema(vol.Any(cv.boolean, vol.Coerce(int)))
 
 
-# pylint: disable=W0613
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """Set up the HASP LVGL moodlight."""
-    if discovery_info is None:
-        _LOGGER.error("This platform is only available through discovery")
-        return
+# pylint: disable=W0613, R0801
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: Callable
+):
+    """Set up Plate Relays as switch based on a config entry."""
 
-    relays = discovery_info[CONF_RELAYS]
-    plate = discovery_info[CONF_PLATE]
-    base_topic = discovery_info[CONF_TOPIC]
+    async_add_entities(
+        [
+            HASPSwitch(
+                entry.data[CONF_NAME],
+                entry.data[CONF_TOPIC],
+                gpio,
+            )
+            for gpio in entry.data[CONF_RELAYS]
+        ]
+    )
 
-    async_add_entities([HASPSwitch(plate, base_topic, gpio) for gpio in relays])
+    return True
 
 
 class HASPSwitch(HASPToggleEntity):
