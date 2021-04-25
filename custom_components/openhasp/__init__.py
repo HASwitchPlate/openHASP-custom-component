@@ -261,7 +261,7 @@ class SwitchPlate(RestoreEntity):
         super().__init__()
         self._entry = entry
         self._topic = entry.data[CONF_TOPIC]
-        self._pages_jsonl = config.get(CONF_PAGES_PATH)
+        self._pages_jsonl = config.get(CONF_PAGES_PATH) #TODO move this into an option
 
         self._objects = []
         for obj in config[CONF_OBJECTS]:

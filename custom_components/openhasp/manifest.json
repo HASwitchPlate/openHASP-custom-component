@@ -5,7 +5,7 @@
     "issue_tracker": "https://github.com/HASwitchPlate/openHASP-custom-component/issues",
     "dependencies": ["mqtt"],
     "version": "0.5.1",
-    "config_flow": true,
+    "config_flow": false,
     "codeowners": ["@dgomes"],
     "requirements": [],
     "mqtt": ["hasp/discovery"]

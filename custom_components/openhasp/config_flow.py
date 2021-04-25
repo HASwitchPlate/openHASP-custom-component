@@ -52,6 +52,8 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
         self.config_data[CONF_NODE] = self.config_data[CONF_NAME] = name
         self.config_data[CONF_TOPIC] = discovery_info.topic.split("/")[0]
         self.config_data[DISCOVERED_VERSION] = _discovered.get(DISCOVERED_VERSION)
+        self.config_data[DISCOVERED_MANUFACTURER] = _discovered.get(DISCOVERED_MANUFACTURER)
+        self.config_data[DISCOVERED_MODEL] = _discovered.get(DISCOVERED_MODEL)
         self.config_data["num_pages"] = _discovered.get("num_pages")
 
         return await self.async_step_personalize()
@@ -72,7 +74,7 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
 
                 self.config_data[
                     CONF_TOPIC
-                ] = f"{user_input[CONF_TOPIC]}/{user_input[CONF_NAME]}"
+                ] = f"{user_input[CONF_TOPIC]}/{self.config_data[CONF_NODE]}"
 
                 try:
                     valid_subscribe_topic(self.config_data[CONF_TOPIC])
