@@ -41,6 +41,15 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
             CONF_RELAYS: [],
         }
 
+    async def async_step_user(self, user_input=None):
+        _LOGGER.error("Discovery Only")
+
+        self.hass.components.mqtt.async_publish(
+            "hasp/broadcast/ping", "discovery", qos=0, retain=False
+        )
+
+        return self.async_abort(reason="discovery_only")
+
     async def async_step_mqtt(self, discovery_info=None):
         """Handle a flow initialized by MQTT discovery."""
 

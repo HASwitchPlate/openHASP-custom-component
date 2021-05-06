@@ -129,7 +129,7 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
 
             try:
                 self._available = True
-                _LOGGER.debug("backlight %s: %s", msg.topic, msg.payload)
+                _LOGGER.debug("received backlight %s: %s", msg.topic, msg.payload)
                 message = HASP_BACKLIGHT_SCHEMA(msg.payload)
 
                 if isinstance(message, bool):
