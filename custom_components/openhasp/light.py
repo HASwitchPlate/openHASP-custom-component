@@ -188,7 +188,7 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
 
             self.hass.components.mqtt.async_publish(
                 cmd_topic,
-                f'json ["light {self._state}", "dim {self._brightness}"]',
+                f'json ["light {backlight}", "dim {dim}"]',
                 qos=0,
                 retain=False,
             )

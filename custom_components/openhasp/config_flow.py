@@ -1,5 +1,6 @@
 """Config flow to configure OpenHASP component."""
 import json
+import logging
 
 from homeassistant import config_entries
 from homeassistant.components.mqtt import valid_subscribe_topic
@@ -20,6 +21,8 @@ from .const import (
     DISCOVERED_VERSION,
     DOMAIN,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @config_entries.HANDLERS.register(DOMAIN)
@@ -42,6 +45,7 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
         """Handle a flow initialized by MQTT discovery."""
 
         _discovered = json.loads(discovery_info.payload)
+        _LOGGER.debug("Discovered: %s", _discovered)
 
         name = _discovered["node"]
         hwid = _discovered[CONF_HWID]
