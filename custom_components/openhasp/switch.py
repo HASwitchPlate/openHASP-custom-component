@@ -52,19 +52,9 @@ class HASPSwitch(HASPToggleEntity):
         _LOGGER.error("init %s", self.unique_id)
 
     @property
-    def name(self):
-        """Return the name of the plate."""
-        return f"Switch GPIO {self._gpio}"
-
-    @property
     def unique_id(self):
         """Return the identifier of the light."""
         return f"{self._hwid} {self._gpio}"
-
-    @property
-    def should_poll(self):
-        """No polling needed."""
-        return False
 
     async def refresh(self):
         """Sync local state back to plate."""
@@ -108,7 +98,9 @@ class HASPSwitch(HASPToggleEntity):
             try:
                 self._available = True
                 message = HASP_RELAY_SCHEMA(json.loads(msg.payload))
-                _LOGGER.debug("%s state = %s (%s)", self.name, msg.payload, message)
+                _LOGGER.debug(
+                    "%s state = %s (%s)", self.unique_id, msg.payload, message
+                )
 
                 self._state = message["state"]
                 self.async_write_ha_state()

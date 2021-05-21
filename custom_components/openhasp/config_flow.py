@@ -12,12 +12,14 @@ import voluptuous as vol
 from .const import (
     CONF_HWID,
     CONF_IDLE_BRIGHTNESS,
+    CONF_LIGHTS,
     CONF_NODE,
     CONF_PAGES,
     CONF_RELAYS,
     CONF_TOPIC,
     DEFAULT_IDLE_BRIGHNESS,
     DISCOVERED_HWID,
+    DISCOVERED_LIGHT,
     DISCOVERED_MANUFACTURER,
     DISCOVERED_MODEL,
     DISCOVERED_NODE,
@@ -71,13 +73,14 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
         self.config_data[CONF_NODE] = self.config_data[CONF_NAME] = name
         self.config_data[CONF_TOPIC] = discovery_info.topic.split("/")[0]
         self.config_data[DISCOVERED_VERSION] = _discovered.get(DISCOVERED_VERSION)
-        # TODO check version discovered agains our version
+        # TODO check version discovered against our version
         self.config_data[DISCOVERED_MANUFACTURER] = _discovered.get(
             DISCOVERED_MANUFACTURER
         )
         self.config_data[DISCOVERED_MODEL] = _discovered.get(DISCOVERED_MODEL)
         self.config_data[CONF_PAGES] = _discovered.get(DISCOVERED_PAGES)
         self.config_data[CONF_RELAYS] = _discovered.get(DISCOVERED_POWER)
+        self.config_data[CONF_LIGHTS] = _discovered.get(DISCOVERED_LIGHT)
 
         return await self.async_step_personalize()
 
