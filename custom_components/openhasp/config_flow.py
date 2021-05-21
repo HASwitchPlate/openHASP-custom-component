@@ -10,6 +10,7 @@ import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
 from .const import (
+    CONF_DIMLIGHTS,
     CONF_HWID,
     CONF_IDLE_BRIGHTNESS,
     CONF_LIGHTS,
@@ -18,6 +19,7 @@ from .const import (
     CONF_RELAYS,
     CONF_TOPIC,
     DEFAULT_IDLE_BRIGHNESS,
+    DISCOVERED_DIM,
     DISCOVERED_HWID,
     DISCOVERED_LIGHT,
     DISCOVERED_MANUFACTURER,
@@ -81,6 +83,7 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
         self.config_data[CONF_PAGES] = _discovered.get(DISCOVERED_PAGES)
         self.config_data[CONF_RELAYS] = _discovered.get(DISCOVERED_POWER)
         self.config_data[CONF_LIGHTS] = _discovered.get(DISCOVERED_LIGHT)
+        self.config_data[CONF_DIMLIGHTS] = _discovered.get(DISCOVERED_DIM)
 
         return await self.async_step_personalize()
 

@@ -21,6 +21,7 @@ from .common import HASP_IDLE_SCHEMA, HASPToggleEntity
 from .const import (
     ATTR_AWAKE_BRIGHTNESS,
     ATTR_IDLE_BRIGHTNESS,
+    CONF_DIMLIGHTS,
     CONF_HWID,
     CONF_IDLE_BRIGHTNESS,
     CONF_LIGHTS,
@@ -50,7 +51,7 @@ HASP_BACKLIGHT_SCHEMA = vol.Schema(vol.Any(cv.boolean, vol.Coerce(int)))
 
 HASP_LIGHT_SCHEMA = vol.Schema(
     {
-        vol.Required("state"): vol.Any(cv.boolean, vol.Coerce(int)),
+        vol.Required("state"): vol.Coerce(int),
         vol.Optional("val"): int,
     }
 )
@@ -79,6 +80,14 @@ async def async_setup_entry(
                 gpio,
             )
             for gpio in entry.data[CONF_LIGHTS]
+        ]
+        + [
+            HASPDimmableLight(
+                entry.data[CONF_HWID],
+                entry.data[CONF_TOPIC],
+                gpio,
+            )
+            for gpio in entry.data[CONF_DIMLIGHTS]
         ]
     )
 
@@ -110,7 +119,7 @@ class HASPLight(HASPToggleEntity, LightEntity):
 
     async def refresh(self):
         """Sync local state back to plate."""
-        cmd_topic = f"{self._topic}/command"
+        cmd_topic = f"{self._topic}/command/output{self._gpio}"
 
         self.hass.components.mqtt.async_publish(
             cmd_topic,
@@ -138,6 +147,102 @@ class HASPLight(HASPToggleEntity, LightEntity):
                 _LOGGER.debug("%s state = %s (%s)", self.name, msg.payload, message)
 
                 self._state = message["state"]
+                self.async_write_ha_state()
+
+            except vol.error.Invalid as err:
+                _LOGGER.error(err)
+
+        self._subscriptions.append(
+            await self.hass.components.mqtt.async_subscribe(
+                state_topic, state_message_received
+            )
+        )
+
+        self.hass.components.mqtt.async_publish(cmd_topic, "", qos=0, retain=False)
+
+
+class HASPDimmableLight(HASPToggleEntity, LightEntity):
+    """Representation of openHASP Light."""
+
+    def __init__(self, hwid, topic, gpio):
+        """Initialize the dimmable light."""
+        super().__init__(hwid, topic)
+        self._brightness = None
+        self._gpio = gpio
+
+    @property
+    def supported_features(self):
+        """Flag supported features."""
+        return SUPPORT_BRIGHTNESS
+
+    @property
+    def unique_id(self):
+        """Return the identifier of the light."""
+        return f"{self._hwid} dimmable light {self._gpio}"
+
+    @property
+    def brightness(self):
+        """Return the brightness of this light between 0..255."""
+        return self._brightness
+
+    async def async_turn_on(self, **kwargs):
+        """Turn on the dimmable light."""
+        if ATTR_BRIGHTNESS in kwargs:
+            self._brightness = kwargs[ATTR_BRIGHTNESS]
+        self._state = True
+        await self.refresh()
+
+    async def async_turn_off(self, **kwargs):
+        """Turn off the dimmable light."""
+        self._state = False
+        await self.refresh()
+
+    async def refresh(self):
+        """Sync local state back to plate."""
+        cmd_topic = f"{self._topic}/command/output{self._gpio}"
+
+        _LOGGER.debug(
+            "refresh dim %s state = %s (%s)",
+            self.name,
+            int(self._state),
+            self._brightness,
+        )
+
+        print(
+            json.dumps(
+                HASP_LIGHT_SCHEMA({"state": int(self._state), "val": self._brightness})
+            )
+        )
+
+        self.hass.components.mqtt.async_publish(
+            cmd_topic,
+            json.dumps(
+                HASP_LIGHT_SCHEMA({"state": int(self._state), "val": self._brightness})
+            ),
+            qos=0,
+            retain=False,
+        )
+        self.async_write_ha_state()
+
+    async def async_added_to_hass(self):
+        """Run when entity about to be added."""
+        await super().async_added_to_hass()
+        cmd_topic = f"{self._topic}/command/output{self._gpio}"
+        state_topic = f"{self._topic}/state/output{self._gpio}"
+
+        @callback
+        async def state_message_received(msg):
+            """Process State."""
+
+            try:
+                self._available = True
+                message = HASP_LIGHT_SCHEMA(json.loads(msg.payload))
+                _LOGGER.debug(
+                    "dimmable %s state = %s (%s)", self.name, msg.payload, message
+                )
+
+                self._state = message["state"]
+                self._brightness = message["val"]
                 self.async_write_ha_state()
 
             except vol.error.Invalid as err:
