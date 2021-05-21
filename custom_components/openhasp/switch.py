@@ -13,7 +13,13 @@ from .const import CONF_HWID, CONF_RELAYS, CONF_TOPIC
 
 _LOGGER = logging.getLogger(__name__)
 
-HASP_RELAY_SCHEMA = vol.Schema(vol.Any(cv.boolean, vol.Coerce(int)))
+
+HASP_RELAY_SCHEMA = vol.Schema(
+    {
+        vol.Required("state"): vol.Any(cv.boolean, vol.Coerce(int)),
+        vol.Optional("val"): int,
+    }
+)
 
 
 # pylint: disable=R0801, W0613
@@ -46,9 +52,14 @@ class HASPSwitch(HASPToggleEntity):
         _LOGGER.error("init %s", self.unique_id)
 
     @property
+    def name(self):
+        """Return the name of the plate."""
+        return f"Switch GPIO {self._gpio}"
+
+    @property
     def unique_id(self):
         """Return the identifier of the light."""
-        return f"{self._hwid}/relay/{self._gpio}"
+        return f"{self._hwid} {self._gpio}"
 
     @property
     def should_poll(self):
@@ -57,7 +68,7 @@ class HASPSwitch(HASPToggleEntity):
 
     async def refresh(self):
         """Sync local state back to plate."""
-        cmd_topic = f"{self._topic}/command/gpio/output{self._gpio}"
+        cmd_topic = f"{self._topic}/command/output{self._gpio}"
 
         if self._state is None:
             # Don't do anything before we know the state
@@ -65,7 +76,9 @@ class HASPSwitch(HASPToggleEntity):
 
         self.hass.components.mqtt.async_publish(
             cmd_topic,
-            int(self._state),
+            json.dumps(
+                HASP_RELAY_SCHEMA({"state": int(self._state), "val": int(self._state)})
+            ),
             qos=0,
             retain=False,
         )
@@ -85,8 +98,8 @@ class HASPSwitch(HASPToggleEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
-        cmd_topic = f"{self._topic}/command/gpio/output{self._gpio}"
-        state_topic = f"{self._topic}/state/gpio{self._gpio}"
+        cmd_topic = f"{self._topic}/command/output{self._gpio}"
+        state_topic = f"{self._topic}/state/output{self._gpio}"
 
         @callback
         async def state_message_received(msg):
@@ -97,7 +110,7 @@ class HASPSwitch(HASPToggleEntity):
                 message = HASP_RELAY_SCHEMA(json.loads(msg.payload))
                 _LOGGER.debug("%s state = %s (%s)", self.name, msg.payload, message)
 
-                self._state = message
+                self._state = message["state"]
                 self.async_write_ha_state()
 
             except vol.error.Invalid as err:

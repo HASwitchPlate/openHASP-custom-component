@@ -13,11 +13,16 @@ from .const import (
     CONF_HWID,
     CONF_IDLE_BRIGHTNESS,
     CONF_NODE,
+    CONF_PAGES,
     CONF_RELAYS,
     CONF_TOPIC,
     DEFAULT_IDLE_BRIGHNESS,
+    DISCOVERED_HWID,
     DISCOVERED_MANUFACTURER,
     DISCOVERED_MODEL,
+    DISCOVERED_NODE,
+    DISCOVERED_PAGES,
+    DISCOVERED_POWER,
     DISCOVERED_VERSION,
     DOMAIN,
 )
@@ -42,6 +47,7 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
         }
 
     async def async_step_user(self, user_input=None):
+        """Handle a flow initialized by User."""
         _LOGGER.error("Discovery Only")
 
         self.hass.components.mqtt.async_publish(
@@ -56,8 +62,8 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
         _discovered = json.loads(discovery_info.payload)
         _LOGGER.debug("Discovered: %s", _discovered)
 
-        name = _discovered["node"]
-        hwid = _discovered[CONF_HWID]
+        name = _discovered[DISCOVERED_NODE]
+        hwid = _discovered[DISCOVERED_HWID]
         await self.async_set_unique_id(hwid)
         self._abort_if_unique_id_configured()
 
@@ -65,12 +71,13 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
         self.config_data[CONF_NODE] = self.config_data[CONF_NAME] = name
         self.config_data[CONF_TOPIC] = discovery_info.topic.split("/")[0]
         self.config_data[DISCOVERED_VERSION] = _discovered.get(DISCOVERED_VERSION)
+        # TODO check version discovered agains our version
         self.config_data[DISCOVERED_MANUFACTURER] = _discovered.get(
             DISCOVERED_MANUFACTURER
         )
         self.config_data[DISCOVERED_MODEL] = _discovered.get(DISCOVERED_MODEL)
-        self.config_data["num_pages"] = _discovered.get("num_pages")
-        self.config_data["relay"] = _discovered.get("relay")
+        self.config_data[CONF_PAGES] = _discovered.get(DISCOVERED_PAGES)
+        self.config_data[CONF_RELAYS] = _discovered.get(DISCOVERED_POWER)
 
         return await self.async_step_personalize()
 
@@ -103,8 +110,6 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
 
             self._errors[CONF_NAME] = "name_exists"
 
-        available_gpios = {str(n): f"GPIO {n}" for n in self.config_data["relay"]}
-
         return self.async_show_form(
             step_id="personalize",
             data_schema=vol.Schema(
@@ -118,9 +123,6 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
                     vol.Optional(
                         CONF_IDLE_BRIGHTNESS, default=DEFAULT_IDLE_BRIGHNESS
                     ): vol.All(int, vol.Range(min=0, max=255)),
-                    vol.Optional(
-                        CONF_RELAYS, default=self.config_data.get(CONF_RELAYS)
-                    ): cv.multi_select(available_gpios),
                 }
             ),
             errors=self._errors,

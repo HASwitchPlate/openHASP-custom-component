@@ -29,6 +29,7 @@ from .const import (
     CONF_HWID,
     CONF_OBJECTS,
     CONF_OBJID,
+    CONF_PAGES,
     CONF_PAGES_PATH,
     CONF_PLATE,
     CONF_PROPERTIES,
@@ -262,7 +263,7 @@ class SwitchPlate(RestoreEntity):
             new_obj = HASPObject(hass, self._topic, obj)
 
             self._objects.append(new_obj)
-        self._statusupdate = {HASP_NUM_PAGES: entry.data["num_pages"]}
+        self._statusupdate = {HASP_NUM_PAGES: entry.data[CONF_PAGES]}
         self._available = False
         self._page = 1
 

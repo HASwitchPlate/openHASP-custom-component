@@ -35,7 +35,12 @@ HASP_MOODLIGHT_SCHEMA = vol.Schema(
     {
         vol.Required("state"): cv.boolean,
         vol.Required("color"): vol.Schema(
-            {vol.Required("r"): int, vol.Required("g"): int, vol.Required("b"): int}
+            {
+                vol.Required("r"): int,
+                vol.Required("g"): int,
+                vol.Required("b"): int,
+                vol.Required("brightness"): int,
+            }
         ),
     },
 )
