@@ -12,6 +12,5 @@ This custom component simplifies synchronization of objects on one or more openH
 
 If you want to contribute to this please read the [Contribution guidelines](CONTRIBUTING.md).
 
-### TODO
+### [Release Notes](RELEASE.md)
 
-- Auto-discovery
