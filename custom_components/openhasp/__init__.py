@@ -86,7 +86,7 @@ OBJECT_SCHEMA = vol.Schema(
 
 PLATE_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_OBJECTS): vol.All(cv.ensure_list, [OBJECT_SCHEMA]),
+        vol.Optional(CONF_OBJECTS): vol.All(cv.ensure_list, [OBJECT_SCHEMA]),
     },
 )
 
