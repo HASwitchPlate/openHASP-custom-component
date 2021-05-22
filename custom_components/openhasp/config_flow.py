@@ -87,7 +87,9 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
 
         self.config_data[CONF_HWID] = hwid
         self.config_data[CONF_NODE] = self.config_data[CONF_NAME] = name
-        self.config_data[CONF_TOPIC] = f"{discovery_info.topic.split('/')[0]}/{self.config_data[CONF_NODE]}"
+        self.config_data[
+            CONF_TOPIC
+        ] = f"{discovery_info.topic.split('/')[0]}/{self.config_data[CONF_NODE]}"
 
         self.config_data[DISCOVERED_VERSION] = _discovered.get(DISCOVERED_VERSION)
         # TODO check version discovered against our version
@@ -119,12 +121,13 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
                 try:
                     valid_subscribe_topic(self.config_data[CONF_TOPIC])
 
-                    self.config_data[CONF_PAGES_PATH] = validate_jsonl(
-                        user_input[CONF_PAGES_PATH]
-                    )
+                    if CONF_PAGES_PATH in user_input:
+                        self.config_data[CONF_PAGES_PATH] = validate_jsonl(
+                            user_input[CONF_PAGES_PATH]
+                        )
 
                     return self.async_create_entry(
-                       title=user_input[CONF_NAME], data=self.config_data
+                        title=user_input[CONF_NAME], data=self.config_data
                     )
 
                 except vol.Invalid:
