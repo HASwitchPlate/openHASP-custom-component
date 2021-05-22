@@ -3,7 +3,7 @@ import json
 import os
 import logging
 
-from homeassistant import config_entries, exceptions
+from homeassistant import config_entries, exceptions, data_entry_flow
 from homeassistant.components.mqtt import valid_subscribe_topic
 from homeassistant.const import CONF_NAME
 from homeassistant.core import callback
@@ -30,6 +30,8 @@ from .const import (
     DISCOVERED_POWER,
     DISCOVERED_VERSION,
     DOMAIN,
+    MAJOR,
+    MINOR,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -80,19 +82,23 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
         _discovered = json.loads(discovery_info.payload)
         _LOGGER.debug("Discovered: %s", _discovered)
 
-        name = _discovered[DISCOVERED_NODE]
         hwid = _discovered[DISCOVERED_HWID]
         await self.async_set_unique_id(hwid)
         self._abort_if_unique_id_configured()
 
+        version = _discovered.get(DISCOVERED_VERSION)
+        if version.split(".")[0:2] != [MAJOR, MINOR]:
+            _LOGGER.error("Version mismatch! Your plate: %s - openHASP Component: %s", version, f"{MAJOR}.{MINOR}.x")
+            raise data_entry_flow.AbortFlow("mismatch_version")
+
+        self.config_data[DISCOVERED_VERSION] = version
+
         self.config_data[CONF_HWID] = hwid
-        self.config_data[CONF_NODE] = self.config_data[CONF_NAME] = name
+        self.config_data[CONF_NODE] = self.config_data[CONF_NAME] = _discovered[DISCOVERED_NODE]
         self.config_data[
             CONF_TOPIC
         ] = f"{discovery_info.topic.split('/')[0]}/{self.config_data[CONF_NODE]}"
 
-        self.config_data[DISCOVERED_VERSION] = _discovered.get(DISCOVERED_VERSION)
-        # TODO check version discovered against our version
         self.config_data[DISCOVERED_MANUFACTURER] = _discovered.get(
             DISCOVERED_MANUFACTURER
         )
