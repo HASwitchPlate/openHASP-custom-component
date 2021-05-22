@@ -8,7 +8,7 @@
                     "name": "Name of the plate",
                     "topic": "OpenHASP MQTT base topic",
                     "idle_brightness": "Brightness level when plate is idle",
-                    "relay": "GPIO's assigned to relays"
+                    "path": "Full path to the JSONL file"
                 }
             }
         },
@@ -25,7 +25,10 @@
         "step": {
             "init": {
                 "title": "openHASP Plate Options",
-                "data": {"idle_brightness": "Brightness level when plate is idle"}
+                "data": {
+                    "idle_brightness": "Brightness level when plate is idle",
+                    "path": "Full path to the JSONL file"
+                }
             }
         }
     }

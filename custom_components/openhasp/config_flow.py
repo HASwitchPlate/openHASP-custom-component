@@ -131,6 +131,9 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
                     vol.Optional(
                         CONF_IDLE_BRIGHTNESS, default=DEFAULT_IDLE_BRIGHNESS
                     ): vol.All(int, vol.Range(min=0, max=255)),
+                    vol.Optional(
+                        CONF_PAGES_PATH, default=self.config_data.get(CONF_PAGES_PATH)
+                    ): str,
                 }
             ),
             errors=self._errors,
@@ -153,7 +156,7 @@ class OpenHASPOptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
         """Manage the options."""
         if user_input is not None:
-            #Actually check path is a file
+            # Actually check path is a file
 
             OPTIONS_SCHEMA = vol.Schema(
                 {
@@ -178,9 +181,10 @@ class OpenHASPOptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_PAGES_PATH,
                         default=self.config_entry.options.get(
-                            CONF_PAGES_PATH
-                        )
-                    ): str
+                            CONF_PAGES_PATH,
+                            self.config_entry.data[CONF_PAGES_PATH],
+                        ),
+                    ): str,
                 }
             ),
         )

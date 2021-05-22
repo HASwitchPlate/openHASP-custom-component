@@ -8,7 +8,7 @@
                     "name": "Name of the plate",
                     "topic": "OpenHASP MQTT base topic",
                     "idle_brightness": "Brightness level when plate is idle",
-                    "relay": "GPIO's assigned to relays"
+                    "path": "Full path to the JSONL file"
                 }
             }
         },
