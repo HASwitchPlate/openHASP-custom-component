@@ -1,13 +1,12 @@
 """Config flow to configure OpenHASP component."""
 import json
+import os
 import logging
-from typing import Optional
 
-from homeassistant import config_entries
+from homeassistant import config_entries, exceptions
 from homeassistant.components.mqtt import valid_subscribe_topic
 from homeassistant.const import CONF_NAME
 from homeassistant.core import callback
-import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
 from .const import (
@@ -34,6 +33,19 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def validate_jsonl(path):
+    """Validate that the value is an existing file."""
+    if path is None:
+        raise InvalidJSONL()
+    file_in = os.path.expanduser(str(path))
+
+    if not os.path.isfile(file_in):
+        raise InvalidJSONL("not a file")
+    if not os.access(file_in, os.R_OK):
+        raise InvalidJSONL("file not readable")
+    return file_in
 
 
 @config_entries.HANDLERS.register(DOMAIN)
@@ -109,8 +121,16 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
 
                 try:
                     valid_subscribe_topic(self.config_data[CONF_TOPIC])
+
+                    self.config_data[CONF_PAGES_PATH] = validate_jsonl(
+                        user_input[CONF_PAGES_PATH]
+                    )
+
                 except vol.Invalid:
                     return self.async_abort(reason="invalid_discovery_info")
+
+                except InvalidJSONL:
+                    return self.async_abort(reason="invalid_jsonl_path")
 
                 return self.async_create_entry(
                     title=user_input[CONF_NAME], data=self.config_data
@@ -131,9 +151,7 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
                     vol.Optional(
                         CONF_IDLE_BRIGHTNESS, default=DEFAULT_IDLE_BRIGHNESS
                     ): vol.All(int, vol.Range(min=0, max=255)),
-                    vol.Optional(
-                        CONF_PAGES_PATH
-                    ): str,
+                    vol.Optional(CONF_PAGES_PATH): str,
                 }
             ),
             errors=self._errors,
@@ -158,14 +176,14 @@ class OpenHASPOptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             # Actually check path is a file
 
-            OPTIONS_SCHEMA = vol.Schema(
-                {
-                    vol.Optional(CONF_PAGES_PATH): cv.isfile,
-                },
-                extra=vol.ALLOW_EXTRA,
-            )
+            try:
+                user_input[CONF_PAGES_PATH] = validate_jsonl(
+                    user_input[CONF_PAGES_PATH]
+                )
+            except InvalidJSONL:
+                return self.async_abort(reason="invalid_jsonl_path")
 
-            return self.async_create_entry(title="", data=OPTIONS_SCHEMA(user_input))
+            return self.async_create_entry(title="", data=user_input)
 
         return self.async_show_form(
             step_id="init",
@@ -188,3 +206,7 @@ class OpenHASPOptionsFlowHandler(config_entries.OptionsFlow):
                 }
             ),
         )
+
+
+class InvalidJSONL(exceptions.HomeAssistantError):
+    """Error to indicate we cannot load JSONL."""

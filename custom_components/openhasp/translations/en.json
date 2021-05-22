@@ -18,7 +18,8 @@
         },
         "abort": {
             "already_configured": "Plate already configured",
-            "discovery_only": "Configuration is done through discovery"
+            "discovery_only": "Configuration is done through discovery",
+            "invalid_jsonl_path": "Invalid path to a JSONL file"
         }
     },
     "options": {
@@ -30,6 +31,9 @@
                     "path": "Full path to the JSONL file"
                 }
             }
+        },
+        "abort":{
+            "invalid_jsonl_path": "Invalid path to a JSONL file"
         }
     }
 }

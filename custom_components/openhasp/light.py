@@ -56,6 +56,7 @@ HASP_LIGHT_SCHEMA = vol.Schema(
     }
 )
 
+
 # pylint: disable=R0801, W0613
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: Callable
