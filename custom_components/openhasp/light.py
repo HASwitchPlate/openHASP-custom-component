@@ -479,7 +479,7 @@ class HASPMoodLight(HASPToggleEntity, LightEntity):
             rgb = color_util.color_hs_to_RGB(*self._hs)
             new_state = {**new_state, **dict(zip("rgb", rgb))}
         if self._brightness:
-            new_state["brighness"] = self._brightness
+            new_state["brightness"] = self._brightness
 
         _LOGGER.debug("refresh(%s) moodlight - %s", self.name, new_state)
         self.hass.components.mqtt.async_publish(
