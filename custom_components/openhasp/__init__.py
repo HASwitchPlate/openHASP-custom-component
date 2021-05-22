@@ -4,18 +4,19 @@ import logging
 import os
 import re
 
-from homeassistant.components import mqtt
 from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
 from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.const import CONF_NAME, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import callback
 from homeassistant.exceptions import TemplateError
-from homeassistant.helpers import discovery
+from homeassistant.helpers import device_registry as dr, entity_registry
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.event import TrackTemplate, async_track_template_result
+from homeassistant.helpers.reload import async_integration_yaml_config
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.service import async_call_from_config
+from homeassistant.util import slugify
 import voluptuous as vol
 
 from .common import HASP_IDLE_SCHEMA
@@ -23,20 +24,21 @@ from .const import (
     ATTR_IDLE,
     ATTR_PAGE,
     ATTR_PATH,
+    CONF_COMPONENT,
     CONF_EVENT,
-    CONF_GPIO,
-    CONF_IDLE_BRIGHTNESS,
-    CONF_LEDS,
+    CONF_HWID,
     CONF_OBJECTS,
     CONF_OBJID,
+    CONF_PAGES,
     CONF_PAGES_PATH,
     CONF_PLATE,
     CONF_PROPERTIES,
-    CONF_PWMS,
-    CONF_RELAYS,
     CONF_TOPIC,
     CONF_TRACK,
-    DEFAULT_IDLE_BRIGHNESS,
+    DATA_LISTENER,
+    DISCOVERED_MANUFACTURER,
+    DISCOVERED_MODEL,
+    DISCOVERED_VERSION,
     DOMAIN,
     EVENT_HASP_PLATE_OFFLINE,
     EVENT_HASP_PLATE_ONLINE,
@@ -46,18 +48,17 @@ from .const import (
     HASP_EVENT_UP,
     HASP_EVENTS,
     HASP_LWT,
-    HASP_MAX_PAGES,
     HASP_NUM_PAGES,
     HASP_ONLINE,
     HASP_VAL,
+    MAJOR,
+    MINOR,
     SERVICE_CLEAR_PAGE,
     SERVICE_LOAD_PAGE,
     SERVICE_PAGE_CHANGE,
     SERVICE_PAGE_NEXT,
     SERVICE_PAGE_PREV,
     SERVICE_WAKEUP,
-    MAJOR,
-    MINOR,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -84,25 +85,10 @@ OBJECT_SCHEMA = vol.Schema(
     }
 )
 
-GPIO_SCHEMA = vol.Schema(
-    {
-        vol.Optional(CONF_RELAYS): vol.All(cv.ensure_list, [cv.positive_int]),
-        vol.Optional(CONF_LEDS): vol.All(cv.ensure_list, [cv.positive_int]),
-        vol.Optional(CONF_PWMS): vol.All(cv.ensure_list, [cv.positive_int]),
-    }
-)
-
 PLATE_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_OBJECTS): vol.All(cv.ensure_list, [OBJECT_SCHEMA]),
-        vol.Required(CONF_TOPIC): mqtt.valid_subscribe_topic,
-        vol.Optional(CONF_GPIO): GPIO_SCHEMA,
-        vol.Optional(CONF_IDLE_BRIGHTNESS, default=DEFAULT_IDLE_BRIGHNESS): vol.All(
-            int, vol.Range(min=0, max=255)
-        ),
-        vol.Optional(CONF_PAGES_PATH): cv.isfile,
+        vol.Optional(CONF_OBJECTS): vol.All(cv.ensure_list, [OBJECT_SCHEMA]),
     },
-    extra=vol.ALLOW_EXTRA,
 )
 
 CONFIG_SCHEMA = vol.Schema(
@@ -135,88 +121,172 @@ HASP_PAGE_SCHEMA = vol.Schema(vol.All(vol.Coerce(int), vol.Range(min=0, max=12))
 
 async def async_setup(hass, config):
     """Set up the MQTT async example component."""
-    component = EntityComponent(_LOGGER, DOMAIN, hass)
+    conf = config.get(DOMAIN)
 
-    for plate in config[DOMAIN]:
-        plate_entity = SwitchPlate(hass, plate, config[DOMAIN][plate])
-
-        await component.async_add_entities([plate_entity])
-
-        component.async_register_entity_service(SERVICE_WAKEUP, {}, "async_wakeup")
-        component.async_register_entity_service(
-            SERVICE_PAGE_NEXT, {}, "async_change_page_next"
+    if conf is None:
+        # We still depend in YAML so we must fail
+        _LOGGER.error(
+            "openHASP requires you to setup your plate objects in your YAML configuration."
         )
-        component.async_register_entity_service(
-            SERVICE_PAGE_PREV, {}, "async_change_page_prev"
-        )
-        component.async_register_entity_service(
-            SERVICE_PAGE_CHANGE, {vol.Required(ATTR_PAGE): int}, "async_change_page"
-        )
-        component.async_register_entity_service(
-            SERVICE_LOAD_PAGE, {vol.Required(ATTR_PATH): cv.isfile}, "async_load_page"
-        )
-        component.async_register_entity_service(
-            SERVICE_CLEAR_PAGE, {vol.Optional(ATTR_PAGE): int}, "async_clearpage"
-        )
+        return False
 
-        discovery_info = {
-            CONF_PLATE: plate,
-            CONF_TOPIC: config[DOMAIN][plate][CONF_TOPIC],
-            CONF_IDLE_BRIGHTNESS: config[DOMAIN][plate][CONF_IDLE_BRIGHTNESS],
-        }
+    hass.data[DOMAIN] = {CONF_PLATE: {}}
 
-        hass.async_create_task(
-            discovery.async_load_platform(
-                hass,
-                LIGHT_DOMAIN,
-                DOMAIN,
-                discovery_info,
-                config,
-            )
+    component = hass.data[DOMAIN][CONF_COMPONENT] = EntityComponent(
+        _LOGGER, DOMAIN, hass
+    )
+
+    component.async_register_entity_service(SERVICE_WAKEUP, {}, "async_wakeup")
+    component.async_register_entity_service(
+        SERVICE_PAGE_NEXT, {}, "async_change_page_next"
+    )
+    component.async_register_entity_service(
+        SERVICE_PAGE_PREV, {}, "async_change_page_prev"
+    )
+    component.async_register_entity_service(
+        SERVICE_PAGE_CHANGE, {vol.Required(ATTR_PAGE): int}, "async_change_page"
+    )
+    component.async_register_entity_service(
+        SERVICE_LOAD_PAGE, {vol.Required(ATTR_PATH): cv.isfile}, "async_load_page"
+    )
+    component.async_register_entity_service(
+        SERVICE_CLEAR_PAGE, {vol.Optional(ATTR_PAGE): int}, "async_clearpage"
+    )
+
+    return True
+
+
+async def async_update_options(hass, entry):
+    """Handle options update."""
+    _LOGGER.debug("Reloading")
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_setup_entry(hass, entry) -> bool:
+    """Set up OpenHASP via a config entry."""
+    plate = entry.data[CONF_NAME]
+    _LOGGER.debug("Setup %s", plate)
+
+    hass_config = await async_integration_yaml_config(hass, DOMAIN)
+
+    if DOMAIN not in hass_config or slugify(plate) not in hass_config[DOMAIN]:
+        _LOGGER.error(
+            "No YAML configuration for %s, \
+            please create an entry under 'openhasp' with the slug: %s",
+            plate,
+            slugify(plate),
         )
+        return False
 
-        if (
-            CONF_GPIO in config[DOMAIN][plate]
-            and CONF_RELAYS in config[DOMAIN][plate][CONF_GPIO]
-        ):
-            discovery_info[CONF_RELAYS] = config[DOMAIN][plate][CONF_GPIO][CONF_RELAYS]
+    config = hass_config[DOMAIN][slugify(plate)]
 
-            hass.async_create_task(
-                discovery.async_load_platform(
-                    hass,
-                    SWITCH_DOMAIN,
-                    DOMAIN,
-                    discovery_info,
-                    config,
-                )
-            )
+    # Register Plate device
+    device_registry = await dr.async_get_registry(hass)
+    device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, entry.data[CONF_HWID])},
+        manufacturer=entry.data[DISCOVERED_MANUFACTURER],
+        model=entry.data[DISCOVERED_MODEL],
+        sw_version=entry.data[DISCOVERED_VERSION],
+        name=plate,
+    )
+
+    # Add entity to component
+    component = hass.data[DOMAIN][CONF_COMPONENT]
+    plate_entity = SwitchPlate(hass, config, entry)
+    await component.async_add_entities([plate_entity])
+    hass.data[DOMAIN][CONF_PLATE][plate] = plate_entity
+
+    hass.async_create_task(
+        hass.config_entries.async_forward_entry_setup(entry, LIGHT_DOMAIN)
+    )
+
+    listener = entry.add_update_listener(async_update_options)
+    hass.data[DOMAIN][CONF_PLATE][DATA_LISTENER] = listener
+
+    hass.async_create_task(
+        hass.config_entries.async_forward_entry_setup(entry, SWITCH_DOMAIN)
+    )
+
+    return True
+
+
+async def async_unload_entry(hass, entry):
+    """Remove a config entry."""
+    plate = entry.data[CONF_NAME]
+
+    _LOGGER.debug("Unload entry for plate %s", plate)
+
+    listener = hass.data[DOMAIN][CONF_PLATE][DATA_LISTENER]
+
+    # Only remove services if it is the last
+    if len(hass.data[DOMAIN][CONF_PLATE]) == 1:
+        hass.services.async_remove(DOMAIN, SERVICE_WAKEUP)
+        hass.services.async_remove(DOMAIN, SERVICE_PAGE_NEXT)
+        hass.services.async_remove(DOMAIN, SERVICE_PAGE_PREV)
+        hass.services.async_remove(DOMAIN, SERVICE_PAGE_CHANGE)
+        hass.services.async_remove(DOMAIN, SERVICE_LOAD_PAGE)
+        hass.services.async_remove(DOMAIN, SERVICE_CLEAR_PAGE)
+
+    await hass.config_entries.async_forward_entry_unload(entry, LIGHT_DOMAIN)
+    await hass.config_entries.async_forward_entry_unload(entry, SWITCH_DOMAIN)
+
+    device_registry = await dr.async_get_registry(hass)
+    dev = device_registry.async_get_device(
+        identifiers={(DOMAIN, entry.data[CONF_HWID])}
+    )
+    if entry.entry_id in dev.config_entries:
+        _LOGGER.debug("Removing device %s", dev)
+        device_registry.async_remove_device(dev.id)
+
+    component = hass.data[DOMAIN][CONF_COMPONENT]
+    await component.async_remove_entity(hass.data[DOMAIN][CONF_PLATE][plate].entity_id)
+
+    # Component does not remove entity from entity_registry, so we must do it
+    registry = await entity_registry.async_get_registry(hass)
+    registry.async_remove(hass.data[DOMAIN][CONF_PLATE][plate].entity_id)
+
+    listener()
+
+    # Remove Plate entity
+    del hass.data[DOMAIN][CONF_PLATE][plate]
 
     return True
 
 
 # pylint: disable=R0902
 class SwitchPlate(RestoreEntity):
-    """Representation of an HASP-LVGL Plate."""
+    """Representation of an openHASP Plate."""
 
-    def __init__(self, hass, plate, config):
+    def __init__(self, hass, config, entry):
         """Initialize a plate."""
         super().__init__()
-        self._plate = plate
-        self._topic = config[CONF_TOPIC]
-        self._pages_jsonl = config.get(CONF_PAGES_PATH)
+        self._entry = entry
+        self._topic = entry.data[CONF_TOPIC]
+        self._pages_jsonl = entry.options.get(
+            CONF_PAGES_PATH, entry.data.get(CONF_PAGES_PATH)
+        )
 
         self._objects = []
         for obj in config[CONF_OBJECTS]:
             new_obj = HASPObject(hass, self._topic, obj)
 
-            self.add_object(new_obj)
-        self._statusupdate = {HASP_NUM_PAGES: HASP_MAX_PAGES}
+            self._objects.append(new_obj)
+        self._statusupdate = {HASP_NUM_PAGES: entry.data[CONF_PAGES]}
         self._available = False
         self._page = 1
 
-    def add_object(self, obj):
-        """Track objects in plate."""
-        self._objects.append(obj)
+        self._subscriptions = []
+
+    async def async_will_remove_from_hass(self):
+        """Run before entity is removed."""
+        _LOGGER.debug("Remove plate %s", self._entry.data[CONF_NAME])
+
+        for obj in self._objects:
+            await obj.disable_object()
+
+        for subscription in self._subscriptions:
+            subscription()
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
@@ -225,9 +295,6 @@ class SwitchPlate(RestoreEntity):
         state = await self.async_get_last_state()
         if state and state.state not in [STATE_UNAVAILABLE, STATE_UNKNOWN, None]:
             self._page = int(state.state)
-
-        for obj in self._objects:
-            await obj.async_added_to_hass()
 
         @callback
         async def page_update_received(msg):
@@ -239,8 +306,10 @@ class SwitchPlate(RestoreEntity):
             except vol.error.Invalid as err:
                 _LOGGER.error("%s in %s", err, msg.payload)
 
-        await self.hass.components.mqtt.async_subscribe(
-            self._topic + "/state/page", page_update_received
+        self._subscriptions.append(
+            await self.hass.components.mqtt.async_subscribe(
+                self._topic + "/state/page", page_update_received
+            )
         )
 
         @callback
@@ -254,27 +323,31 @@ class SwitchPlate(RestoreEntity):
                 if (major, minor) != (MAJOR, MINOR):
                     self.hass.components.persistent_notification.create(
                         f"You require firmware version {MAJOR}.{MINOR}.x \
-                            in plate {self._plate} for this component to work properly.\
+                            in plate {self._entry.data[CONF_NAME]} \
+                            for this component to work properly.\
                             <br>Some features will simply not work!",
                         title="openHASP Firmware mismatch",
                         notification_id="openhasp_firmware_notification",
                     )
                     _LOGGER.error(
                         "%s firmware mismatch %s <> %s",
-                        self._plate,
+                        self._entry.data[CONF_NAME],
                         (major, minor),
                         (MAJOR, MINOR),
                     )
                 self._available = True
                 self._statusupdate = message
+
                 self._page = message[ATTR_PAGE]
                 self.async_write_ha_state()
 
             except vol.error.Invalid as err:
-                _LOGGER.error(err)
+                _LOGGER.error("While processing status update: %s", err)
 
-        await self.hass.components.mqtt.async_subscribe(
-            self._topic + "/state/statusupdate", statusupdate_message_received
+        self._subscriptions.append(
+            await self.hass.components.mqtt.async_subscribe(
+                self._topic + "/state/statusupdate", statusupdate_message_received
+            )
         )
         self.hass.components.mqtt.async_publish(
             self._topic + "/command", "statusupdate", qos=0, retain=False
@@ -287,10 +360,12 @@ class SwitchPlate(RestoreEntity):
                 self._statusupdate[ATTR_IDLE] = HASP_IDLE_SCHEMA(msg.payload)
                 self.async_write_ha_state()
             except vol.error.Invalid as err:
-                _LOGGER.error(err)
+                _LOGGER.error("While processing idle message: %s", err)
 
-        await self.hass.components.mqtt.async_subscribe(
-            self._topic + "/state/idle", idle_message_received
+        self._subscriptions.append(
+            await self.hass.components.mqtt.async_subscribe(
+                self._topic + "/state/idle", idle_message_received
+            )
         )
 
         @callback
@@ -303,31 +378,45 @@ class SwitchPlate(RestoreEntity):
                 if message == HASP_ONLINE:
                     self._available = True
                     self.hass.bus.async_fire(
-                        EVENT_HASP_PLATE_ONLINE, {CONF_PLATE: self._plate}
+                        EVENT_HASP_PLATE_ONLINE,
+                        {CONF_PLATE: self._entry.data[CONF_HWID]},
                     )
                     if self._pages_jsonl:
                         await self.async_load_page(self._pages_jsonl)
                     else:
                         await self.refresh()
+
+                    for obj in self._objects:
+                        await obj.enable_object()
                 else:
                     self._available = False
                     self.hass.bus.async_fire(
-                        EVENT_HASP_PLATE_OFFLINE, {CONF_PLATE: self._plate}
+                        EVENT_HASP_PLATE_OFFLINE,
+                        {CONF_PLATE: self._entry.data[CONF_HWID]},
                     )
+                    for obj in self._objects:
+                        await obj.disable_object()
 
                 self.async_write_ha_state()
 
             except vol.error.Invalid as err:
-                _LOGGER.error(err)
+                _LOGGER.error("While processing LWT: %s", err)
 
-        await self.hass.components.mqtt.async_subscribe(
-            f"{self._topic}/LWT", lwt_message_received
+        self._subscriptions.append(
+            await self.hass.components.mqtt.async_subscribe(
+                f"{self._topic}/LWT", lwt_message_received
+            )
         )
 
     @property
     def unique_id(self):
         """Return the plate identifier."""
-        return self._plate
+        return self._entry.data[CONF_HWID]
+
+    @property
+    def name(self):
+        """Return the name of the plate."""
+        return self._entry.data[CONF_NAME]
 
     @property
     def icon(self):
@@ -420,7 +509,7 @@ class SwitchPlate(RestoreEntity):
     async def refresh(self):
         """Refresh objects in the SwitchPlate."""
 
-        _LOGGER.warning("Refreshing %s", self._plate)
+        _LOGGER.warning("Refreshing %s", self._entry.data[CONF_NAME])
         for obj in self._objects:
             await obj.refresh()
 
@@ -468,17 +557,32 @@ class HASPObject:
 
         self.properties = config.get(CONF_PROPERTIES)
         self.event_services = config.get(CONF_EVENT)
+        self._tracked_property_templates = []
         self._freeze_properties = []
+        self._subscriptions = []
 
-    async def async_added_to_hass(self):
-        """Run when entity about to be added."""
+    async def enable_object(self):
+        """Initialize object events and properties subscriptions."""
 
         if self.event_services:
             _LOGGER.debug("Setup event_services for '%s'", self.obj_id)
-            await self.async_listen_hasp_events()
+            self._subscriptions.append(await self.async_listen_hasp_events())
 
         for _property, template in self.properties.items():
-            await self.async_set_property(_property, template)
+            self._tracked_property_templates.append(
+                await self.async_set_property(_property, template)
+            )
+
+    async def disable_object(self):
+        """Remove subscriptions and event tracking."""
+        _LOGGER.debug("Disabling HASPObject %s", self.obj_id)
+        for subscription in self._subscriptions:
+            subscription()
+        self._subscriptions = []
+
+        for tracked_template in self._tracked_property_templates:
+            tracked_template.async_remove()
+        self._tracked_property_templates = []
 
     async def async_set_property(self, _property, template):
         """Set HASP Object property to template value."""
@@ -524,6 +628,8 @@ class HASPObject:
             _async_template_result_changed,
         )
         property_template.async_refresh()
+
+        return property_template
 
     async def refresh(self):
         """Refresh based on cached values."""
@@ -576,6 +682,6 @@ class HASPObject:
                 )
 
         _LOGGER.debug("Subscribe to '%s' events on '%s'", self.obj_id, self.state_topic)
-        await self.hass.components.mqtt.async_subscribe(
+        return await self.hass.components.mqtt.async_subscribe(
             self.state_topic, message_received
         )

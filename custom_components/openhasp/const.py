@@ -2,9 +2,11 @@
 
 # Version
 MAJOR = "0"
-MINOR = "5"
+MINOR = "6"
 
 DOMAIN = "openhasp"
+
+CONF_COMPONENT = "component"
 CONF_OBJID = "obj"
 CONF_PROPERTIES = "properties"
 CONF_EVENT = "event"
@@ -18,16 +20,32 @@ CONF_IDLE_BRIGHTNESS = "idle_brightness"
 CONF_AWAKE_BRIGHTNESS = "awake_brightness"
 CONF_PLATE = "plate"
 CONF_RELAYS = "relay"
+CONF_LIGHTS = "light"
+CONF_DIMLIGHTS = "dimlight"
 CONF_LEDS = "led"
 CONF_PWMS = "pwm"
 CONF_GPIO = "gpio"
+CONF_NODE = "node"
+CONF_HWID = "hwid"
+
+DATA_LISTENER = "listener"
 
 DEFAULT_TOPIC = "hasp"
 DEFAULT_PATH = "pages.jsonl"
 DEFAULT_IDLE_BRIGHNESS = 25
 
+DISCOVERED_NODE = "node"
+DISCOVERED_MODEL = "mdl"
+DISCOVERED_MANUFACTURER = "mf"
+DISCOVERED_HWID = "hwid"
+DISCOVERED_PAGES = "pages"
+DISCOVERED_INPUT = "input"
+DISCOVERED_POWER = "power"
+DISCOVERED_LIGHT = "light"
+DISCOVERED_DIM = "dim"
+DISCOVERED_VERSION = "sw"
+
 HASP_NUM_PAGES = "numPages"
-HASP_MAX_PAGES = 12
 HASP_VAL = "val"
 HASP_EVENT = "event"
 HASP_EVENT_ON = "on"
@@ -48,7 +66,7 @@ HASP_EVENTS = (
     HASP_EVENT_LONG,
     HASP_EVENT_CHANGED,
     HASP_EVENT_RELEASE,
-    HASP_EVENT_HOLD
+    HASP_EVENT_HOLD,
 )
 HASP_IDLE_OFF = "off"
 HASP_IDLE_SHORT = "short"

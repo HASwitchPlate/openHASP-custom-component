@@ -1,63 +1,74 @@
 """Allows to configure a switch using GPIO."""
 import json
 import logging
+from typing import Callable
 
-from homeassistant.core import callback
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, callback
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
 from .common import HASPToggleEntity
-from .const import CONF_PLATE, CONF_RELAYS, CONF_TOPIC
+from .const import CONF_HWID, CONF_RELAYS, CONF_TOPIC
 
 _LOGGER = logging.getLogger(__name__)
 
-HASP_RELAY_SCHEMA = vol.Schema(vol.Any(cv.boolean, vol.Coerce(int)))
+
+HASP_RELAY_SCHEMA = vol.Schema(
+    {
+        vol.Required("state"): vol.Any(cv.boolean, vol.Coerce(int)),
+        vol.Optional("val"): int,
+    }
+)
 
 
-# pylint: disable=W0613
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """Set up the HASP LVGL moodlight."""
-    if discovery_info is None:
-        _LOGGER.error("This platform is only available through discovery")
-        return
+# pylint: disable=R0801, W0613
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: Callable
+):
+    """Set up Plate Relays as switch based on a config entry."""
 
-    relays = discovery_info[CONF_RELAYS]
-    plate = discovery_info[CONF_PLATE]
-    base_topic = discovery_info[CONF_TOPIC]
+    async_add_entities(
+        [
+            HASPSwitch(
+                entry.data[CONF_HWID],
+                entry.data[CONF_TOPIC],
+                gpio,
+            )
+            for gpio in entry.data[CONF_RELAYS]
+        ]
+    )
 
-    async_add_entities([HASPSwitch(plate, base_topic, gpio) for gpio in relays])
+    return True
 
 
 class HASPSwitch(HASPToggleEntity):
     """Representation of an openHASP relay."""
 
-    def __init__(self, plate, topic, gpio):
+    def __init__(self, hwid, topic, gpio):
         """Initialize the relay."""
-        super().__init__(plate, topic)
+        super().__init__(hwid, topic)
         self._gpio = gpio
         _LOGGER.error("init %s", self.unique_id)
 
     @property
     def unique_id(self):
         """Return the identifier of the light."""
-        return f"{self._plate}/relay/{self._gpio}"
-
-    @property
-    def should_poll(self):
-        """No polling needed."""
-        return False
+        return f"{self._hwid} switch {self._gpio}"
 
     async def refresh(self):
         """Sync local state back to plate."""
-        cmd_topic = f"{self._topic}/command/relay{self._gpio}"
+        cmd_topic = f"{self._topic}/command/output{self._gpio}"
 
-        if not self._state:
+        if self._state is None:
             # Don't do anything before we know the state
             return
 
         self.hass.components.mqtt.async_publish(
             cmd_topic,
-            int(self._state),
+            json.dumps(
+                HASP_RELAY_SCHEMA({"state": int(self._state), "val": int(self._state)})
+            ),
             qos=0,
             retain=False,
         )
@@ -77,8 +88,8 @@ class HASPSwitch(HASPToggleEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
-        cmd_topic = f"{self._topic}/command/relay{self._gpio}"
-        state_topic = f"{self._topic}/state/relay{self._gpio}"
+        cmd_topic = f"{self._topic}/command/output{self._gpio}"
+        state_topic = f"{self._topic}/state/output{self._gpio}"
 
         @callback
         async def state_message_received(msg):
@@ -87,9 +98,11 @@ class HASPSwitch(HASPToggleEntity):
             try:
                 self._available = True
                 message = HASP_RELAY_SCHEMA(json.loads(msg.payload))
-                _LOGGER.debug("%s state = %s (%s)", self.name, msg.payload, message)
+                _LOGGER.debug(
+                    "%s state = %s (%s)", self.unique_id, msg.payload, message
+                )
 
-                self._state = message
+                self._state = message["state"]
                 self.async_write_ha_state()
 
             except vol.error.Invalid as err:
