@@ -1,6 +1,7 @@
 """Config flow to configure OpenHASP component."""
 import json
 import logging
+from typing import Optional
 
 from homeassistant import config_entries
 from homeassistant.components.mqtt import valid_subscribe_topic
@@ -16,6 +17,7 @@ from .const import (
     CONF_LIGHTS,
     CONF_NODE,
     CONF_PAGES,
+    CONF_PAGES_PATH,
     CONF_RELAYS,
     CONF_TOPIC,
     DEFAULT_IDLE_BRIGHNESS,
@@ -151,7 +153,16 @@ class OpenHASPOptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
         """Manage the options."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            #Actually check path is a file
+
+            OPTIONS_SCHEMA = vol.Schema(
+                {
+                    vol.Optional(CONF_PAGES_PATH): cv.isfile,
+                },
+                extra=vol.ALLOW_EXTRA,
+            )
+
+            return self.async_create_entry(title="", data=OPTIONS_SCHEMA(user_input))
 
         return self.async_show_form(
             step_id="init",
@@ -164,6 +175,12 @@ class OpenHASPOptionsFlowHandler(config_entries.OptionsFlow):
                             self.config_entry.data[CONF_IDLE_BRIGHTNESS],
                         ),
                     ): vol.All(int, vol.Range(min=0, max=255)),
+                    vol.Optional(
+                        CONF_PAGES_PATH,
+                        default=self.config_entry.options.get(
+                            CONF_PAGES_PATH
+                        )
+                    ): str
                 }
             ),
         )

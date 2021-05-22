@@ -52,7 +52,7 @@ HASP_BACKLIGHT_SCHEMA = vol.Schema(vol.Any(cv.boolean, vol.Coerce(int)))
 HASP_LIGHT_SCHEMA = vol.Schema(
     {
         vol.Required("state"): vol.Coerce(int),
-        vol.Optional("val"): int,
+        vol.Optional("val"): vol.All(int, vol.Range(min=0, max=255)),
     }
 )
 

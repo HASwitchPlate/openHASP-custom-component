@@ -54,7 +54,7 @@ class HASPSwitch(HASPToggleEntity):
     @property
     def unique_id(self):
         """Return the identifier of the light."""
-        return f"{self._hwid} {self._gpio}"
+        return f"{self._hwid} switch {self._gpio}"
 
     async def refresh(self):
         """Sync local state back to plate."""
