@@ -28,6 +28,8 @@ CONF_GPIO = "gpio"
 CONF_NODE = "node"
 CONF_HWID = "hwid"
 
+DATA_LISTENER = "listener"
+
 DEFAULT_TOPIC = "hasp"
 DEFAULT_PATH = "pages.jsonl"
 DEFAULT_IDLE_BRIGHNESS = 25

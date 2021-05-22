@@ -132,7 +132,7 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
                         CONF_IDLE_BRIGHTNESS, default=DEFAULT_IDLE_BRIGHNESS
                     ): vol.All(int, vol.Range(min=0, max=255)),
                     vol.Optional(
-                        CONF_PAGES_PATH, default=self.config_data.get(CONF_PAGES_PATH)
+                        CONF_PAGES_PATH
                     ): str,
                 }
             ),

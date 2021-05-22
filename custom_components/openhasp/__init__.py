@@ -35,6 +35,7 @@ from .const import (
     CONF_PROPERTIES,
     CONF_TOPIC,
     CONF_TRACK,
+    DATA_LISTENER,
     DISCOVERED_MANUFACTURER,
     DISCOVERED_MODEL,
     DISCOVERED_VERSION,
@@ -157,12 +158,15 @@ async def async_setup(hass, config):
 
 async def async_update_options(hass, entry):
     """Handle options update."""
+    _LOGGER.debug("Reloading")
     await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_setup_entry(hass, entry) -> bool:
     """Set up OpenHASP via a config entry."""
     plate = entry.data[CONF_NAME]
+    _LOGGER.debug("Setup %s", plate)
+
     hass_config = await async_integration_yaml_config(hass, DOMAIN)
 
     if DOMAIN not in hass_config or slugify(plate) not in hass_config[DOMAIN]:
@@ -197,7 +201,8 @@ async def async_setup_entry(hass, entry) -> bool:
         hass.config_entries.async_forward_entry_setup(entry, LIGHT_DOMAIN)
     )
 
-    entry.add_update_listener(async_update_options)
+    listener = entry.add_update_listener(async_update_options)
+    hass.data[DOMAIN][CONF_PLATE][DATA_LISTENER] = listener
 
     hass.async_create_task(
         hass.config_entries.async_forward_entry_setup(entry, SWITCH_DOMAIN)
@@ -211,6 +216,8 @@ async def async_unload_entry(hass, entry):
     plate = entry.data[CONF_NAME]
 
     _LOGGER.debug("Unload entry for plate %s", plate)
+
+    listener = hass.data[DOMAIN][CONF_PLATE][DATA_LISTENER]
 
     # Only remove services if it is the last
     if len(hass.data[DOMAIN][CONF_PLATE]) == 1:
@@ -238,6 +245,8 @@ async def async_unload_entry(hass, entry):
     # Component does not remove entity from entity_registry, so we must do it
     registry = await entity_registry.async_get_registry(hass)
     registry.async_remove(hass.data[DOMAIN][CONF_PLATE][plate].entity_id)
+
+    listener()
 
     # Remove Plate entity
     del hass.data[DOMAIN][CONF_PLATE][plate]
