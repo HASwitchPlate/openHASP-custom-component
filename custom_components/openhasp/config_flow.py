@@ -182,7 +182,7 @@ class OpenHASPOptionsFlowHandler(config_entries.OptionsFlow):
                         CONF_PAGES_PATH,
                         default=self.config_entry.options.get(
                             CONF_PAGES_PATH,
-                            self.config_entry.data[CONF_PAGES_PATH],
+                            self.config_entry.data.get(CONF_PAGES_PATH),
                         ),
                     ): str,
                 }
