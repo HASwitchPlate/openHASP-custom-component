@@ -11,11 +11,11 @@ from homeassistant.components.light import (
     LightEntity,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant, callback
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.restore_state import RestoreEntity
 import homeassistant.util.color as color_util
-from homeassistant.const import CONF_NAME
 import voluptuous as vol
 
 from .common import HASP_IDLE_SCHEMA, HASPToggleEntity
