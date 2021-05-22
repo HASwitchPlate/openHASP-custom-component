@@ -14,12 +14,12 @@
         },
         "error": {
             "name_exists": "A Plate with that name is already configured",
-            "invalid_discovery_info": "Invalid plate topic"
+            "invalid_discovery_info": "Invalid plate topic",
+            "invalid_jsonl_path": "Invalid path to a JSONL file"
         },
         "abort": {
             "already_configured": "Plate already configured",
-            "discovery_only": "Configuration is done through discovery",
-            "invalid_jsonl_path": "Invalid path to a JSONL file"
+            "discovery_only": "Configuration is done through discovery"
         }
     },
     "options": {

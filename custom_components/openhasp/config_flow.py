@@ -87,7 +87,8 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
 
         self.config_data[CONF_HWID] = hwid
         self.config_data[CONF_NODE] = self.config_data[CONF_NAME] = name
-        self.config_data[CONF_TOPIC] = discovery_info.topic.split("/")[0]
+        self.config_data[CONF_TOPIC] = f"{discovery_info.topic.split('/')[0]}/{self.config_data[CONF_NODE]}"
+
         self.config_data[DISCOVERED_VERSION] = _discovered.get(DISCOVERED_VERSION)
         # TODO check version discovered against our version
         self.config_data[DISCOVERED_MANUFACTURER] = _discovered.get(
@@ -115,10 +116,6 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
                 if user_input[CONF_TOPIC].endswith("/"):
                     user_input[CONF_TOPIC] = user_input[CONF_TOPIC][:-1]
 
-                self.config_data[
-                    CONF_TOPIC
-                ] = f"{user_input[CONF_TOPIC]}/{self.config_data[CONF_NODE]}"
-
                 try:
                     valid_subscribe_topic(self.config_data[CONF_TOPIC])
 
@@ -126,17 +123,17 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
                         user_input[CONF_PAGES_PATH]
                     )
 
+                    return self.async_create_entry(
+                       title=user_input[CONF_NAME], data=self.config_data
+                    )
+
                 except vol.Invalid:
                     return self.async_abort(reason="invalid_discovery_info")
 
                 except InvalidJSONL:
-                    return self.async_abort(reason="invalid_jsonl_path")
-
-                return self.async_create_entry(
-                    title=user_input[CONF_NAME], data=self.config_data
-                )
-
-            self._errors[CONF_NAME] = "name_exists"
+                    self._errors[CONF_PAGES_PATH] = "invalid_jsonl_path"
+            else:
+                self._errors[CONF_NAME] = "name_exists"
 
         return self.async_show_form(
             step_id="personalize",
