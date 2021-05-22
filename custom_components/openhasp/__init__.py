@@ -197,16 +197,13 @@ async def async_setup_entry(hass, entry) -> bool:
     await component.async_add_entities([plate_entity])
     hass.data[DOMAIN][CONF_PLATE][plate] = plate_entity
 
-    hass.async_create_task(
-        hass.config_entries.async_forward_entry_setup(entry, LIGHT_DOMAIN)
-    )
+    for domain in [LIGHT_DOMAIN, SWITCH_DOMAIN]:
+        hass.async_create_task(
+            hass.config_entries.async_forward_entry_setup(entry, domain)
+        )
 
     listener = entry.add_update_listener(async_update_options)
     hass.data[DOMAIN][CONF_PLATE][DATA_LISTENER] = listener
-
-    hass.async_create_task(
-        hass.config_entries.async_forward_entry_setup(entry, SWITCH_DOMAIN)
-    )
 
     return True
 
@@ -308,7 +305,7 @@ class SwitchPlate(RestoreEntity):
 
         self._subscriptions.append(
             await self.hass.components.mqtt.async_subscribe(
-                self._topic + "/state/page", page_update_received
+                f"{self._topic}/state/page", page_update_received
             )
         )
 
@@ -346,11 +343,11 @@ class SwitchPlate(RestoreEntity):
 
         self._subscriptions.append(
             await self.hass.components.mqtt.async_subscribe(
-                self._topic + "/state/statusupdate", statusupdate_message_received
+                f"{self._topic}/state/statusupdate", statusupdate_message_received
             )
         )
         self.hass.components.mqtt.async_publish(
-            self._topic + "/command", "statusupdate", qos=0, retain=False
+            f"{self._topic}/command", "statusupdate", qos=0, retain=False
         )
 
         @callback
@@ -364,7 +361,7 @@ class SwitchPlate(RestoreEntity):
 
         self._subscriptions.append(
             await self.hass.components.mqtt.async_subscribe(
-                self._topic + "/state/idle", idle_message_received
+                f"{self._topic}/state/idle", idle_message_received
             )
         )
 
@@ -539,7 +536,6 @@ class SwitchPlate(RestoreEntity):
                 "File or data not present at the moment: %s",
                 os.path.basename(path),
             )
-            return
 
 
 # pylint: disable=R0902

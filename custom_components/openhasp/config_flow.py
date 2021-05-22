@@ -88,13 +88,19 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
 
         version = _discovered.get(DISCOVERED_VERSION)
         if version.split(".")[0:2] != [MAJOR, MINOR]:
-            _LOGGER.error("Version mismatch! Your plate: %s - openHASP Component: %s", version, f"{MAJOR}.{MINOR}.x")
+            _LOGGER.error(
+                "Version mismatch! Your plate: %s - openHASP Component: %s",
+                version,
+                f"{MAJOR}.{MINOR}.x",
+            )
             raise data_entry_flow.AbortFlow("mismatch_version")
 
         self.config_data[DISCOVERED_VERSION] = version
 
         self.config_data[CONF_HWID] = hwid
-        self.config_data[CONF_NODE] = self.config_data[CONF_NAME] = _discovered[DISCOVERED_NODE]
+        self.config_data[CONF_NODE] = self.config_data[CONF_NAME] = _discovered[
+            DISCOVERED_NODE
+        ]
         self.config_data[
             CONF_TOPIC
         ] = f"{discovery_info.topic.split('/')[0]}/{self.config_data[CONF_NODE]}"
