@@ -1,4 +1,4 @@
-#0.6.0
+# 0.6.0
 - Improves UX
 - Entity names have changed
 - Configuration is now handled through the UI (Config-flow)
