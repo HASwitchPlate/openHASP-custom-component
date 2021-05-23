@@ -2,7 +2,7 @@
 import logging
 
 from homeassistant.core import callback
-from homeassistant.helpers.entity import ToggleEntity
+from homeassistant.helpers.entity import ToggleEntity, Entity
 import voluptuous as vol
 
 from .const import (
@@ -19,19 +19,19 @@ _LOGGER = logging.getLogger(__name__)
 HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 
 
-class HASPToggleEntity(ToggleEntity):
-    """Representation of HASP ToggleEntity."""
+class HASPEntity(Entity):
+    """Generic HASP entity (base class)."""
 
-    def __init__(self, name, hwid: str, topic: str, gpio=None):
-        """Initialize the toggle entity."""
+    def __init__(self, name, hwid: str, topic: str, gpio=None) -> None:
+        """Initialize the HASP entity."""
         super().__init__()
         self._name = name
-        self._topic = topic
-        self._state = None
         self._hwid = hwid
+        self._topic = topic
+        self._gpio = gpio
+        self._state = None
         self._available = False
         self._subscriptions = []
-        self._gpio = gpio
 
     @property
     def unique_id(self):
@@ -42,21 +42,6 @@ class HASPToggleEntity(ToggleEntity):
     def available(self):
         """Return if entity is available."""
         return self._available
-
-    @property
-    def is_on(self):
-        """Return true if device is on."""
-        return self._state
-
-    async def async_turn_on(self, **kwargs):
-        """Turn on."""
-        self._state = True
-        await self.refresh()
-
-    async def async_turn_off(self, **kwargs):
-        """Turn off."""
-        self._state = False
-        await self.refresh()
 
     async def refresh(self):
         """Sync local state back to plate."""
@@ -100,3 +85,26 @@ class HASPToggleEntity(ToggleEntity):
         return {
             "identifiers": {(DOMAIN, self._hwid)},
         }
+
+
+class HASPToggleEntity(HASPEntity, ToggleEntity):
+    """Representation of HASP ToggleEntity."""
+
+    @property
+    def is_on(self):
+        """Return true if device is on."""
+        return self._state
+
+    async def async_turn_on(self, **kwargs):
+        """Turn on."""
+        self._state = True
+        await self.refresh()
+
+    async def async_turn_off(self, **kwargs):
+        """Turn off."""
+        self._state = False
+        await self.refresh()
+
+    async def refresh(self):
+        """Sync local state back to plate."""
+        raise NotImplementedError()

@@ -27,6 +27,7 @@ CONF_PWMS = "pwm"
 CONF_GPIO = "gpio"
 CONF_NODE = "node"
 CONF_HWID = "hwid"
+CONF_INPUT = "input"
 
 DATA_LISTENER = "listener"
 
@@ -44,6 +45,7 @@ DISCOVERED_POWER = "power"
 DISCOVERED_LIGHT = "light"
 DISCOVERED_DIM = "dim"
 DISCOVERED_VERSION = "sw"
+DISCOVERED_INPUT = "input"
 
 HASP_NUM_PAGES = "numPages"
 HASP_VAL = "val"

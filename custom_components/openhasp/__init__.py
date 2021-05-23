@@ -6,6 +6,7 @@ import re
 
 from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
 from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
+from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN
 from homeassistant.const import CONF_NAME, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import callback
 from homeassistant.exceptions import TemplateError
@@ -197,7 +198,7 @@ async def async_setup_entry(hass, entry) -> bool:
     await component.async_add_entities([plate_entity])
     hass.data[DOMAIN][CONF_PLATE][plate] = plate_entity
 
-    for domain in [LIGHT_DOMAIN, SWITCH_DOMAIN]:
+    for domain in [LIGHT_DOMAIN, SWITCH_DOMAIN, BINARY_SENSOR_DOMAIN]:
         hass.async_create_task(
             hass.config_entries.async_forward_entry_setup(entry, domain)
         )

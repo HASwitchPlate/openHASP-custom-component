@@ -13,6 +13,7 @@ from .const import (
     CONF_DIMLIGHTS,
     CONF_HWID,
     CONF_IDLE_BRIGHTNESS,
+    CONF_INPUT,
     CONF_LIGHTS,
     CONF_NODE,
     CONF_PAGES,
@@ -22,6 +23,7 @@ from .const import (
     DEFAULT_IDLE_BRIGHNESS,
     DISCOVERED_DIM,
     DISCOVERED_HWID,
+    DISCOVERED_INPUT,
     DISCOVERED_LIGHT,
     DISCOVERED_MANUFACTURER,
     DISCOVERED_MODEL,
@@ -113,6 +115,7 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
         self.config_data[CONF_RELAYS] = _discovered.get(DISCOVERED_POWER)
         self.config_data[CONF_LIGHTS] = _discovered.get(DISCOVERED_LIGHT)
         self.config_data[CONF_DIMLIGHTS] = _discovered.get(DISCOVERED_DIM)
+        self.config_data[CONF_INPUT] = _discovered.get(DISCOVERED_INPUT)
 
         return await self.async_step_personalize()
 

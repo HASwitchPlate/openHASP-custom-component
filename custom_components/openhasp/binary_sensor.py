@@ -1,8 +1,9 @@
-"""Allows to configure a switch using GPIO."""
+"""Allows to configure a binary sensor using GPIO."""
 import json
 import logging
 from typing import Callable
 
+from homeassistant.components.binary_sensor import BinarySensorEntity
 # pylint: disable=R0801
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
@@ -10,19 +11,17 @@ from homeassistant.core import HomeAssistant, callback
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
-from .common import HASPToggleEntity
-from .const import CONF_HWID, CONF_RELAYS, CONF_TOPIC
+from .common import HASPEntity
+from .const import CONF_HWID, CONF_INPUT, CONF_TOPIC
 
 _LOGGER = logging.getLogger(__name__)
 
 
-HASP_RELAY_SCHEMA = vol.Schema(
+HASP_BINARY_INPUT_SCHEMA = vol.Schema(
     {
         vol.Required("state"): cv.boolean,
-        vol.Optional("val"): int,
     }
 )
-
 
 # pylint: disable=R0801, W0613
 async def async_setup_entry(
@@ -32,58 +31,62 @@ async def async_setup_entry(
 
     async_add_entities(
         [
-            HASPSwitch(
+            HASPBinarySensor(
                 entry.data[CONF_NAME],
                 entry.data[CONF_HWID],
                 entry.data[CONF_TOPIC],
                 gpio,
+                device_class,
             )
-            for gpio in entry.data[CONF_RELAYS]
+            for device_class in entry.data[CONF_INPUT]
+            for gpio in entry.data[CONF_INPUT][device_class]
         ]
     )
 
     return True
 
 
-class HASPSwitch(HASPToggleEntity):
+class HASPBinarySensor(HASPEntity, BinarySensorEntity):
     """Representation of an openHASP relay."""
 
-    def __init__(self, name, hwid, topic, gpio):
+    # pylint: disable=R0913
+    def __init__(self, name, hwid, topic, gpio, dev_class):
         """Initialize the relay."""
         super().__init__(name, hwid, topic, gpio)
+        self._device_class = dev_class
 
     @property
     def name(self):
         """Return the name of the switch."""
-        return f"{self._name} switch {self._gpio}"
+        return f"{self._name} binary_sensor {self._gpio}"
+
+    @property
+    def is_on(self):
+        """Return true if device is on."""
+        return self._state
+
+    @property
+    def device_class(self):
+        """Return the device class."""
+        return self._device_class
 
     async def refresh(self):
-        """Sync local state back to plate."""
-        if self._state is None:
-            # Don't do anything before we know the state
-            return
-
+        """Force sync of plate state back to binary sensor."""
         self.hass.components.mqtt.async_publish(
-            f"{self._topic}/command/output{self._gpio}",
-            json.dumps(
-                HASP_RELAY_SCHEMA({"state": int(self._state), "val": int(self._state)})
-            ),
-            qos=0,
-            retain=False,
+            f"{self._topic}/command/input{self._gpio}", "", qos=0, retain=False
         )
-        self.async_write_ha_state()
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
 
         @callback
-        async def relay_state_message_received(msg):
+        async def state_message_received(msg):
             """Process State."""
 
             try:
                 self._available = True
-                message = HASP_RELAY_SCHEMA(json.loads(msg.payload))
+                message = HASP_BINARY_INPUT_SCHEMA(json.loads(msg.payload))
                 _LOGGER.debug("%s state = %s", self.name, message)
 
                 self._state = message["state"]
@@ -93,9 +96,9 @@ class HASPSwitch(HASPToggleEntity):
                 _LOGGER.error(err)
 
         await self.hass.components.mqtt.async_subscribe(
-            f"{self._topic}/state/output{self._gpio}", relay_state_message_received
+            f"{self._topic}/state/input{self._gpio}", state_message_received
         )
 
         self.hass.components.mqtt.async_publish(
-            f"{self._topic}/command/output{self._gpio}", "", qos=0, retain=False
+            f"{self._topic}/command/input{self._gpio}", "", qos=0, retain=False
         )
