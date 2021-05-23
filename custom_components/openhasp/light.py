@@ -246,7 +246,7 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
     def __init__(self, name, hwid, topic, brightness):
         """Initialize the light."""
         super().__init__(name, hwid, topic)
-        self._awake_brightness = None
+        self._awake_brightness = 255
         self._brightness = None
         self._idle_brightness = brightness
 
