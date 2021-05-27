@@ -419,7 +419,7 @@ class SwitchPlate(RestoreEntity):
     @property
     def icon(self):
         """Return the icon to be used for this entity."""
-        return "mdi:light-switch"
+        return "mdi:gesture-tap-box"
 
     @property
     def state(self):
