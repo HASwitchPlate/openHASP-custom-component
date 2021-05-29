@@ -4,6 +4,7 @@ import logging
 from typing import Callable
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
+
 # pylint: disable=R0801
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME

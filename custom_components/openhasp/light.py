@@ -55,7 +55,7 @@ HASP_BACKLIGHT_SCHEMA = vol.Schema(
 HASP_LIGHT_SCHEMA = vol.Schema(
     {
         vol.Required("state"): cv.boolean,
-        vol.Optional("val"): vol.All(int, vol.Range(min=0, max=255)),
+        vol.Optional("brightness"): vol.All(int, vol.Range(min=0, max=255)),
     }
 )
 
@@ -119,9 +119,7 @@ class HASPLight(HASPToggleEntity, LightEntity):
         """Sync local state back to plate."""
         self.hass.components.mqtt.async_publish(
             f"{self._topic}/command/output{self._gpio}",
-            json.dumps(
-                HASP_LIGHT_SCHEMA({"state": int(self._state), "val": int(self._state)})
-            ),
+            json.dumps(HASP_LIGHT_SCHEMA({"state": int(self._state)})),
             qos=0,
             retain=False,
         )
@@ -193,7 +191,9 @@ class HASPDimmableLight(HASPToggleEntity, LightEntity):
         self.hass.components.mqtt.async_publish(
             f"{self._topic}/command/output{self._gpio}",
             json.dumps(
-                HASP_LIGHT_SCHEMA({"state": self._state, "val": self._brightness})
+                HASP_LIGHT_SCHEMA(
+                    {"state": self._state, "brightness": self._brightness}
+                )
             ),
             qos=0,
             retain=False,
@@ -214,7 +214,7 @@ class HASPDimmableLight(HASPToggleEntity, LightEntity):
                 _LOGGER.debug("received dimmable light %s:  %s", self.name, message)
 
                 self._state = message["state"]
-                self._brightness = message["val"]
+                self._brightness = message["brightness"]
                 self.async_write_ha_state()
 
             except vol.error.Invalid as err:

@@ -19,7 +19,6 @@ _LOGGER = logging.getLogger(__name__)
 HASP_RELAY_SCHEMA = vol.Schema(
     {
         vol.Required("state"): cv.boolean,
-        vol.Optional("val"): int,
     }
 )
 
@@ -65,9 +64,7 @@ class HASPSwitch(HASPToggleEntity):
 
         self.hass.components.mqtt.async_publish(
             f"{self._topic}/command/output{self._gpio}",
-            json.dumps(
-                HASP_RELAY_SCHEMA({"state": int(self._state), "val": int(self._state)})
-            ),
+            json.dumps(HASP_RELAY_SCHEMA({"state": int(self._state)})),
             qos=0,
             retain=False,
         )
