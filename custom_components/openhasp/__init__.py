@@ -520,7 +520,7 @@ class SwitchPlate(RestoreEntity):
 
     async def async_command_wrapper(self, command, keyword, parameters):
         """Sends commands directly to the plate entity (as a wrapper for MQTT commands sent to hasp/<nodename>/command)"""
-        cmd_topic = f"{self._topic}/" + command
+        cmd_topic = f"{self._topic}/{command}"
 
         self.hass.components.mqtt.async_publish(
             cmd_topic, (keyword + " " + parameters).strip(), qos=0, retain=False
