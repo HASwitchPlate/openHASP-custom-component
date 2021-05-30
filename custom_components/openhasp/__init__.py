@@ -163,6 +163,14 @@ async def async_setup(hass, config):
         }, "async_command_wrapper"
     )
 
+    component.async_register_entity_service(
+        SERVICE_SET_CONFIG, {
+            vol.Required(ATTR_CONFIG_TOPIC): cv.string, 
+            vol.Required(ATTR_CONFIG_PARAMETERS): cv.string
+        }, "async_set_config"
+    )
+
+    
     return True
 
 
@@ -522,6 +530,14 @@ class SwitchPlate(RestoreEntity):
             cmd_topic, f"{keyword} {parameters}".strip(), qos=0, retain=False
         )
 
+    async def async_set_config(self, config_topic, parameters):
+        """Sets config on the plate entity (as a wrapper for MQTT commands sent to hasp/<nodename>/config/submodule)"""
+        cmd_topic = f"{self._topic}/{config_topic}"
+
+        self.hass.components.mqtt.async_publish(
+            cmd_topic, f"{parameters}".strip(), qos=0, retain=False
+        )
+        
     async def refresh(self):
         """Refresh objects in the SwitchPlate."""
 
