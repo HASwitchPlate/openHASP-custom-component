@@ -25,9 +25,8 @@ from .const import (
     ATTR_IDLE,
     ATTR_PAGE,
     ATTR_PATH,
-    ATTR_COMMAND,
-    ATTR_COMMAND_KEYWORD,
-    ATTR_COMMAND_PARAMETERS,
+    ATTR_TOPIC,
+    ATTR_PAYLOAD,
     CONF_COMPONENT,
     CONF_EVENT,
     CONF_HWID,
@@ -64,7 +63,7 @@ from .const import (
     SERVICE_PAGE_NEXT,
     SERVICE_PAGE_PREV,
     SERVICE_WAKEUP,
-    SERVICE_COMMAND,
+    SERVICE_PUBLISH,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -160,10 +159,9 @@ async def async_setup(hass, config):
     )
     component.async_register_entity_service(
         SERVICE_COMMAND, {
-            vol.Optional(ATTR_COMMAND, default=DEFAULT_COMMAND): cv.string, 
-            vol.Required(ATTR_COMMAND_KEYWORD): cv.string, 
-            vol.Optional(ATTR_COMMAND_PARAMETERS, default=""): cv.string
-        }, "async_command_wrapper"
+            vol.Required(ATTR_TOPIC): cv.string, 
+            vol.Optional(ATTR_PAYLOAD, default=""): cv.string
+        }, "async_raw_publish"
     )
 
 
@@ -519,12 +517,12 @@ class SwitchPlate(RestoreEntity):
         )
         self.async_write_ha_state()
 
-    async def async_command_wrapper(self, command, keyword, parameters):
+    async def async_raw_publish(self, topic, payload):
         """Sends commands directly to the plate entity (as a wrapper for MQTT commands sent to hasp/<nodename>/command)"""
-        cmd_topic = f"{self._topic}/{command}"
+        cmd_topic = f"{self._topic}/{topic}"
 
         self.hass.components.mqtt.async_publish(
-            cmd_topic, f"{keyword} {parameters}".strip(), qos=0, retain=False
+            cmd_topic, f"{payload}".strip(), qos=0, retain=False
         )
 
     async def refresh(self):
