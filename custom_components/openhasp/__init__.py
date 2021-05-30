@@ -523,7 +523,7 @@ class SwitchPlate(RestoreEntity):
         cmd_topic = f"{self._topic}/{command}"
 
         self.hass.components.mqtt.async_publish(
-            cmd_topic, (keyword + " " + parameters).strip(), qos=0, retain=False
+            cmd_topic, f"{keyword} {parameters}".strip(), qos=0, retain=False
         )
 
     async def refresh(self):
