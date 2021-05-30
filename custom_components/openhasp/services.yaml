@@ -70,6 +70,27 @@ command:
       name: Parameters
       description: The parameters of the command.
       required: false
-      example: 'off'
+      example: "off"
       selector:
         text:
+
+set_configuration:
+  name: Set Configuration
+  description: Sets config on the plate entity (as a wrapper for MQTT commands sent to hasp/<nodename>/config/submodule)
+  target:
+  fields:
+    config_topic:
+      name: Topic
+      description: The submodule topic where the configuration has to be set.
+      required: true
+      example: 'config/gui'
+      selector:
+        text:
+    parameters:
+      name: Parameters
+      description: The parameters of the configuration setting.
+      required: true
+      example: ''{"idle2":180}''
+      selector:
+        text:
+
