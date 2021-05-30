@@ -69,7 +69,7 @@ publish:
     payload:
       name: Payload
       description: String to send as payload to the topic above.
-      required: true
+      required: false
       example: reboot
       selector:
         text:
