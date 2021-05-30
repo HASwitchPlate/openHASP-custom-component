@@ -25,6 +25,9 @@ from .const import (
     ATTR_IDLE,
     ATTR_PAGE,
     ATTR_PATH,
+    ATTR_COMMAND,
+    ATTR_COMMAND_KEYWORD,
+    ATTR_COMMAND_PARAMETERS,
     CONF_COMPONENT,
     CONF_EVENT,
     CONF_HWID,
@@ -60,6 +63,7 @@ from .const import (
     SERVICE_PAGE_NEXT,
     SERVICE_PAGE_PREV,
     SERVICE_WAKEUP,
+    SERVICE_COMMAND,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -153,6 +157,15 @@ async def async_setup(hass, config):
     component.async_register_entity_service(
         SERVICE_CLEAR_PAGE, {vol.Optional(ATTR_PAGE): int}, "async_clearpage"
     )
+    component.async_register_entity_service(
+        SERVICE_COMMAND, {
+            vol.Optional(ATTR_COMMAND, default="command"): cv.string, 
+            vol.Required(ATTR_COMMAND_KEYWORD): cv.string, 
+            vol.Optional(ATTR_COMMAND_PARAMETERS, default=""): cv.string
+        }, "async_command_wrapper"
+    )
+
+
 
     return True
 
@@ -225,6 +238,7 @@ async def async_unload_entry(hass, entry):
         hass.services.async_remove(DOMAIN, SERVICE_PAGE_CHANGE)
         hass.services.async_remove(DOMAIN, SERVICE_LOAD_PAGE)
         hass.services.async_remove(DOMAIN, SERVICE_CLEAR_PAGE)
+        hass.services.async_remove(DOMAIN, SERVICE_COMMAND)
 
     await hass.config_entries.async_forward_entry_unload(entry, LIGHT_DOMAIN)
     await hass.config_entries.async_forward_entry_unload(entry, SWITCH_DOMAIN)
@@ -503,6 +517,14 @@ class SwitchPlate(RestoreEntity):
             cmd_topic, self._page, qos=0, retain=False
         )
         self.async_write_ha_state()
+
+    async def async_command_wrapper(self, command, keyword, parameters):
+        """Sends commands directly to the plate entity (as a wrapper for MQTT commands sent to hasp/<nodename>/command)"""
+        cmd_topic = f"{self._topic}/" + command
+
+        self.hass.components.mqtt.async_publish(
+            cmd_topic, (keyword + " " + parameters).strip(), qos=0, retain=False
+        )
 
     async def refresh(self):
         """Refresh objects in the SwitchPlate."""
