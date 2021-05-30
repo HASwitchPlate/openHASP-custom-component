@@ -54,29 +54,23 @@ change_page:
           min: 1
           max: 12
 
-command:
-  name: Send Command
-  description: Sends commands directly to the plate entity (as a wrapper for MQTT commands sent to hasp/<nodename>/command)
+publish:
+  name: Publish raw MQTT command
+  description: Sends commands directly to the plate entity (as a wrapper for MQTT commands sent to hasp/<nodename>/)
   target:
   fields:
-    command:
+    topic:
       name: Command topic
-      description: The topic where to send the commands. Defaults to 'command' if not specified.
-      required: false
-      example: "command"
-      selector:
-        text:
-    keyword:
-      name: Keyword
-      description: Command keyword.
+      description: The topic appended to "hasp/<nodename>/" where to send the commands.
       required: true
-      example: "backlight"
+      example: 'command'
       selector:
         text:
-    parameters:
-      name: Parameters
-      description: The parameters of the command.
-      required: false
-      example: 'off'
+    payload:
+      name: Payload
+      description: String to send as payload to the topic above.
+      required: true
+      example: reboot
       selector:
         text:
+
