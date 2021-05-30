@@ -157,7 +157,7 @@ async def async_setup(hass, config):
         SERVICE_CLEAR_PAGE, {vol.Optional(ATTR_PAGE): int}, "async_clearpage"
     )
     component.async_register_entity_service(
-        SERVICE_COMMAND, {
+        SERVICE_PUBLISH, {
             vol.Required(ATTR_TOPIC): cv.string, 
             vol.Optional(ATTR_PAYLOAD, default=""): cv.string
         }, "async_raw_publish"
