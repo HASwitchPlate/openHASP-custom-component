@@ -84,7 +84,6 @@ ATTR_IDLE = "idle"
 ATTR_PATH = "path"
 ATTR_AWAKE_BRIGHTNESS = "awake brightness"
 ATTR_IDLE_BRIGHTNESS = "idle brightness"
-ATTR_COMMAND = "command"
 ATTR_COMMAND_KEYWORD = "keyword"
 ATTR_COMMAND_PARAMETERS = "parameters"
 
