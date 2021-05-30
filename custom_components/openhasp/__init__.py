@@ -159,7 +159,7 @@ async def async_setup(hass, config):
     )
     component.async_register_entity_service(
         SERVICE_COMMAND, {
-            vol.Optional(ATTR_COMMAND, default="command"): cv.string, 
+            vol.Optional(ATTR_COMMAND, default=DEFAULT_COMMAND): cv.string, 
             vol.Required(ATTR_COMMAND_KEYWORD): cv.string, 
             vol.Optional(ATTR_COMMAND_PARAMETERS, default=""): cv.string
         }, "async_command_wrapper"
