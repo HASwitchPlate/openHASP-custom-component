@@ -59,13 +59,6 @@ command:
   description: Sends commands directly to the plate entity (as a wrapper for MQTT commands sent to hasp/<nodename>/command)
   target:
   fields:
-    command:
-      name: Command topic
-      description: The topic where to send the commands. Defaults to 'command' if not specified.
-      required: false
-      example: "command"
-      selector:
-        text:
     keyword:
       name: Keyword
       description: Command keyword.
