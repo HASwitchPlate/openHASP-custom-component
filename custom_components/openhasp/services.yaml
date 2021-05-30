@@ -90,7 +90,7 @@ set_configuration:
       name: Parameters
       description: The parameters of the configuration setting.
       required: true
-      example: ''{"idle2":180}''
+      example: '{"idle2":180}'
       selector:
         text:
 
