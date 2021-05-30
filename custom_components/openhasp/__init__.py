@@ -27,6 +27,8 @@ from .const import (
     ATTR_PATH,
     ATTR_COMMAND_KEYWORD,
     ATTR_COMMAND_PARAMETERS,
+    ATTR_CONFIG_TOPIC,
+    ATTR_CONFIG_PARAMETERS,
     CONF_COMPONENT,
     CONF_EVENT,
     CONF_HWID,
@@ -63,6 +65,7 @@ from .const import (
     SERVICE_PAGE_PREV,
     SERVICE_WAKEUP,
     SERVICE_COMMAND,
+    SERVICE_SET_CONFIG,
 )
 
 _LOGGER = logging.getLogger(__name__)
