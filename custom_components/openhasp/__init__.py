@@ -40,7 +40,6 @@ from .const import (
     CONF_TOPIC,
     CONF_TRACK,
     DATA_LISTENER,
-    DEFAULT_COMMAND,
     DISCOVERED_MANUFACTURER,
     DISCOVERED_MODEL,
     DISCOVERED_VERSION,
@@ -160,13 +159,10 @@ async def async_setup(hass, config):
     )
     component.async_register_entity_service(
         SERVICE_COMMAND, {
-            vol.Optional(ATTR_COMMAND, default=DEFAULT_COMMAND): cv.string, 
             vol.Required(ATTR_COMMAND_KEYWORD): cv.string, 
             vol.Optional(ATTR_COMMAND_PARAMETERS, default=""): cv.string
         }, "async_command_wrapper"
     )
-
-
 
     return True
 
@@ -519,9 +515,9 @@ class SwitchPlate(RestoreEntity):
         )
         self.async_write_ha_state()
 
-    async def async_command_wrapper(self, command, keyword, parameters):
+    async def async_command_wrapper(self, keyword, parameters):
         """Sends commands directly to the plate entity (as a wrapper for MQTT commands sent to hasp/<nodename>/command)"""
-        cmd_topic = f"{self._topic}/{command}"
+       cmd_topic = f"{self._topic}/command"
 
         self.hass.components.mqtt.async_publish(
             cmd_topic, f"{keyword} {parameters}".strip(), qos=0, retain=False
