@@ -504,7 +504,7 @@ class HASPMoodLight(HASPToggleEntity, LightEntity):
         _LOGGER.debug(
             "Turn on %s - %s - %s",
             self._topic,
-            color_util.color_hs_to_RGB(*self._hs),
+            color_util.color_hs_to_RGB(*self._hs) if self._hs else None,
             self._brightness,
         )
         await self.refresh()
