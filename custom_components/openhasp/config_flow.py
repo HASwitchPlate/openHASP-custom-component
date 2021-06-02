@@ -6,6 +6,7 @@ import logging
 from homeassistant import config_entries, exceptions, data_entry_flow
 from homeassistant.components.mqtt import valid_subscribe_topic
 from homeassistant.const import CONF_NAME
+import homeassistant.helpers.config_validation as cv
 from homeassistant.core import callback
 import voluptuous as vol
 
@@ -192,9 +193,10 @@ class OpenHASPOptionsFlowHandler(config_entries.OptionsFlow):
             # Actually check path is a file
 
             try:
-                user_input[CONF_PAGES_PATH] = validate_jsonl(
-                    user_input[CONF_PAGES_PATH]
-                )
+                if len(user_input[CONF_PAGES_PATH]):
+                    user_input[CONF_PAGES_PATH] = validate_jsonl(
+                        user_input[CONF_PAGES_PATH]
+                    )
             except InvalidJSONL:
                 return self.async_abort(reason="invalid_jsonl_path")
 
@@ -215,9 +217,9 @@ class OpenHASPOptionsFlowHandler(config_entries.OptionsFlow):
                         CONF_PAGES_PATH,
                         default=self.config_entry.options.get(
                             CONF_PAGES_PATH,
-                            self.config_entry.data.get(CONF_PAGES_PATH),
+                            self.config_entry.data.get(CONF_PAGES_PATH, ""),
                         ),
-                    ): str,
+                    ): cv.string,
                 }
             ),
         )

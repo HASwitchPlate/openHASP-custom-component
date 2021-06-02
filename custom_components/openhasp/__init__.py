@@ -64,6 +64,8 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+PLATFORMS = [LIGHT_DOMAIN, SWITCH_DOMAIN, BINARY_SENSOR_DOMAIN]
+
 
 def hasp_object(value):
     """Validade HASP-LVGL object format."""
@@ -198,7 +200,7 @@ async def async_setup_entry(hass, entry) -> bool:
     await component.async_add_entities([plate_entity])
     hass.data[DOMAIN][CONF_PLATE][plate] = plate_entity
 
-    for domain in [LIGHT_DOMAIN, SWITCH_DOMAIN, BINARY_SENSOR_DOMAIN]:
+    for domain in PLATFORMS:
         hass.async_create_task(
             hass.config_entries.async_forward_entry_setup(entry, domain)
         )
@@ -226,8 +228,10 @@ async def async_unload_entry(hass, entry):
         hass.services.async_remove(DOMAIN, SERVICE_LOAD_PAGE)
         hass.services.async_remove(DOMAIN, SERVICE_CLEAR_PAGE)
 
-    await hass.config_entries.async_forward_entry_unload(entry, LIGHT_DOMAIN)
-    await hass.config_entries.async_forward_entry_unload(entry, SWITCH_DOMAIN)
+    for domain in PLATFORMS:
+        hass.async_create_task(
+            hass.config_entries.async_forward_entry_unload(entry, domain)
+        )
 
     device_registry = await dr.async_get_registry(hass)
     dev = device_registry.async_get_device(
