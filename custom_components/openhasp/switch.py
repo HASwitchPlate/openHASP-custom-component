@@ -89,8 +89,10 @@ class HASPSwitch(HASPToggleEntity):
             except vol.error.Invalid as err:
                 _LOGGER.error(err)
 
-        await self.hass.components.mqtt.async_subscribe(
-            f"{self._topic}/state/output{self._gpio}", relay_state_message_received
+        self._subscriptions.append(
+            await self.hass.components.mqtt.async_subscribe(
+                f"{self._topic}/state/output{self._gpio}", relay_state_message_received
+            )
         )
 
         self.hass.components.mqtt.async_publish(

@@ -104,7 +104,3 @@ class HASPToggleEntity(HASPEntity, ToggleEntity):
         """Turn off."""
         self._state = False
         await self.refresh()
-
-    async def refresh(self):
-        """Sync local state back to plate."""
-        raise NotImplementedError()

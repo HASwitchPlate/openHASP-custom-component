@@ -229,9 +229,7 @@ async def async_unload_entry(hass, entry):
         hass.services.async_remove(DOMAIN, SERVICE_CLEAR_PAGE)
 
     for domain in PLATFORMS:
-        hass.async_create_task(
-            hass.config_entries.async_forward_entry_unload(entry, domain)
-        )
+        await hass.config_entries.async_forward_entry_unload(entry, domain)
 
     device_registry = await dr.async_get_registry(hass)
     dev = device_registry.async_get_device(
