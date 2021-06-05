@@ -236,10 +236,10 @@ async def async_unload_entry(hass, entry):
         _LOGGER.debug("Removing device %s", dev)
         device_registry.async_remove_device(dev.id)
 
-    for domain in PLATFORMS:
-        hass.async_create_task(
-            hass.config_entries.async_forward_entry_unload(entry, domain)
-        )
+#    for domain in PLATFORMS:
+#        hass.async_create_task(
+#            hass.config_entries.async_forward_entry_unload(entry, domain)
+#        )
 
     component = hass.data[DOMAIN][CONF_COMPONENT]
     await component.async_remove_entity(hass.data[DOMAIN][CONF_PLATE][plate].entity_id)
