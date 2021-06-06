@@ -288,7 +288,6 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
         if state:
             self._state = state.state
             self._brightness = state.attributes.get(ATTR_BRIGHTNESS)
-            self._idle_brightness = state.attributes.get(ATTR_IDLE_BRIGHTNESS, 25)
             self._awake_brightness = state.attributes.get(ATTR_AWAKE_BRIGHTNESS, 255)
             _LOGGER.debug(
                 "Restoring %s self.brigthness = %s; awake_brightness = %s; idle_brightness = %s",
