@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+import hashlib
 
 from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
 from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
@@ -17,12 +18,16 @@ from homeassistant.helpers.event import TrackTemplate, async_track_template_resu
 from homeassistant.helpers.reload import async_integration_yaml_config
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.service import async_call_from_config
+from homeassistant.helpers.network import get_url
 from homeassistant.util import slugify
 import voluptuous as vol
 
+from .image import ImageServeView, image_to_rgb565
 from .common import HASP_IDLE_SCHEMA
 from .const import (
     ATTR_IDLE,
+    ATTR_IMAGE,
+    ATTR_OBJECT,
     ATTR_PAGE,
     ATTR_PATH,
     CONF_COMPONENT,
@@ -36,6 +41,7 @@ from .const import (
     CONF_PROPERTIES,
     CONF_TOPIC,
     CONF_TRACK,
+    DATA_IMAGES,
     DATA_LISTENER,
     DISCOVERED_MANUFACTURER,
     DISCOVERED_MODEL,
@@ -60,6 +66,7 @@ from .const import (
     SERVICE_PAGE_NEXT,
     SERVICE_PAGE_PREV,
     SERVICE_WAKEUP,
+    SERVICE_PUSH_IMAGE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -121,6 +128,13 @@ HASP_LWT_SCHEMA = vol.Schema(vol.Any(*HASP_LWT))
 
 HASP_PAGE_SCHEMA = vol.Schema(vol.All(vol.Coerce(int), vol.Range(min=0, max=12)))
 
+PUSH_IMAGE_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_IMAGE): cv.string, 
+        vol.Required(ATTR_OBJECT): hasp_object
+    },
+    extra=vol.ALLOW_EXTRA,
+)
 
 async def async_setup(hass, config):
     """Set up the MQTT async example component."""
@@ -155,6 +169,13 @@ async def async_setup(hass, config):
     component.async_register_entity_service(
         SERVICE_CLEAR_PAGE, {vol.Optional(ATTR_PAGE): int}, "async_clearpage"
     )
+
+    component.async_register_entity_service(
+        SERVICE_PUSH_IMAGE, PUSH_IMAGE_SCHEMA, "async_push_image"
+    )
+
+    hass.data[DOMAIN][DATA_IMAGES] = dict()
+    hass.http.register_view(ImageServeView)
 
     return True
 
@@ -505,6 +526,27 @@ class SwitchPlate(RestoreEntity):
             cmd_topic, self._page, qos=0, retain=False
         )
         self.async_write_ha_state()
+
+    async def async_push_image(self, image, object):
+        """update object image."""
+
+        image_id = hashlib.md5(image.encode('utf-8')).hexdigest()
+
+        _LOGGER.error("async_push_image %s %s %s", image, object, image_id)
+
+        rgb_image = await self.hass.async_add_executor_job(image_to_rgb565, image)
+
+        self.hass.data[DOMAIN][DATA_IMAGES][image_id] = rgb_image
+        
+        cmd_topic = f"{self._topic}/command/{object}.src"
+
+        rgb_image_url = f"{get_url(self.hass, allow_external=False)}/api/openhasp/serve/{image_id}"
+
+        _LOGGER.debug("Push %s with %s", cmd_topic, rgb_image_url)
+        
+        self.hass.components.mqtt.async_publish(
+            cmd_topic, rgb_image_url, qos=0, retain=False
+        )
 
     async def refresh(self):
         """Refresh objects in the SwitchPlate."""
