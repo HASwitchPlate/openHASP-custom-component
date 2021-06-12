@@ -70,5 +70,5 @@ class ImageServeView(HomeAssistantView):
         _LOGGER.debug("Get Image %s form %s", image_id, target_file.name)
 
         return web.FileResponse(
-            target_file.name, headers={**CACHE_HEADERS, hdrs.CONTENT_TYPE: "image/bmp"}
+            target_file.name, headers={hdrs.CONTENT_TYPE: "image/bmp"}
         )
