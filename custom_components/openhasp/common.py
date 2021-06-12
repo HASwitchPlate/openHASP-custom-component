@@ -2,7 +2,7 @@
 import logging
 
 from homeassistant.core import callback
-from homeassistant.helpers.entity import ToggleEntity, Entity
+from homeassistant.helpers.entity import Entity, ToggleEntity
 import voluptuous as vol
 
 from .const import (
