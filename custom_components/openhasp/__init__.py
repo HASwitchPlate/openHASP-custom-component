@@ -533,7 +533,7 @@ class SwitchPlate(RestoreEntity):
             cmd_topic, f"{keyword} {parameters}".strip(), qos=0, retain=False
         )
 
-    async def async_set_config(self, config_topic, parameters):
+    async def async_config_service(self, config_topic, parameters):
         """Sets config on the plate entity (as a wrapper for MQTT commands sent to hasp/<nodename>/config/submodule)"""
         cmd_topic = f"{self._topic}/{config_topic}"
 
