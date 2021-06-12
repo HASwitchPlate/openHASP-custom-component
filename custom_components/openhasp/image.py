@@ -29,10 +29,11 @@ def image_to_rgb565(in_image, size):
     original_width, original_height = im.size
     width, height = size
 
-    width = min(w for w in [width, original_width] if w is not None)
-    height = min(h for h in [height, original_height] if h is not None)
+    width = min(w for w in [width, original_width] if w is not None and w > 0)
+    height = min(h for h in [height, original_height] if h is not None and h > 0)
 
     im.thumbnail((height, width), Image.ANTIALIAS)
+    width, height = im.size #actual size after resize
 
     out_image = tempfile.NamedTemporaryFile(mode="w+b")
 
@@ -40,7 +41,7 @@ def image_to_rgb565(in_image, size):
 
     img = im.convert("RGB")
 
-    for pix in list(img.getdata()):
+    for pix in img.getdata():
         r = (pix[0] >> 3) & 0x1F
         g = (pix[1] >> 2) & 0x3F
         b = (pix[2] >> 3) & 0x1F
