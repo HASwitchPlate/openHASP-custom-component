@@ -65,7 +65,7 @@ from .const import (
     SERVICE_PAGE_PREV,
     SERVICE_WAKEUP,
     SERVICE_COMMAND,
-    SERVICE_SET_CONFIG,
+    SERVICE_CONFIG,
 )
 
 _LOGGER = logging.getLogger(__name__)
