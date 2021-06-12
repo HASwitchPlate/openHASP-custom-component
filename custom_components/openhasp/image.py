@@ -37,7 +37,7 @@ def image_to_rgb565(in_image, size):
 
     out_image = tempfile.NamedTemporaryFile(mode="w+b")
 
-    out_image.write(struct.pack("I", width << 21 | height << 10 | 4))
+    out_image.write(struct.pack("I", height << 21 | width << 10 | 4))
 
     img = im.convert("RGB")
 
@@ -68,7 +68,9 @@ class ImageServeView(HomeAssistantView):
         """Serve image."""
 
         hass = request.app["hass"]
-        target_file = hass.data[DOMAIN][DATA_IMAGES][image_id]
+        target_file = hass.data[DOMAIN][DATA_IMAGES].get(image_id)
+        if target_file is None:
+            return web.HTTPServiceUnavailable()
 
         _LOGGER.debug("Get Image %s form %s", image_id, target_file.name)
 
