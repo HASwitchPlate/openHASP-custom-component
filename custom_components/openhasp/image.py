@@ -34,7 +34,7 @@ def image_to_rgb565(in_image, size):
 
     im.thumbnail((height, width), Image.ANTIALIAS)
 
-    out_image = tempfile.NamedTemporaryFile(mode="wb")
+    out_image = tempfile.NamedTemporaryFile(mode="w+b")
 
     out_image.write(struct.pack("I", width << 21 | height << 10 | 4))
 
