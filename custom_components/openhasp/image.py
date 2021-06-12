@@ -17,7 +17,7 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-def image_to_rgb565(in_image):
+def image_to_rgb565(in_image, size=(128, 128)):
     filesize = 0
 
     try:
@@ -29,8 +29,7 @@ def image_to_rgb565(in_image):
         _LOGGER.error("Failed to open %s", in_image)
         return
 
-    image_height = im.size[1]
-    image_width = im.size[0]
+    im.thumbnail(size, Image.ANTIALIAS)
 
     out_image = tempfile.NamedTemporaryFile(mode="wb")
 
@@ -40,7 +39,7 @@ def image_to_rgb565(in_image):
         r = (pix[0] >> 3) & 0x1F
         g = (pix[1] >> 2) & 0x3F
         b = (pix[2] >> 3) & 0x1F
-        out_image.write(struct.pack('H', (r << 11) + (g << 5) + b))
+        out_image.write(struct.pack('H', (r << 11) | (g << 5) | b))
     
     _LOGGER.debug("out_image: %s", out_image.name)
 
