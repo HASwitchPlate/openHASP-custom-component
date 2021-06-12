@@ -35,7 +35,7 @@ def image_to_rgb565(in_image, size=(128, 128)):
 
     out_image = tempfile.NamedTemporaryFile(mode="wb")
 
-    out_image.writable(struct.pack('H', height<<21 + width<<10 + 4))
+    out_image.write(struct.pack('I', height<<21 | width<<10 | 4))
 
     img = im.convert('RGB')
     

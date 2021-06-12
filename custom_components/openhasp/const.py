@@ -87,6 +87,8 @@ ATTR_AWAKE_BRIGHTNESS = "awake brightness"
 ATTR_IDLE_BRIGHTNESS = "idle brightness"
 ATTR_IMAGE = "image"
 ATTR_OBJECT= "object"
+ATTR_WIDTH = "width"
+ATTR_HEIGHT = "height"
 
 SERVICE_WAKEUP = "wakeup"
 SERVICE_CLEAR_PAGE = "clear_page"

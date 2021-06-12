@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import hashlib
+from typing import Optional
 
 from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
 from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
@@ -25,11 +26,13 @@ import voluptuous as vol
 from .image import ImageServeView, image_to_rgb565
 from .common import HASP_IDLE_SCHEMA
 from .const import (
+    ATTR_HEIGHT,
     ATTR_IDLE,
     ATTR_IMAGE,
     ATTR_OBJECT,
     ATTR_PAGE,
     ATTR_PATH,
+    ATTR_WIDTH,
     CONF_COMPONENT,
     CONF_EVENT,
     CONF_HWID,
@@ -131,7 +134,9 @@ HASP_PAGE_SCHEMA = vol.Schema(vol.All(vol.Coerce(int), vol.Range(min=0, max=12))
 PUSH_IMAGE_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_IMAGE): cv.string, 
-        vol.Required(ATTR_OBJECT): hasp_object
+        vol.Required(ATTR_OBJECT): hasp_object,
+        vol.Optional(ATTR_HEIGHT, default=128): int,
+        vol.Optional(ATTR_WIDTH, default=128): int, 
     },
     extra=vol.ALLOW_EXTRA,
 )
@@ -527,14 +532,14 @@ class SwitchPlate(RestoreEntity):
         )
         self.async_write_ha_state()
 
-    async def async_push_image(self, image, object):
+    async def async_push_image(self, image, object, height, width):
         """update object image."""
 
         image_id = hashlib.md5(image.encode('utf-8')).hexdigest()
 
         _LOGGER.error("async_push_image %s %s %s", image, object, image_id)
 
-        rgb_image = await self.hass.async_add_executor_job(image_to_rgb565, image)
+        rgb_image = await self.hass.async_add_executor_job(image_to_rgb565, image, (height, width))
 
         self.hass.data[DOMAIN][DATA_IMAGES][image_id] = rgb_image
         
@@ -543,7 +548,7 @@ class SwitchPlate(RestoreEntity):
         rgb_image_url = f"{get_url(self.hass, allow_external=False)}/api/openhasp/serve/{image_id}"
 
         _LOGGER.debug("Push %s with %s", cmd_topic, rgb_image_url)
-        
+
         self.hass.components.mqtt.async_publish(
             cmd_topic, rgb_image_url, qos=0, retain=False
         )
