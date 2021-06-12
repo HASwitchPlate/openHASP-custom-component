@@ -96,7 +96,7 @@ SERVICE_PAGE_CHANGE = "change_page"
 SERVICE_PAGE_NEXT = "next_page"
 SERVICE_PAGE_PREV = "prev_page"
 SERVICE_COMMAND = "command"
-SERVICE_SET_CONFIG = "set_configuration"
+SERVICE_CONFIG = "config"
 
 EVENT_HASP_PLATE_ONLINE = "openhasp_plate_online"
 EVENT_HASP_PLATE_OFFLINE = "openhasp_plate_offline"
