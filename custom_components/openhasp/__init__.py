@@ -22,9 +22,13 @@ import voluptuous as vol
 
 from .common import HASP_IDLE_SCHEMA
 from .const import (
+    ATTR_CONFIG_SUBMODULE,
     ATTR_IDLE,
     ATTR_PAGE,
     ATTR_PATH,
+    ATTR_COMMAND_KEYWORD,
+    ATTR_COMMAND_PARAMETERS,
+    ATTR_CONFIG_PARAMETERS,
     CONF_COMPONENT,
     CONF_EVENT,
     CONF_HWID,
@@ -60,6 +64,8 @@ from .const import (
     SERVICE_PAGE_NEXT,
     SERVICE_PAGE_PREV,
     SERVICE_WAKEUP,
+    SERVICE_COMMAND,
+    SERVICE_CONFIG,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -155,6 +161,23 @@ async def async_setup(hass, config):
     component.async_register_entity_service(
         SERVICE_CLEAR_PAGE, {vol.Optional(ATTR_PAGE): int}, "async_clearpage"
     )
+    component.async_register_entity_service(
+        SERVICE_COMMAND,
+        {
+            vol.Required(ATTR_COMMAND_KEYWORD): cv.string,
+            vol.Optional(ATTR_COMMAND_PARAMETERS, default=""): cv.string,
+        },
+        "async_command_service",
+    )
+
+    component.async_register_entity_service(
+        SERVICE_CONFIG,
+        {
+            vol.Required(ATTR_CONFIG_SUBMODULE): cv.string,
+            vol.Required(ATTR_CONFIG_PARAMETERS): cv.string,
+        },
+        "async_config_service",
+    )
 
     return True
 
@@ -227,6 +250,7 @@ async def async_unload_entry(hass, entry):
         hass.services.async_remove(DOMAIN, SERVICE_PAGE_CHANGE)
         hass.services.async_remove(DOMAIN, SERVICE_LOAD_PAGE)
         hass.services.async_remove(DOMAIN, SERVICE_CLEAR_PAGE)
+        hass.services.async_remove(DOMAIN, SERVICE_COMMAND)
 
     for domain in PLATFORMS:
         await hass.config_entries.async_forward_entry_unload(entry, domain)
@@ -451,7 +475,7 @@ class SwitchPlate(RestoreEntity):
     async def async_wakeup(self):
         """Wake up the display."""
         cmd_topic = f"{self._topic}/command"
-        _LOGGER.debug("Wakeup")
+        _LOGGER.warning("Wakeup will be deprecated in 0.8.0")  # remove in version 0.8.0
         self.hass.components.mqtt.async_publish(
             cmd_topic, "wakeup", qos=0, retain=False
         )
@@ -459,6 +483,9 @@ class SwitchPlate(RestoreEntity):
     async def async_change_page_next(self):
         """Change page to next one."""
         cmd_topic = f"{self._topic}/command/page"
+        _LOGGER.warning(
+            "page next service will be deprecated in 0.8.0"
+        )  # remove in version 0.8.0
 
         self.hass.components.mqtt.async_publish(
             cmd_topic, "page next", qos=0, retain=False
@@ -467,6 +494,9 @@ class SwitchPlate(RestoreEntity):
     async def async_change_page_prev(self):
         """Change page to previous one."""
         cmd_topic = f"{self._topic}/command/page"
+        _LOGGER.warning(
+            "page prev service will be deprecated in 0.8.0"
+        )  # remove in version 0.8.0
 
         self.hass.components.mqtt.async_publish(
             cmd_topic, "page prev", qos=0, retain=False
@@ -505,6 +535,24 @@ class SwitchPlate(RestoreEntity):
             cmd_topic, self._page, qos=0, retain=False
         )
         self.async_write_ha_state()
+
+    async def async_command_service(self, keyword, parameters):
+        """Sends commands directly to the plate entity """
+        self.hass.components.mqtt.async_publish(
+            f"{self._topic}/command",
+            f"{keyword} {parameters}".strip(),
+            qos=0,
+            retain=False,
+        )
+
+    async def async_config_service(self, submodule, parameters):
+        """Sends configuration commands to plate entity"""
+        self.hass.components.mqtt.async_publish(
+            f"{self._topic}/config/{submodule}",
+            f"{parameters}".strip(),
+            qos=0,
+            retain=False,
+        )
 
     async def refresh(self):
         """Refresh objects in the SwitchPlate."""

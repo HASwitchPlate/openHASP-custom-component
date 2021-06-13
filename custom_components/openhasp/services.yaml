@@ -53,3 +53,44 @@ change_page:
         number:
           min: 1
           max: 12
+
+command:
+  name: Command
+  description: Sends commands directly to the plate entity (as a wrapper for MQTT commands sent to hasp/<nodename>/command)
+  target:
+  fields:
+    keyword:
+      name: Keyword
+      description: Command keyword.
+      required: true
+      example: "backlight"
+      selector:
+        text:
+    parameters:
+      name: Parameters
+      description: The parameters of the command.
+      required: false
+      example: "off"
+      selector:
+        text:
+
+config:
+  name: Configuration
+  description: Sends configuration commands to plate entity (as a wrapper for MQTT commands sent to hasp/<nodename>/config/submodule)
+  target:
+  fields:
+    submodule:
+      name: submodule
+      description: The submodule we intend to configure.
+      required: true
+      example: 'gui'
+      selector:
+        text:
+    parameters:
+      name: Parameters
+      description: The parameters of the configuration setting.
+      required: true
+      example: '{"idle2":180}'
+      selector:
+        text:
+
