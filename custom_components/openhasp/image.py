@@ -70,7 +70,8 @@ class ImageServeView(HomeAssistantView):
         hass = request.app["hass"]
         target_file = hass.data[DOMAIN][DATA_IMAGES].get(image_id)
         if target_file is None:
-            return web.HTTPServiceUnavailable()
+            _LOGGER.error("Unknown image_id %s", image_id)
+            return web.HTTPNotFound()
 
         _LOGGER.debug("Get Image %s form %s", image_id, target_file.name)
 
