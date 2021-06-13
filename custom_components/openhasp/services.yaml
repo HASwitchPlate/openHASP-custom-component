@@ -55,7 +55,7 @@ change_page:
           max: 12
 
 command:
-  name: Send Command
+  name: Command
   description: Sends commands directly to the plate entity (as a wrapper for MQTT commands sent to hasp/<nodename>/command)
   target:
   fields:
@@ -74,16 +74,16 @@ command:
       selector:
         text:
 
-set_configuration:
-  name: Set Configuration
-  description: Sets config on the plate entity (as a wrapper for MQTT commands sent to hasp/<nodename>/config/submodule)
+config:
+  name: Configuration
+  description: Sends configuration commands to plate entity (as a wrapper for MQTT commands sent to hasp/<nodename>/config/submodule)
   target:
   fields:
-    config_topic:
-      name: Topic
-      description: The submodule topic where the configuration has to be set.
+    submodule:
+      name: submodule
+      description: The submodule we intend to configure.
       required: true
-      example: 'config/gui'
+      example: 'gui'
       selector:
         text:
     parameters:

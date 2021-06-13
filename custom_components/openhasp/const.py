@@ -86,7 +86,7 @@ ATTR_AWAKE_BRIGHTNESS = "awake brightness"
 ATTR_IDLE_BRIGHTNESS = "idle brightness"
 ATTR_COMMAND_KEYWORD = "keyword"
 ATTR_COMMAND_PARAMETERS = "parameters"
-ATTR_CONFIG_TOPIC = "config_topic"
+ATTR_CONFIG_SUBMODULE = "submodule"
 ATTR_CONFIG_PARAMETERS = "parameters"
 
 SERVICE_WAKEUP = "wakeup"
