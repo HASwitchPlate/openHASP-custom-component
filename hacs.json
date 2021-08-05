@@ -7,5 +7,5 @@
     ],
     "render_readme": false,
     "iot_class": "Local Push",
-    "homeassistant": "2021.03"
+    "homeassistant": "2021.08.1"
 }
