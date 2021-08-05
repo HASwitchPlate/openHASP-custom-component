@@ -3,7 +3,7 @@
     "name": "openHASP",
     "documentation": "https://haswitchplate.github.io/openHASP-docs/",
     "issue_tracker": "https://github.com/HASwitchPlate/openHASP-custom-component/issues",
-    "dependencies": ["mqtt"],
+    "dependencies": ["mqtt", "http"],
     "version": "0.6.1",
     "config_flow": true,
     "iot_class": "local_push",

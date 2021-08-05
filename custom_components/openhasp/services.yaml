@@ -121,6 +121,7 @@ push_image:
       selector:
         number:
           min: 0
+          max: 1280
           mode: box
     height:
       name: Height
@@ -130,4 +131,5 @@ push_image:
       selector:
         number:
           min: 0
+          max: 1024
           mode: box
