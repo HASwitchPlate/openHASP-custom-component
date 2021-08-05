@@ -1,12 +1,14 @@
 """HASP components module."""
+import hashlib
 import json
 import logging
 import os
 import re
+from typing import Optional
 
+from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN
 from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
 from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
-from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN
 from homeassistant.const import CONF_NAME, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import callback
 from homeassistant.exceptions import TemplateError
@@ -14,6 +16,7 @@ from homeassistant.helpers import device_registry as dr, entity_registry
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.event import TrackTemplate, async_track_template_result
+from homeassistant.helpers.network import get_url
 from homeassistant.helpers.reload import async_integration_yaml_config
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.service import async_call_from_config
@@ -23,12 +26,16 @@ import voluptuous as vol
 from .common import HASP_IDLE_SCHEMA
 from .const import (
     ATTR_CONFIG_SUBMODULE,
+    ATTR_HEIGHT,
     ATTR_IDLE,
+    ATTR_IMAGE,
+    ATTR_OBJECT,
     ATTR_PAGE,
     ATTR_PATH,
     ATTR_COMMAND_KEYWORD,
     ATTR_COMMAND_PARAMETERS,
     ATTR_CONFIG_PARAMETERS,
+    ATTR_WIDTH,
     CONF_COMPONENT,
     CONF_EVENT,
     CONF_HWID,
@@ -40,6 +47,7 @@ from .const import (
     CONF_PROPERTIES,
     CONF_TOPIC,
     CONF_TRACK,
+    DATA_IMAGES,
     DATA_LISTENER,
     DISCOVERED_MANUFACTURER,
     DISCOVERED_MODEL,
@@ -63,10 +71,12 @@ from .const import (
     SERVICE_PAGE_CHANGE,
     SERVICE_PAGE_NEXT,
     SERVICE_PAGE_PREV,
+    SERVICE_PUSH_IMAGE,
     SERVICE_WAKEUP,
     SERVICE_COMMAND,
     SERVICE_CONFIG,
 )
+from .image import ImageServeView, image_to_rgb565
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -127,6 +137,16 @@ HASP_LWT_SCHEMA = vol.Schema(vol.Any(*HASP_LWT))
 
 HASP_PAGE_SCHEMA = vol.Schema(vol.All(vol.Coerce(int), vol.Range(min=0, max=12)))
 
+PUSH_IMAGE_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_IMAGE): vol.Any(cv.url, cv.isfile),
+        vol.Required(ATTR_OBJECT): hasp_object,
+        vol.Optional(ATTR_WIDTH): cv.positive_int,
+        vol.Optional(ATTR_HEIGHT): cv.positive_int,
+    },
+    extra=vol.ALLOW_EXTRA,
+)
+
 
 async def async_setup(hass, config):
     """Set up the MQTT async example component."""
@@ -178,6 +198,13 @@ async def async_setup(hass, config):
         },
         "async_config_service",
     )
+
+    component.async_register_entity_service(
+        SERVICE_PUSH_IMAGE, PUSH_IMAGE_SCHEMA, "async_push_image"
+    )
+
+    hass.data[DOMAIN][DATA_IMAGES] = dict()
+    hass.http.register_view(ImageServeView)
 
     return True
 
@@ -552,6 +579,29 @@ class SwitchPlate(RestoreEntity):
             f"{parameters}".strip(),
             qos=0,
             retain=False,
+        )
+        
+    async def async_push_image(self, image, obj, width=None, height=None):
+        """update object image."""
+
+        image_id = hashlib.md5(image.encode("utf-8")).hexdigest()
+
+        rgb_image = await self.hass.async_add_executor_job(
+            image_to_rgb565, image, (width, height)
+        )
+
+        self.hass.data[DOMAIN][DATA_IMAGES][image_id] = rgb_image
+
+        cmd_topic = f"{self._topic}/command/{obj}.src"
+
+        rgb_image_url = (
+            f"{get_url(self.hass, allow_external=False)}/api/openhasp/serve/{image_id}"
+        )
+
+        _LOGGER.debug("Push %s with %s", cmd_topic, rgb_image_url)
+
+        self.hass.components.mqtt.async_publish(
+            cmd_topic, rgb_image_url, qos=0, retain=False
         )
 
     async def refresh(self):

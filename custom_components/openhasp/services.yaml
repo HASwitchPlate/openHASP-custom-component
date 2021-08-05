@@ -94,3 +94,40 @@ config:
       selector:
         text:
 
+push_image:
+  name: Push Image
+  description: Change the src image of an img object.
+  target:
+  fields:
+    image:
+      name: Image
+      description: URL or Full Path of an image
+      required: true
+      example: "https://people.sc.fsu.edu/~jburkardt/data/jpg/lena.jpg"
+      selector:
+        text:
+    obj:
+      name: Object
+      description: Object ID in the format p#b##
+      required: true
+      example: "p1b10"
+      selector:
+        text:
+    width:
+      name: Width
+      description: Resize to width
+      required: false
+      example: "128"
+      selector:
+        number:
+          min: 0
+          mode: box
+    height:
+      name: Height
+      description: Resize to height
+      required: false
+      example: "128"
+      selector:
+        number:
+          min: 0
+          mode: box
