@@ -1,3 +1,9 @@
+# 0.6.2
+- Add new service that serves images directly to OpenHASP
+
+# 0.6.1
+- Fixes to work with HA 2021.8.1
+
 # 0.6.0
 - Improves UX
 - Entity names have changed
