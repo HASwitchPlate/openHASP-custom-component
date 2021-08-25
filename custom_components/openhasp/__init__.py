@@ -623,18 +623,41 @@ class SwitchPlate(RestoreEntity):
             return
 
         try:
-            with open(path) as pages_jsonl:
-                # load line by line
-                for line in pages_jsonl:
-                    if line:
-                        self.hass.components.mqtt.async_publish(
-                            f"{cmd_topic}/jsonl", line, qos=0, retain=False
+            if path.endswith(".json"):
+                with open(path) as json_file:
+                    json_array = json.load(json_file)
+                    if isinstance(json_array, list):
+                        # todo - add json schema check
+                        for item in json_array:
+                            if isinstance(item, dict):
+                                self.hass.components.mqtt.async_publish(
+                                    f"{cmd_topic}/jsonl", json.dumps(item), qos=0, retain=False
+                                )
+                    else:
+                        _LOGGER.warning(
+                            "File with extension .json does not contain an array: %s",
+                            os.path.basename(path),
                         )
+
+            else:
+                with open(path) as pages_jsonl:
+                    # load line by line
+                    for line in pages_jsonl:
+                        if line:
+                            self.hass.components.mqtt.async_publish(
+                                f"{cmd_topic}/jsonl", line, qos=0, retain=False
+                            )
             await self.refresh()
 
         except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError):
             _LOGGER.warning(
                 "File or data not present at the moment: %s",
+                os.path.basename(path),
+            )
+
+        except (json.JSONDecodeError, TypeError):
+            _LOGGER.warning(
+                "Error decoding .json file: %s",
                 os.path.basename(path),
             )
 
