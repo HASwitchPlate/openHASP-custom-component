@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import re
-from typing import Optional
+import jsonschema
 
 from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN
 from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
@@ -580,7 +580,7 @@ class SwitchPlate(RestoreEntity):
             qos=0,
             retain=False,
         )
-        
+
     async def async_push_image(self, image, obj, width=None, height=None):
         """update object image."""
 
@@ -625,21 +625,21 @@ class SwitchPlate(RestoreEntity):
         try:
             with open(path, 'r') as pages_file:
                 if path.endswith(".json"):
-                    json_array = json.load(pages_file)
-                    if isinstance(json_array, list):
-                        # todo - add json schema check
-                        for item in json_array:
-                            if isinstance(item, dict):
-                                self.hass.components.mqtt.async_publish(
-                                    f"{cmd_topic}/jsonl", json.dumps(item), qos=0, retain=False
-                                )
-                    else:
-                        _LOGGER.error(
-                            "File %s does not contain a list of objects",
-                            os.path.basename(path),
-                        )
+                    json_data = json.load(pages_file)
 
-                else: # process as .jsonl file
+                    json_schema = {"$schema": "https://json-schema.org/draft/2019-09/schema", "type": "array",
+                                   "items": {"anyOf": [{"type": "string"}, {"type": "object", "properties": {
+                                       "page": {"type": "integer", "minimum": 0, "maximum": 12},
+                                       "id": {"type": "integer", "minimum": 1, "maximum": 254},
+                                       "obj": {"type": "string"}}, "required": ["id", "obj"]}]}}
+                    jsonschema.validate(instance=json_data, schema=json_schema)
+
+                    for item in json_data:
+                        if isinstance(item, dict):
+                            self.hass.components.mqtt.async_publish(
+                                f"{cmd_topic}/jsonl", json.dumps(item), qos=0, retain=False
+                            )
+                else:  # process as .jsonl file
                     # load line by line
                     for line in pages_file:
                         if line:
@@ -658,6 +658,13 @@ class SwitchPlate(RestoreEntity):
             _LOGGER.error(
                 "Error decoding .json file: %s",
                 os.path.basename(path),
+            )
+
+        except jsonschema.ValidationError as e:
+            _LOGGER.error(
+                "Schema check failed for .json file: %s. Schema Validation Error: %s",
+                os.path.basename(path),
+                e.message
             )
 
 
