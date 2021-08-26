@@ -614,7 +614,7 @@ class SwitchPlate(RestoreEntity):
         await self.async_change_page(self._page)
 
     async def async_load_page(self, path):
-        """Clear current pages and load new ones."""
+        """Load pages file on the SwitchPlate, existing pages will not be cleared."""
         cmd_topic = f"{self._topic}/command"
         _LOGGER.info("Load page %s to %s", path, cmd_topic)
 
@@ -623,32 +623,30 @@ class SwitchPlate(RestoreEntity):
             return
 
         try:
-            pages_file = open(path, 'r')
-            if path.endswith(".json"):
-                json_array = json.load(pages_file)
-                if isinstance(json_array, list):
-                    # todo - add json schema check
-                    for item in json_array:
-                        if isinstance(item, dict):
-                            self.hass.components.mqtt.async_publish(
-                                f"{cmd_topic}/jsonl", json.dumps(item), qos=0, retain=False
-                            )
-                else:
-                    _LOGGER.error(
-                        "File %s does not contain a list of objects",
-                        os.path.basename(path),
-                    )
-
-            else: # process as .jsonl file
-                # load line by line
-                for line in pages_file:
-                    if line:
-                        self.hass.components.mqtt.async_publish(
-                            f"{cmd_topic}/jsonl", line, qos=0, retain=False
+            with open(path, 'r') as pages_file:
+                if path.endswith(".json"):
+                    json_array = json.load(pages_file)
+                    if isinstance(json_array, list):
+                        # todo - add json schema check
+                        for item in json_array:
+                            if isinstance(item, dict):
+                                self.hass.components.mqtt.async_publish(
+                                    f"{cmd_topic}/jsonl", json.dumps(item), qos=0, retain=False
+                                )
+                    else:
+                        _LOGGER.error(
+                            "File %s does not contain a list of objects",
+                            os.path.basename(path),
                         )
-            await self.refresh()
 
-            pages_file.close()
+                else: # process as .jsonl file
+                    # load line by line
+                    for line in pages_file:
+                        if line:
+                            self.hass.components.mqtt.async_publish(
+                                f"{cmd_topic}/jsonl", line, qos=0, retain=False
+                            )
+            await self.refresh()
 
         except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError):
             _LOGGER.error(
