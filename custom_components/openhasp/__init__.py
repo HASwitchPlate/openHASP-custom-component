@@ -634,8 +634,8 @@ class SwitchPlate(RestoreEntity):
                                     f"{cmd_topic}/jsonl", json.dumps(item), qos=0, retain=False
                                 )
                     else:
-                        _LOGGER.warning(
-                            "File with extension .json does not contain an array: %s",
+                        _LOGGER.error(
+                            "File %s does not contain a list of objects",
                             os.path.basename(path),
                         )
 
@@ -656,7 +656,7 @@ class SwitchPlate(RestoreEntity):
             )
 
         except (json.JSONDecodeError, TypeError):
-            _LOGGER.warning(
+            _LOGGER.error(
                 "Error decoding .json file: %s",
                 os.path.basename(path),
             )
