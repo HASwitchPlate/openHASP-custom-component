@@ -3,6 +3,7 @@ import hashlib
 import json
 import logging
 import os
+import pathlib
 import re
 import jsonschema
 
@@ -329,6 +330,9 @@ class SwitchPlate(RestoreEntity):
 
         self._subscriptions = []
 
+        with open(pathlib.Path(__file__).parent.joinpath("pages_schema.json"), 'r') as schema_file:
+            self.json_schema = json.load(schema_file)
+
     async def async_will_remove_from_hass(self):
         """Run before entity is removed."""
         _LOGGER.debug("Remove plate %s", self._entry.data[CONF_NAME])
@@ -626,14 +630,7 @@ class SwitchPlate(RestoreEntity):
             with open(path, 'r') as pages_file:
                 if path.endswith(".json"):
                     json_data = json.load(pages_file)
-
-                    json_schema = {"$schema": "https://json-schema.org/draft/2019-09/schema", "type": "array",
-                                   "items": {"anyOf": [{"type": "string"}, {"type": "object", "properties": {
-                                       "page": {"type": "integer", "minimum": 0, "maximum": 12},
-                                       "id": {"type": "integer", "minimum": 1, "maximum": 254},
-                                       "obj": {"type": "string"}}, "required": ["id", "obj"]}]}}
-                    jsonschema.validate(instance=json_data, schema=json_schema)
-
+                    jsonschema.validate(instance=json_data, schema=self.json_schema)
                     for item in json_data:
                         if isinstance(item, dict):
                             self.hass.components.mqtt.async_publish(
