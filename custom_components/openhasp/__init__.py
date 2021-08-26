@@ -623,34 +623,35 @@ class SwitchPlate(RestoreEntity):
             return
 
         try:
+            pages_file = open(path, 'r')
             if path.endswith(".json"):
-                with open(path) as json_file:
-                    json_array = json.load(json_file)
-                    if isinstance(json_array, list):
-                        # todo - add json schema check
-                        for item in json_array:
-                            if isinstance(item, dict):
-                                self.hass.components.mqtt.async_publish(
-                                    f"{cmd_topic}/jsonl", json.dumps(item), qos=0, retain=False
-                                )
-                    else:
-                        _LOGGER.error(
-                            "File %s does not contain a list of objects",
-                            os.path.basename(path),
-                        )
-
-            else:
-                with open(path) as pages_jsonl:
-                    # load line by line
-                    for line in pages_jsonl:
-                        if line:
+                json_array = json.load(pages_file)
+                if isinstance(json_array, list):
+                    # todo - add json schema check
+                    for item in json_array:
+                        if isinstance(item, dict):
                             self.hass.components.mqtt.async_publish(
-                                f"{cmd_topic}/jsonl", line, qos=0, retain=False
+                                f"{cmd_topic}/jsonl", json.dumps(item), qos=0, retain=False
                             )
+                else:
+                    _LOGGER.error(
+                        "File %s does not contain a list of objects",
+                        os.path.basename(path),
+                    )
+
+            else: # process as .jsonl file
+                # load line by line
+                for line in pages_file:
+                    if line:
+                        self.hass.components.mqtt.async_publish(
+                            f"{cmd_topic}/jsonl", line, qos=0, retain=False
+                        )
             await self.refresh()
 
+            pages_file.close()
+
         except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError):
-            _LOGGER.warning(
+            _LOGGER.error(
                 "File or data not present at the moment: %s",
                 os.path.basename(path),
             )
