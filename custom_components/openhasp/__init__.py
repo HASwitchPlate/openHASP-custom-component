@@ -659,7 +659,7 @@ class SwitchPlate(RestoreEntity):
 
         except jsonschema.ValidationError as e:
             _LOGGER.error(
-                "Schema check failed for .json file: %s. Schema Validation Error: %s",
+                "Schema check failed for %s. Validation Error: %s",
                 os.path.basename(path),
                 e.message
             )
