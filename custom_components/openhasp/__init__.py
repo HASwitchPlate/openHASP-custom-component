@@ -330,7 +330,9 @@ class SwitchPlate(RestoreEntity):
 
         self._subscriptions = []
 
-        with open(pathlib.Path(__file__).parent.joinpath("pages_schema.json"), 'r') as schema_file:
+        with open(
+            pathlib.Path(__file__).parent.joinpath("pages_schema.json"), "r"
+        ) as schema_file:
             self.json_schema = json.load(schema_file)
 
     async def async_will_remove_from_hass(self):
@@ -568,7 +570,7 @@ class SwitchPlate(RestoreEntity):
         self.async_write_ha_state()
 
     async def async_command_service(self, keyword, parameters):
-        """Sends commands directly to the plate entity """
+        """Sends commands directly to the plate entity"""
         self.hass.components.mqtt.async_publish(
             f"{self._topic}/command",
             f"{keyword} {parameters}".strip(),
@@ -626,23 +628,32 @@ class SwitchPlate(RestoreEntity):
             _LOGGER.error("'%s' is not an allowed directory", path)
             return
 
+        def send_lines(lines):
+            mqtt_payload_buffer = ""
+            for line in lines:
+                if len(mqtt_payload_buffer) + len(line) > 1000:
+                    self.hass.components.mqtt.async_publish(
+                        f"{cmd_topic}/jsonl", mqtt_payload_buffer, qos=0, retain=False
+                    )
+                    mqtt_payload_buffer = line
+                else:
+                    mqtt_payload_buffer = mqtt_payload_buffer + line
+            self.hass.components.mqtt.async_publish(
+                f"{cmd_topic}/jsonl", mqtt_payload_buffer, qos=0, retain=False
+            )
+
         try:
-            with open(path, 'r') as pages_file:
+            with open(path, "r") as pages_file:
                 if path.endswith(".json"):
                     json_data = json.load(pages_file)
                     jsonschema.validate(instance=json_data, schema=self.json_schema)
+                    lines = []
                     for item in json_data:
                         if isinstance(item, dict):
-                            self.hass.components.mqtt.async_publish(
-                                f"{cmd_topic}/jsonl", json.dumps(item), qos=0, retain=False
-                            )
-                else:  # process as .jsonl file
-                    # load line by line
-                    for line in pages_file:
-                        if line:
-                            self.hass.components.mqtt.async_publish(
-                                f"{cmd_topic}/jsonl", line, qos=0, retain=False
-                            )
+                            lines.append(json.dumps(item) + "\n")
+                    send_lines(lines)
+                else:
+                    send_lines(pages_file)
             await self.refresh()
 
         except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError):
@@ -651,7 +662,7 @@ class SwitchPlate(RestoreEntity):
                 os.path.basename(path),
             )
 
-        except (json.JSONDecodeError, TypeError):
+        except json.JSONDecodeError:
             _LOGGER.error(
                 "Error decoding .json file: %s",
                 os.path.basename(path),
@@ -661,7 +672,7 @@ class SwitchPlate(RestoreEntity):
             _LOGGER.error(
                 "Schema check failed for %s. Validation Error: %s",
                 os.path.basename(path),
-                e.message
+                e.message,
             )
 
 
