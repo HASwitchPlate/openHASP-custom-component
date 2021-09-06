@@ -1,3 +1,8 @@
+# 0.6.3
+- Accepts .json files which contain an array
+- JSON files undergo schema validation
+- JSONL batching improves performance
+
 # 0.6.2
 - Add new service that serves images directly to OpenHASP
 
