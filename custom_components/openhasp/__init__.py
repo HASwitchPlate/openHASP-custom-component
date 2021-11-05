@@ -52,6 +52,7 @@ from .const import (
     DATA_LISTENER,
     DISCOVERED_MANUFACTURER,
     DISCOVERED_MODEL,
+    DISCOVERED_URL,
     DISCOVERED_VERSION,
     DOMAIN,
     EVENT_HASP_PLATE_OFFLINE,
@@ -242,6 +243,7 @@ async def async_setup_entry(hass, entry) -> bool:
         manufacturer=entry.data[DISCOVERED_MANUFACTURER],
         model=entry.data[DISCOVERED_MODEL],
         sw_version=entry.data[DISCOVERED_VERSION],
+        configuration_url=entry.data.get(DISCOVERED_URL),
         name=plate,
     )
 

@@ -31,6 +31,7 @@ from .const import (
     DISCOVERED_NODE,
     DISCOVERED_PAGES,
     DISCOVERED_POWER,
+    DISCOVERED_URL,
     DISCOVERED_VERSION,
     DOMAIN,
     MAJOR,
@@ -81,8 +82,6 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
 
     async def async_step_mqtt(self, discovery_info=None):
         """Handle a flow initialized by MQTT discovery."""
-        print(type(discovery_info))
-
         _discovered = json.loads(discovery_info["payload"])
         _LOGGER.debug("Discovered: %s", _discovered)
 
@@ -109,6 +108,7 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
             CONF_TOPIC
         ] = f"{discovery_info['topic'].split('/')[0]}/{self.config_data[CONF_NODE]}"
 
+        self.config_data[DISCOVERED_URL] = _discovered.get(DISCOVERED_URL)
         self.config_data[DISCOVERED_MANUFACTURER] = _discovered.get(
             DISCOVERED_MANUFACTURER
         )
