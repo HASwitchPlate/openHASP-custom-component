@@ -405,7 +405,7 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
         await self.refresh()
 
 
-class HASPMoodLight(HASPToggleEntity, LightEntity):
+class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
     """Representation of HASP LVGL Moodlight."""
 
     def __init__(self, name, hwid, topic):
@@ -442,6 +442,18 @@ class HASPMoodLight(HASPToggleEntity, LightEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
+
+        state = await self.async_get_last_state()
+        if state:
+            self._state = state.state
+            self._brightness = state.attributes.get(ATTR_BRIGHTNESS)
+            self._hs = state.attributes.get(ATTR_HS_COLOR)
+            _LOGGER.debug(
+                "Restoring %s self.brigthness = %s; hs_color = %s",
+                self.name,
+                self._brightness,
+                self._hs,
+            )
 
         @callback
         async def moodlight_message_received(msg):
