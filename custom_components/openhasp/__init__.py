@@ -615,7 +615,7 @@ class SwitchPlate(RestoreEntity):
     async def refresh(self):
         """Refresh objects in the SwitchPlate."""
 
-        _LOGGER.warning("Refreshing %s", self._entry.data[CONF_NAME])
+        _LOGGER.info("Refreshing %s", self._entry.data[CONF_NAME])
         for obj in self._objects:
             await obj.refresh()
 
