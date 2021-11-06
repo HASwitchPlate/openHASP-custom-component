@@ -129,7 +129,8 @@ class HASPAntiBurn(HASPToggleEntity, RestoreEntity):
 
         self.hass.components.mqtt.async_publish(
             f"{self._topic}/command/antiburn",
-            json.dumps(HASP_RELAY_SCHEMA({"state": int(self._state)})),
+            int(self._state),
+            #json.dumps(HASP_RELAY_SCHEMA({"state": int(self._state)})),
             qos=0,
             retain=False,
         )
@@ -166,5 +167,5 @@ class HASPAntiBurn(HASPToggleEntity, RestoreEntity):
         )
 
         self.hass.components.mqtt.async_publish(
-            f"{self._topic}/command/antiburn", self._state, qos=0, retain=False
+            f"{self._topic}/command/antiburn", int(self._state), qos=0, retain=False
         )
