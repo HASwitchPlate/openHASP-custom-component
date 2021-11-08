@@ -807,7 +807,7 @@ class HASPObject:
                                 variables=message,
                             )
             except vol.error.Invalid:
-                _LOGGER.error(
+                _LOGGER.debug(
                     "Could not handle openHASP event: '%s' on '%s'",
                     msg.payload,
                     msg.topic,
