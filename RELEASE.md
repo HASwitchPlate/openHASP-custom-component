@@ -1,3 +1,10 @@
+# 0.6.4
+- Support for 2021.12.0
+- Change startup message from warning to info (@fvanroie)
+- Adds configuration URL
+- Antiburn configuration switch
+- Minor bug fixes
+
 # 0.6.3
 - Accepts .json files which contain an array
 - JSON files undergo schema validation
