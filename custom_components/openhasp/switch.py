@@ -69,7 +69,8 @@ class HASPSwitch(HASPToggleEntity):
             # Don't do anything before we know the state
             return
 
-        self.hass.components.mqtt.async_publish(
+        await self.hass.components.mqtt.async_publish(
+            self.hass, 
             f"{self._topic}/command/output{self._gpio}",
             json.dumps(HASP_RELAY_SCHEMA({"state": int(self._state)})),
             qos=0,
@@ -102,8 +103,8 @@ class HASPSwitch(HASPToggleEntity):
             )
         )
 
-        self.hass.components.mqtt.async_publish(
-            f"{self._topic}/command/output{self._gpio}", "", qos=0, retain=False
+        await self.hass.components.mqtt.async_publish(
+            self.hass, f"{self._topic}/command/output{self._gpio}", "", qos=0, retain=False
         )
 
 class HASPAntiBurn(HASPToggleEntity, RestoreEntity):
@@ -127,7 +128,8 @@ class HASPAntiBurn(HASPToggleEntity, RestoreEntity):
             # Don't do anything before we know the state
             return
 
-        self.hass.components.mqtt.async_publish(
+        await self.hass.components.mqtt.async_publish(
+            self.hass, 
             f"{self._topic}/command/antiburn",
             int(self._state),
             #json.dumps(HASP_RELAY_SCHEMA({"state": int(self._state)})),
@@ -144,6 +146,9 @@ class HASPAntiBurn(HASPToggleEntity, RestoreEntity):
         state = await self.async_get_last_state()
         if state:
             self._state = bool(state.state)
+            await self.hass.components.mqtt.async_publish(
+                self.hass, f"{self._topic}/command/antiburn", int(self._state), qos=0, retain=False
+            )
 
         @callback
         async def antiburn_state_message_received(msg):
@@ -166,6 +171,3 @@ class HASPAntiBurn(HASPToggleEntity, RestoreEntity):
             )
         )
 
-        self.hass.components.mqtt.async_publish(
-            f"{self._topic}/command/antiburn", int(self._state), qos=0, retain=False
-        )

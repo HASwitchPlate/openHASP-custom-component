@@ -1,11 +1,13 @@
 {
     "name": "openHASP",
-    "hacs": "1.6.0",
+    "hacs": "1.7.1",
     "domains": [
         "openHASP",
-        "light"
+        "light",
+        "switch",
+        "binary_sensor"
     ],
     "render_readme": false,
     "iot_class": "Local Push",
-    "homeassistant": "2021.8.1"
+    "homeassistant": "2021.12.0"
 }

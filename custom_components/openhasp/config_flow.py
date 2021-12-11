@@ -74,7 +74,7 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
         """Handle a flow initialized by User."""
         _LOGGER.error("Discovery Only")
 
-        self.hass.components.mqtt.async_publish(
+        await self.hass.components.mqtt.async_publish(
             "hasp/broadcast/command/discovery", "discovery", qos=0, retain=False
         )
 
