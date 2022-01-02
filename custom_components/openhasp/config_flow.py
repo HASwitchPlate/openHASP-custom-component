@@ -75,7 +75,11 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
         _LOGGER.error("Discovery Only")
 
         await self.hass.components.mqtt.async_publish(
-            self.hass, "hasp/broadcast/command/discovery", "discovery", qos=0, retain=False
+            self.hass,
+            "hasp/broadcast/command/discovery",
+            "discovery",
+            qos=0,
+            retain=False,
         )
 
         return self.async_abort(reason="discovery_only")

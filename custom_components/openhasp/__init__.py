@@ -7,6 +7,7 @@ import pathlib
 import re
 import jsonschema
 
+from homeassistant.components.number import DOMAIN as NUMBER_DOMAIN
 from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN
 from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
 from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
@@ -82,7 +83,7 @@ from .image import ImageServeView, image_to_rgb565
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [LIGHT_DOMAIN, SWITCH_DOMAIN, BINARY_SENSOR_DOMAIN]
+PLATFORMS = [LIGHT_DOMAIN, SWITCH_DOMAIN, BINARY_SENSOR_DOMAIN, NUMBER_DOMAIN]
 
 
 def hasp_object(value):
@@ -572,9 +573,9 @@ class SwitchPlate(RestoreEntity):
         self.async_write_ha_state()
 
     async def async_command_service(self, keyword, parameters):
-        """Sends commands directly to the plate entity"""
+        """Send commands directly to the plate entity."""
         await self.hass.components.mqtt.async_publish(
-            self.hass, 
+            self.hass,
             f"{self._topic}/command",
             f"{keyword} {parameters}".strip(),
             qos=0,
@@ -582,9 +583,9 @@ class SwitchPlate(RestoreEntity):
         )
 
     async def async_config_service(self, submodule, parameters):
-        """Sends configuration commands to plate entity"""
+        """Send configuration commands to plate entity."""
         await self.hass.components.mqtt.async_publish(
-            self.hass, 
+            self.hass,
             f"{self._topic}/config/{submodule}",
             f"{parameters}".strip(),
             qos=0,
@@ -592,7 +593,7 @@ class SwitchPlate(RestoreEntity):
         )
 
     async def async_push_image(self, image, obj, width=None, height=None):
-        """update object image."""
+        """Update object image."""
 
         image_id = hashlib.md5(image.encode("utf-8")).hexdigest()
 
@@ -637,13 +638,21 @@ class SwitchPlate(RestoreEntity):
             for line in lines:
                 if len(mqtt_payload_buffer) + len(line) > 1000:
                     await self.hass.components.mqtt.async_publish(
-                        self.hass, f"{cmd_topic}/jsonl", mqtt_payload_buffer, qos=0, retain=False
+                        self.hass,
+                        f"{cmd_topic}/jsonl",
+                        mqtt_payload_buffer,
+                        qos=0,
+                        retain=False,
                     )
                     mqtt_payload_buffer = line
                 else:
                     mqtt_payload_buffer = mqtt_payload_buffer + line
             await self.hass.components.mqtt.async_publish(
-                self.hass, f"{cmd_topic}/jsonl", mqtt_payload_buffer, qos=0, retain=False
+                self.hass,
+                f"{cmd_topic}/jsonl",
+                mqtt_payload_buffer,
+                qos=0,
+                retain=False,
             )
 
         try:

@@ -4,6 +4,7 @@ import logging
 from typing import Callable
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
+
 # pylint: disable=R0801
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
@@ -23,7 +24,7 @@ HASP_BINARY_INPUT_SCHEMA = vol.Schema(
     }
 )
 
-# pylint: disable=R0801, W0613
+
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: Callable
 ):
@@ -73,7 +74,11 @@ class HASPBinarySensor(HASPEntity, BinarySensorEntity):
     async def refresh(self):
         """Force sync of plate state back to binary sensor."""
         await self.hass.components.mqtt.async_publish(
-            self.hass, f"{self._topic}/command/input{self._gpio}", "", qos=0, retain=False
+            self.hass,
+            f"{self._topic}/command/input{self._gpio}",
+            "",
+            qos=0,
+            retain=False,
         )
 
     async def async_added_to_hass(self):
@@ -102,5 +107,9 @@ class HASPBinarySensor(HASPEntity, BinarySensorEntity):
         )
 
         await self.hass.components.mqtt.async_publish(
-            self.hass, f"{self._topic}/command/input{self._gpio}", "", qos=0, retain=False
+            self.hass,
+            f"{self._topic}/command/input{self._gpio}",
+            "",
+            qos=0,
+            retain=False,
         )

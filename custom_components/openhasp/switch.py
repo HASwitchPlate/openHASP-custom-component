@@ -39,7 +39,8 @@ async def async_setup_entry(
                 gpio,
             )
             for gpio in entry.data[CONF_RELAYS]
-        ] + [
+        ]
+        + [
             HASPAntiBurn(
                 entry.data[CONF_NAME],
                 entry.data[CONF_HWID],
@@ -70,7 +71,7 @@ class HASPSwitch(HASPToggleEntity):
             return
 
         await self.hass.components.mqtt.async_publish(
-            self.hass, 
+            self.hass,
             f"{self._topic}/command/output{self._gpio}",
             json.dumps(HASP_RELAY_SCHEMA({"state": int(self._state)})),
             qos=0,
@@ -104,19 +105,24 @@ class HASPSwitch(HASPToggleEntity):
         )
 
         await self.hass.components.mqtt.async_publish(
-            self.hass, f"{self._topic}/command/output{self._gpio}", "", qos=0, retain=False
+            self.hass,
+            f"{self._topic}/command/output{self._gpio}",
+            "",
+            qos=0,
+            retain=False,
         )
+
 
 class HASPAntiBurn(HASPToggleEntity, RestoreEntity):
     """Configuration switch of an openHASP antiburn feature."""
-    
+
     _attr_entity_category = ENTITY_CATEGORY_CONFIG
     _attr_icon = "mdi:progress-wrench"
 
     def __init__(self, name, hwid, topic):
-        """Initialize the relay."""
+        """Initialize the protection."""
         super().__init__(name, hwid, topic, None)
-        
+
     @property
     def name(self):
         """Return the name of the switch."""
@@ -129,10 +135,10 @@ class HASPAntiBurn(HASPToggleEntity, RestoreEntity):
             return
 
         await self.hass.components.mqtt.async_publish(
-            self.hass, 
+            self.hass,
             f"{self._topic}/command/antiburn",
             int(self._state),
-            #json.dumps(HASP_RELAY_SCHEMA({"state": int(self._state)})),
+            # json.dumps(HASP_RELAY_SCHEMA({"state": int(self._state)})),
             qos=0,
             retain=False,
         )
@@ -142,12 +148,15 @@ class HASPAntiBurn(HASPToggleEntity, RestoreEntity):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
 
-
         state = await self.async_get_last_state()
         if state:
             self._state = bool(state.state)
             await self.hass.components.mqtt.async_publish(
-                self.hass, f"{self._topic}/command/antiburn", int(self._state), qos=0, retain=False
+                self.hass,
+                f"{self._topic}/command/antiburn",
+                int(self._state),
+                qos=0,
+                retain=False,
             )
 
         @callback
@@ -170,4 +179,3 @@ class HASPAntiBurn(HASPToggleEntity, RestoreEntity):
                 f"{self._topic}/state/antiburn", antiburn_state_message_received
             )
         )
-
