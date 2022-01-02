@@ -122,11 +122,7 @@ class HASPAntiBurn(HASPToggleEntity, RestoreEntity):
     def __init__(self, name, hwid, topic):
         """Initialize the protection."""
         super().__init__(name, hwid, topic, None)
-
-    @property
-    def name(self):
-        """Return the name of the switch."""
-        return f"{self._name} antiburn"
+        self._attr_name = f"{self._name} antiburn"
 
     async def refresh(self):
         """Sync local state back to plate."""

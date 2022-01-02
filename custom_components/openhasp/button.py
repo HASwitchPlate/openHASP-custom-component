@@ -7,7 +7,8 @@ from homeassistant.components.button import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.const import CONF_NAME, ENTITY_CATEGORY_CONFIG
+from homeassistant.const import CONF_NAME
+from homeassistant.helpers.entity import EntityCategory
 
 
 from .common import HASPEntity
@@ -37,13 +38,13 @@ async def async_setup_entry(
 class HASPRestartButton(HASPEntity, ButtonEntity):
     """Representation of page number."""
 
-    _attr_entity_category = ENTITY_CATEGORY_CONFIG
+    _attr_entity_category = EntityCategory.CONFIG
     _attr_device_class = ButtonDeviceClass.RESTART
 
     def __init__(self, name, hwid, topic) -> None:
         """Initialize the page number."""
         super().__init__(name, hwid, topic, "restart")
-        self._attr_name = "Restart"
+        self._attr_name = f"{self._name} restart"
         self._available = True
 
     async def async_press(self) -> None:
