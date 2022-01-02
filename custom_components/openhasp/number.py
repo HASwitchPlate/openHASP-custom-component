@@ -4,7 +4,7 @@ import logging
 from homeassistant.components.number import NumberEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.const import CONF_NAME
+from homeassistant.const import CONF_NAME, ENTITY_CATEGORY_CONFIG
 
 from .common import HASPEntity
 from .const import CONF_HWID, CONF_TOPIC
@@ -40,8 +40,9 @@ class HASPPageNumber(HASPEntity, NumberEntity):
 
     def __init__(self, name, hwid, topic) -> None:
         """Initialize the page number."""
-        super().__init__(name, hwid, topic, None)
+        super().__init__(name, hwid, topic, "page number")
         self._page = None
+        self._attr_name = "Page Number"
 
     async def refresh(self):
         """Sync local state back to plate."""

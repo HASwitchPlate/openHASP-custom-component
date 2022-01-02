@@ -7,6 +7,7 @@ import pathlib
 import re
 import jsonschema
 
+from homeassistant.components.button import DOMAIN as BUTTON_DOMAIN
 from homeassistant.components.number import DOMAIN as NUMBER_DOMAIN
 from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN
 from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
@@ -83,7 +84,13 @@ from .image import ImageServeView, image_to_rgb565
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [LIGHT_DOMAIN, SWITCH_DOMAIN, BINARY_SENSOR_DOMAIN, NUMBER_DOMAIN]
+PLATFORMS = [
+    LIGHT_DOMAIN,
+    SWITCH_DOMAIN,
+    BINARY_SENSOR_DOMAIN,
+    NUMBER_DOMAIN,
+    BUTTON_DOMAIN,
+]
 
 
 def hasp_object(value):
