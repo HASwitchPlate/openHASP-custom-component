@@ -33,7 +33,8 @@ async def async_setup_entry(
 class HASPPageNumber(HASPEntity, NumberEntity):
     """Representation of page number."""
 
-    _attr_icon = "mdi:gauge"
+    _attr_entity_category = ENTITY_CATEGORY_CONFIG
+    _attr_icon = "mdi:numeric-1-box-multiple-outline"
     _attr_max_value = 12
     _attr_min_value = 1
 
