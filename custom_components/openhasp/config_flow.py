@@ -89,8 +89,6 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
         _discovered = json.loads(discovery_info.payload)
         _LOGGER.debug("Discovered: %s", _discovered)
 
-        hwid = _discovered[DISCOVERED_HWID]
-        await self.async_set_unique_id(hwid)
         self._abort_if_unique_id_configured()
 
         version = _discovered.get(DISCOVERED_VERSION)
@@ -104,7 +102,7 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
 
         self.config_data[DISCOVERED_VERSION] = version
 
-        self.config_data[CONF_HWID] = hwid
+        self.config_data[CONF_HWID] = _discovered[DISCOVERED_HWID] 
         self.config_data[CONF_NODE] = self.config_data[CONF_NAME] = _discovered[
             DISCOVERED_NODE
         ]
@@ -146,6 +144,8 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
                         self.config_data[CONF_PAGES_PATH] = validate_jsonl(
                             user_input[CONF_PAGES_PATH]
                         )
+
+                    await self.async_set_unique_id(self.config_data[DISCOVERED_HWID])
 
                     return self.async_create_entry(
                         title=user_input[CONF_NAME], data=self.config_data
