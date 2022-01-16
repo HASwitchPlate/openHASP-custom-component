@@ -145,7 +145,7 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
                             user_input[CONF_PAGES_PATH]
                         )
 
-                    await self.async_set_unique_id(self.config_data[DISCOVERED_HWID])
+                    await self.async_set_unique_id(self.config_data[CONF_HWID])
 
                     return self.async_create_entry(
                         title=user_input[CONF_NAME], data=self.config_data
