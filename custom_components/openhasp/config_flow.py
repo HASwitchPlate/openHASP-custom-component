@@ -89,6 +89,7 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
         _discovered = json.loads(discovery_info.payload)
         _LOGGER.debug("Discovered: %s", _discovered)
 
+        await self.async_set_unique_id(_discovered[DISCOVERED_HWID], raise_on_progress=False)
         self._abort_if_unique_id_configured()
 
         version = _discovered.get(DISCOVERED_VERSION)
