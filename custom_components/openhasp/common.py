@@ -22,21 +22,16 @@ HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 class HASPEntity(Entity):
     """Generic HASP entity (base class)."""
 
-    def __init__(self, name, hwid: str, topic: str, gpio=None) -> None:
+    def __init__(self, name, hwid: str, topic: str, part=None) -> None:
         """Initialize the HASP entity."""
         super().__init__()
         self._name = name
         self._hwid = hwid
         self._topic = topic
-        self._gpio = gpio
         self._state = None
         self._available = False
         self._subscriptions = []
-
-    @property
-    def unique_id(self):
-        """Return the identifier of the toggle."""
-        return f"{self._hwid}.{self._gpio}"
+        self._attr_unique_id = f"{self._hwid}.{part}"
 
     @property
     def available(self):
