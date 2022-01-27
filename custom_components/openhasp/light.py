@@ -168,16 +168,12 @@ class HASPDimmableLight(HASPToggleEntity, LightEntity):
         """Initialize the dimmable light."""
         super().__init__(name, hwid, topic, gpio)
         self._brightness = None
+        self._attr_supported_features = SUPPORT_BRIGHTNESS
 
     @property
     def name(self):
         """Return the name of the light."""
         return f"{self._name} dimmable light {self._gpio}"
-
-    @property
-    def supported_features(self):
-        """Flag supported features."""
-        return SUPPORT_BRIGHTNESS
 
     @property
     def brightness(self):
@@ -259,11 +255,7 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
         self._awake_brightness = 255
         self._brightness = None
         self._idle_brightness = brightness
-
-    @property
-    def supported_features(self):
-        """Flag supported features."""
-        return SUPPORT_BRIGHTNESS
+        self._attr_supported_features = SUPPORT_BRIGHTNESS
 
     @property
     def name(self):
@@ -420,11 +412,7 @@ class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
         super().__init__(name, hwid, topic, "moodlight")
         self._hs = None
         self._brightness = None
-
-    @property
-    def supported_features(self):
-        """Flag supported features."""
-        return SUPPORT_COLOR | SUPPORT_BRIGHTNESS
+        self._attr_supported_features = SUPPORT_COLOR | SUPPORT_BRIGHTNESS
 
     @property
     def hs_color(self):
