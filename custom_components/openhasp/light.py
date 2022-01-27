@@ -109,7 +109,8 @@ class HASPLight(HASPToggleEntity, LightEntity):
     def __init__(self, name, hwid, topic, gpio):
         """Initialize the light."""
         super().__init__(name, hwid, topic, gpio)
-        self._attr_name = f"{name} light {self._gpio}"
+        self._gpio = gpio
+        self._attr_name = f"{name} light {gpio}"
 
     async def refresh(self):
         """Sync local state back to plate."""
@@ -165,6 +166,7 @@ class HASPDimmableLight(HASPToggleEntity, LightEntity):
         super().__init__(name, hwid, topic, gpio)
         self._brightness = None
         self._attr_supported_features = SUPPORT_BRIGHTNESS
+        self._gpio = gpio
         self._attr_name = f"{name} dimmable light {self._gpio}"
 
     @property
