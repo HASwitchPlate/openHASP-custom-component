@@ -267,7 +267,7 @@ async def async_setup_entry(hass, entry) -> bool:
         )
 
     listener = entry.add_update_listener(async_update_options)
-    hass.data[DOMAIN][CONF_PLATE][DATA_LISTENER] = listener
+    entry.async_on_unload(listener)
 
     return True
 
@@ -278,10 +278,23 @@ async def async_unload_entry(hass, entry):
 
     _LOGGER.debug("Unload entry for plate %s", plate)
 
-    listener = hass.data[DOMAIN][CONF_PLATE][DATA_LISTENER]
+    for domain in PLATFORMS:
+        await hass.config_entries.async_forward_entry_unload(entry, domain)
+
+    component = hass.data[DOMAIN][CONF_COMPONENT]
+    await component.async_remove_entity(hass.data[DOMAIN][CONF_PLATE][plate].entity_id)
+
+    # Remove Plate entity
+    del hass.data[DOMAIN][CONF_PLATE][plate]
+
+    return True
+
+async def async_remove_entry(hass, entry):
+    plate = entry.data[CONF_NAME]
 
     # Only remove services if it is the last
     if len(hass.data[DOMAIN][CONF_PLATE]) == 1:
+        _LOGGER.debug("removing services")
         hass.services.async_remove(DOMAIN, SERVICE_WAKEUP)
         hass.services.async_remove(DOMAIN, SERVICE_PAGE_NEXT)
         hass.services.async_remove(DOMAIN, SERVICE_PAGE_PREV)
@@ -289,9 +302,6 @@ async def async_unload_entry(hass, entry):
         hass.services.async_remove(DOMAIN, SERVICE_LOAD_PAGE)
         hass.services.async_remove(DOMAIN, SERVICE_CLEAR_PAGE)
         hass.services.async_remove(DOMAIN, SERVICE_COMMAND)
-
-    for domain in PLATFORMS:
-        await hass.config_entries.async_forward_entry_unload(entry, domain)
 
     device_registry = await dr.async_get_registry(hass)
     dev = device_registry.async_get_device(
@@ -301,20 +311,9 @@ async def async_unload_entry(hass, entry):
         _LOGGER.debug("Removing device %s", dev)
         device_registry.async_remove_device(dev.id)
 
-    component = hass.data[DOMAIN][CONF_COMPONENT]
-    await component.async_remove_entity(hass.data[DOMAIN][CONF_PLATE][plate].entity_id)
-
     # Component does not remove entity from entity_registry, so we must do it
     registry = await entity_registry.async_get_registry(hass)
     registry.async_remove(hass.data[DOMAIN][CONF_PLATE][plate].entity_id)
-
-    listener()
-
-    # Remove Plate entity
-    del hass.data[DOMAIN][CONF_PLATE][plate]
-
-    return True
-
 
 # pylint: disable=R0902
 class SwitchPlate(RestoreEntity):

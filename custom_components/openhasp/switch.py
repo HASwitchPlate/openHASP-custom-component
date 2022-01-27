@@ -5,7 +5,8 @@ from typing import Callable
 
 # pylint: disable=R0801
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_NAME, ENTITY_CATEGORY_CONFIG
+from homeassistant.const import CONF_NAME
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.restore_state import RestoreEntity
 import homeassistant.helpers.config_validation as cv
@@ -116,7 +117,7 @@ class HASPSwitch(HASPToggleEntity):
 class HASPAntiBurn(HASPToggleEntity, RestoreEntity):
     """Configuration switch of an openHASP antiburn feature."""
 
-    _attr_entity_category = ENTITY_CATEGORY_CONFIG
+    _attr_entity_category = EntityCategory.CONFIG
     _attr_icon = "mdi:progress-wrench"
 
     def __init__(self, name, hwid, topic):

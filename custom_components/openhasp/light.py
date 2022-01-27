@@ -255,7 +255,7 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
 
     def __init__(self, name, hwid, topic, brightness):
         """Initialize the light."""
-        super().__init__(name, hwid, topic)
+        super().__init__(name, hwid, topic, "backlight")
         self._awake_brightness = 255
         self._brightness = None
         self._idle_brightness = brightness
@@ -269,11 +269,6 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
     def name(self):
         """Return the name of the light."""
         return f"{self._name} backlight"
-
-    @property
-    def unique_id(self):
-        """Return the identifier of the light."""
-        return f"{self._hwid}.backlight"
 
     @property
     def extra_state_attributes(self):
@@ -422,7 +417,7 @@ class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
 
     def __init__(self, name, hwid, topic):
         """Initialize the light."""
-        super().__init__(name, hwid, topic)
+        super().__init__(name, hwid, topic, "moodlight")
         self._hs = None
         self._brightness = None
 
@@ -445,11 +440,6 @@ class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
     def name(self):
         """Return the name of the light."""
         return f"{self._name} moodlight"
-
-    @property
-    def unique_id(self):
-        """Return the identifier of the light."""
-        return f"{self._hwid}.moodlight"
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""

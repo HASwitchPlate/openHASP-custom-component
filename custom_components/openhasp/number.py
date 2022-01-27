@@ -21,11 +21,6 @@ class HASPNumberDescriptionMixin:
     command_topic: str
     state_topic: str
 
-    #TODO remove by 2022.01
-    min_value: float
-    max_value: float
-
-
 @dataclass
 class HASPNumberDescription(NumberEntityDescription, HASPNumberDescriptionMixin):
     """Class to describe an HASP Number Entity."""
@@ -74,11 +69,6 @@ class HASPNumber(HASPEntity, NumberEntity):
         self.entity_description = description
         self._number = None
         self._attr_name = f"{self._name} {self.entity_description.name}"
-
-        #TODO remove by 2022.01
-        self._attr_min_value = description.min_value
-        self._attr_max_value = description.max_value
-
 
     async def refresh(self):
         """Sync local state back to plate."""
