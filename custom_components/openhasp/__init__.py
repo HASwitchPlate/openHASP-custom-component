@@ -344,6 +344,20 @@ class SwitchPlate(RestoreEntity):
         ) as schema_file:
             self.json_schema = json.load(schema_file)
 
+        self._attr_unique_id = entry.data[CONF_HWID]
+        self._attr_name = entry.data[CONF_NAME]
+        self._attr_icon = "mdi:gesture-tap-box"
+
+    @property
+    def state(self):
+        """Return the state of the component."""
+        return self._page
+
+    @property
+    def available(self):
+        """Return if entity is available."""
+        return self._available
+
     async def async_will_remove_from_hass(self):
         """Run before entity is removed."""
         _LOGGER.debug("Remove plate %s", self._entry.data[CONF_NAME])
@@ -473,31 +487,6 @@ class SwitchPlate(RestoreEntity):
                 f"{self._topic}/LWT", lwt_message_received
             )
         )
-
-    @property
-    def unique_id(self):
-        """Return the plate identifier."""
-        return self._entry.data[CONF_HWID]
-
-    @property
-    def name(self):
-        """Return the name of the plate."""
-        return self._entry.data[CONF_NAME]
-
-    @property
-    def icon(self):
-        """Return the icon to be used for this entity."""
-        return "mdi:gesture-tap-box"
-
-    @property
-    def state(self):
-        """Return the state of the component."""
-        return self._page
-
-    @property
-    def available(self):
-        """Return if entity is available."""
-        return self._available
 
     @property
     def state_attributes(self):
