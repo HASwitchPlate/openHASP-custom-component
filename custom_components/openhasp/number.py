@@ -68,7 +68,7 @@ class HASPNumber(HASPEntity, NumberEntity):
         super().__init__(name, hwid, topic, description.key)
         self.entity_description = description
         self._number = None
-        self._attr_name = f"{self._name} {self.entity_description.name}"
+        self._attr_name = f"{name} {self.entity_description.name}"
 
     async def refresh(self):
         """Sync local state back to plate."""

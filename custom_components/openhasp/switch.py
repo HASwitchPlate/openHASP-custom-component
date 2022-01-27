@@ -59,11 +59,7 @@ class HASPSwitch(HASPToggleEntity):
     def __init__(self, name, hwid, topic, gpio):
         """Initialize the relay."""
         super().__init__(name, hwid, topic, gpio)
-
-    @property
-    def name(self):
-        """Return the name of the switch."""
-        return f"{self._name} switch {self._gpio}"
+        self._attr_name = f"{name} switch {self._gpio}"
 
     async def refresh(self):
         """Sync local state back to plate."""

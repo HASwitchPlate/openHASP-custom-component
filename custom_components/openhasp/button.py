@@ -44,7 +44,7 @@ class HASPRestartButton(HASPEntity, ButtonEntity):
     def __init__(self, name, hwid, topic) -> None:
         """Initialize the page number."""
         super().__init__(name, hwid, topic, "restart")
-        self._attr_name = f"{self._name} restart"
+        self._attr_name = f"{name} restart"
         self._available = True
 
     async def async_press(self) -> None:

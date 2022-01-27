@@ -55,11 +55,7 @@ class HASPBinarySensor(HASPEntity, BinarySensorEntity):
         """Initialize the relay."""
         super().__init__(name, hwid, topic, gpio)
         self._device_class = dev_class
-
-    @property
-    def name(self):
-        """Return the name of the switch."""
-        return f"{self._name} binary_sensor {self._gpio}"
+        self._attr_name = f"{name} binary_sensor {self._gpio}"
 
     @property
     def is_on(self):

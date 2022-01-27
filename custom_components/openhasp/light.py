@@ -109,11 +109,7 @@ class HASPLight(HASPToggleEntity, LightEntity):
     def __init__(self, name, hwid, topic, gpio):
         """Initialize the light."""
         super().__init__(name, hwid, topic, gpio)
-
-    @property
-    def name(self):
-        """Return the name of the light."""
-        return f"{self._name} light {self._gpio}"
+        self._attr_name = f"{name} light {self._gpio}"
 
     async def refresh(self):
         """Sync local state back to plate."""
@@ -169,11 +165,7 @@ class HASPDimmableLight(HASPToggleEntity, LightEntity):
         super().__init__(name, hwid, topic, gpio)
         self._brightness = None
         self._attr_supported_features = SUPPORT_BRIGHTNESS
-
-    @property
-    def name(self):
-        """Return the name of the light."""
-        return f"{self._name} dimmable light {self._gpio}"
+        self._attr_name = f"{name} dimmable light {self._gpio}"
 
     @property
     def brightness(self):
@@ -256,11 +248,7 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
         self._brightness = None
         self._idle_brightness = brightness
         self._attr_supported_features = SUPPORT_BRIGHTNESS
-
-    @property
-    def name(self):
-        """Return the name of the light."""
-        return f"{self._name} backlight"
+        self._attr_name = f"{name} backlight"
 
     @property
     def extra_state_attributes(self):
@@ -413,6 +401,7 @@ class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
         self._hs = None
         self._brightness = None
         self._attr_supported_features = SUPPORT_COLOR | SUPPORT_BRIGHTNESS
+        self._attr_name = f"{name} moodlight"
 
     @property
     def hs_color(self):
@@ -423,11 +412,6 @@ class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
     def brightness(self):
         """Return the brightness of this light between 0..255."""
         return self._brightness
-
-    @property
-    def name(self):
-        """Return the name of the light."""
-        return f"{self._name} moodlight"
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
