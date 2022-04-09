@@ -5,7 +5,9 @@
         "openHASP",
         "light",
         "switch",
-        "binary_sensor"
+        "binary_sensor",
+        "number",
+        "button"
     ],
     "render_readme": false,
     "iot_class": "Local Push",

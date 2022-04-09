@@ -104,9 +104,13 @@ class HASPNumber(HASPEntity, NumberEntity, RestoreEntity):
             )
         )
 
-        state = await self.async_get_last_state()
-        if state:
-            self._number = int(state.state)
+        try:
+            state = await self.async_get_last_state()
+            if state:
+                self._number = int(state.state)
+        except Exception:
+            _LOGGER.error("Could not restore page number for %s", self.entity_id)
+
         self.refresh()
 
     @property
