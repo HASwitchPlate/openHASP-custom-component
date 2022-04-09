@@ -92,7 +92,7 @@ class HASPNumber(HASPEntity, NumberEntity, RestoreEntity):
             """Process State."""
 
             self._available = True
-            _LOGGER.debug("%s current value = %s", self.name, msg.payload)
+            _LOGGER.debug("%s current value = %s", self.entity_id, msg.payload)
 
             self._number = int(msg.payload)
             self.async_write_ha_state()
@@ -111,7 +111,7 @@ class HASPNumber(HASPEntity, NumberEntity, RestoreEntity):
         except Exception:
             _LOGGER.error("Could not restore page number for %s", self.entity_id)
 
-        self.refresh()
+        await self.refresh()
 
     @property
     def value(self) -> int:
