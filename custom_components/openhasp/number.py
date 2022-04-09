@@ -79,7 +79,7 @@ class HASPNumber(HASPEntity, NumberEntity):
         await self.hass.components.mqtt.async_publish(
             self.hass,
             f"{self._topic}{self.entity_description.command_topic}",
-            self._number,
+            "" if self._number is None else self._number,
             qos=0,
             retain=False,
         )
