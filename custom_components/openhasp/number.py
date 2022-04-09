@@ -7,6 +7,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.const import CONF_NAME
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from .common import HASPEntity
 from .const import CONF_HWID, CONF_TOPIC
@@ -60,7 +61,7 @@ async def async_setup_entry(
     return True
 
 
-class HASPNumber(HASPEntity, NumberEntity):
+class HASPNumber(HASPEntity, NumberEntity, RestoreEntity):
     """Representation of HASP number."""
 
     def __init__(self, name, hwid, topic, description) -> None:
@@ -105,6 +106,19 @@ class HASPNumber(HASPEntity, NumberEntity):
                 page_state_message_received,
             )
         )
+
+        state = await self.async_get_last_state()
+        if state:
+            self._number = int(state.state)
+            self.refresh()
+        else:
+            await self.hass.components.mqtt.async_publish(
+                self.hass,
+                f"{self._topic}{self.entity_description.command_topic}",
+                "",
+                qos=0,
+                retain=False,
+            )
 
     @property
     def value(self) -> int:
