@@ -421,6 +421,18 @@ class SwitchPlate(RestoreEntity):
                 self._page = message[ATTR_PAGE]
                 self.async_write_ha_state()
 
+                # Update Plate device information
+                device_registry = dr.async_get(self.hass)
+                device_registry.async_get_or_create(
+                    config_entry_id=self._entry.entry_id,
+                    identifiers={(DOMAIN, self._entry.data[CONF_HWID])},
+                    manufacturer=self._entry.data[DISCOVERED_MANUFACTURER],
+                    model=self._entry.data[DISCOVERED_MODEL],
+                    configuration_url=self._entry.data.get(DISCOVERED_URL),
+                    sw_version=message["version"],
+                    name=self._entry.data[CONF_NAME],
+                )
+
             except vol.error.Invalid as err:
                 _LOGGER.error("While processing status update: %s", err)
 
