@@ -73,10 +73,6 @@ class HASPNumber(HASPEntity, NumberEntity, RestoreEntity):
 
     async def refresh(self):
         """Sync local state back to plate."""
-        if self._number is None:
-            # Don't do anything before we know the state
-            return
-
         await self.hass.components.mqtt.async_publish(
             self.hass,
             f"{self._topic}{self.entity_description.command_topic}",
@@ -110,15 +106,7 @@ class HASPNumber(HASPEntity, NumberEntity, RestoreEntity):
         state = await self.async_get_last_state()
         if state:
             self._number = int(state.state)
-            self.refresh()
-        else:
-            await self.hass.components.mqtt.async_publish(
-                self.hass,
-                f"{self._topic}{self.entity_description.command_topic}",
-                "",
-                qos=0,
-                retain=False,
-            )
+        self.refresh()
 
     @property
     def value(self) -> int:
