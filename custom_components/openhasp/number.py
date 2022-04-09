@@ -80,6 +80,7 @@ class HASPNumber(HASPEntity, NumberEntity, RestoreEntity):
             qos=0,
             retain=False,
         )
+        _LOGGER.debug("refresh %s with <%s>", self.entity_id, self._number)
         self.async_write_ha_state()
 
     async def async_added_to_hass(self):
