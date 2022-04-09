@@ -32,6 +32,9 @@ class HASPEntity(Entity):
         self._available = False
         self._subscriptions = []
         self._attr_unique_id = f"{self._hwid}.{part}"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, self._hwid)},
+        }
 
     @property
     def available(self):
@@ -52,6 +55,9 @@ class HASPEntity(Entity):
                 self._available = True
                 if self._state:
                     await self.refresh()
+                else:
+                    self.async_write_ha_state() # Just to update availability
+                _LOGGER.debug("%s is available, %s", self.entity_id, "refresh" if self._state else "stale")
 
         self._subscriptions.append(
             self.hass.bus.async_listen(EVENT_HASP_PLATE_ONLINE, online)
@@ -73,13 +79,6 @@ class HASPEntity(Entity):
 
         for subscription in self._subscriptions:
             subscription()
-
-    @property
-    def device_info(self):
-        """Return device information."""
-        return {
-            "identifiers": {(DOMAIN, self._hwid)},
-        }
 
 
 class HASPToggleEntity(HASPEntity, ToggleEntity):

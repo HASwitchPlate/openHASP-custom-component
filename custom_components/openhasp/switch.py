@@ -5,7 +5,7 @@ from typing import Callable
 
 # pylint: disable=R0801
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_NAME
+from homeassistant.const import CONF_NAME, STATE_ON, STATE_OFF
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.restore_state import RestoreEntity
@@ -123,10 +123,6 @@ class HASPAntiBurn(HASPToggleEntity, RestoreEntity):
 
     async def refresh(self):
         """Sync local state back to plate."""
-        if self._state is None:
-            # Don't do anything before we know the state
-            return
-
         await self.hass.components.mqtt.async_publish(
             self.hass,
             f"{self._topic}/command/antiburn",
@@ -140,17 +136,6 @@ class HASPAntiBurn(HASPToggleEntity, RestoreEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
-
-        state = await self.async_get_last_state()
-        if state:
-            self._state = bool(state.state)
-            await self.hass.components.mqtt.async_publish(
-                self.hass,
-                f"{self._topic}/command/antiburn",
-                int(self._state),
-                qos=0,
-                retain=False,
-            )
 
         @callback
         async def antiburn_state_message_received(msg):
@@ -171,4 +156,15 @@ class HASPAntiBurn(HASPToggleEntity, RestoreEntity):
             await self.hass.components.mqtt.async_subscribe(
                 f"{self._topic}/state/antiburn", antiburn_state_message_received
             )
+        )
+
+        self._state = False
+        self._available = True
+
+        await self.hass.components.mqtt.async_publish(
+            self.hass,
+            f"{self._topic}/command/antiburn",
+            int(self._state),
+            qos=0,
+            retain=False,
         )

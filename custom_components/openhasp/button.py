@@ -42,7 +42,7 @@ class HASPRestartButton(HASPEntity, ButtonEntity):
     _attr_device_class = ButtonDeviceClass.RESTART
 
     def __init__(self, name, hwid, topic) -> None:
-        """Initialize the page number."""
+        """Initialize the Restart Button."""
         super().__init__(name, hwid, topic, "restart")
         self._attr_name = f"{name} restart"
         self._available = True
@@ -56,3 +56,7 @@ class HASPRestartButton(HASPEntity, ButtonEntity):
             qos=0,
             retain=False,
         )
+
+    async def refresh(self):
+        """Sync local state back to plate."""
+        self.async_write_ha_state()
