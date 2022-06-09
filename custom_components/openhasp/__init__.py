@@ -244,7 +244,7 @@ async def async_setup_entry(hass, entry) -> bool:
     config = hass_config[DOMAIN][slugify(plate)]
 
     # Register Plate device
-    device_registry = await dr.async_get_registry(hass)
+    device_registry = dr.async_get(hass)
     device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, entry.data[CONF_HWID])},
@@ -303,7 +303,7 @@ async def async_remove_entry(hass, entry):
         hass.services.async_remove(DOMAIN, SERVICE_CLEAR_PAGE)
         hass.services.async_remove(DOMAIN, SERVICE_COMMAND)
 
-    device_registry = await dr.async_get_registry(hass)
+    device_registry = dr.async_get(hass)
     dev = device_registry.async_get_device(
         identifiers={(DOMAIN, entry.data[CONF_HWID])}
     )
