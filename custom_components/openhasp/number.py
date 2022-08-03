@@ -33,8 +33,8 @@ NUMBERS = [
         name="Page Number",
         entity_category=EntityCategory.CONFIG,
         icon="mdi:numeric-1-box-multiple-outline",
-        min_value=1,
-        max_value=12,
+        native_min_value=1,
+        native_max_value=12,
         command_topic="/command/page",
         state_topic="/state/page",
     )
@@ -114,11 +114,11 @@ class HASPNumber(HASPEntity, NumberEntity, RestoreEntity):
         await self.refresh()
 
     @property
-    def value(self) -> int:
+    def native_value(self) -> int:
         """Return the current number."""
         return self._number
 
-    async def async_set_value(self, value: float) -> None:
+    async def async_set_native_value(self, value: float) -> None:
         """Set the perfume amount."""
         if not value.is_integer():
             raise ValueError(
