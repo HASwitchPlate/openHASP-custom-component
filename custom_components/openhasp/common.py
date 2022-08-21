@@ -22,16 +22,17 @@ HASP_IDLE_SCHEMA = vol.Schema(vol.Any(*HASP_IDLE_STATES))
 class HASPEntity(Entity):
     """Generic HASP entity (base class)."""
 
-    def __init__(self, name, hwid: str, topic: str, part=None) -> None:
+    def __init__(self, name, hwid: str, topic: str, gpio=None) -> None:
         """Initialize the HASP entity."""
         super().__init__()
         self._name = name
         self._hwid = hwid
         self._topic = topic
+        self._gpio = gpio
         self._state = None
         self._available = False
         self._subscriptions = []
-        self._attr_unique_id = f"{self._hwid}.{part}"
+        self._attr_unique_id = f"{self._hwid}.{gpio}"
         self._attr_device_info = {
             "identifiers": {(DOMAIN, self._hwid)},
         }
@@ -87,7 +88,6 @@ class HASPToggleEntity(HASPEntity, ToggleEntity):
     def __init__(self, name, hwid, topic, gpio):
         """Initialize the relay."""
         super().__init__(name, hwid, topic, gpio)
-        self._gpio = gpio
 
     @property
     def is_on(self):
