@@ -72,7 +72,7 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow):
 
     async def async_step_user(self, user_input=None):
         """Handle a flow initialized by User."""
-        _LOGGER.error("Discovery Only")
+        _LOGGER.info("Discovery Only")
 
         await self.hass.components.mqtt.async_publish(
             self.hass,
