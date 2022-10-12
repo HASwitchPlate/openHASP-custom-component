@@ -1,7 +1,7 @@
 {
     "domain": "openhasp",
     "name": "openHASP",
-    "documentation": "https://haswitchplate.github.io/openHASP-docs/",
+    "documentation": "https://www.openhasp.com/",
     "issue_tracker": "https://github.com/HASwitchPlate/openHASP-custom-component/issues",
     "dependencies": ["mqtt", "http"],
     "requirements": ["jsonschema>=3.2.0"],
