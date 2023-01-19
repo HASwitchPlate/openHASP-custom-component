@@ -1,3 +1,15 @@
+### 0.6.6
+
+- Support for 2022.7.0
+- Code improvements
+
+### 0.6.5
+
+- Support for 2022.4.0
+- Adds page number entity
+- Adds restart button
+- Code improvements
+
 # 0.6.4
 - Support for 2021.12.0
 - Change startup message from warning to info (@fvanroie)
