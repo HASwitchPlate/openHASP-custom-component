@@ -29,6 +29,7 @@ import voluptuous as vol
 from .common import HASP_IDLE_SCHEMA
 from .const import (
     ATTR_CONFIG_SUBMODULE,
+    ATTR_FORCE_FITSCREEN,
     ATTR_HEIGHT,
     ATTR_IDLE,
     ATTR_IMAGE,
@@ -153,6 +154,7 @@ PUSH_IMAGE_SCHEMA = vol.Schema(
         vol.Required(ATTR_OBJECT): hasp_object,
         vol.Optional(ATTR_WIDTH): cv.positive_int,
         vol.Optional(ATTR_HEIGHT): cv.positive_int,
+        vol.Optional(ATTR_FORCE_FITSCREEN): cv.boolean,
     },
     extra=vol.ALLOW_EXTRA,
 )
@@ -599,13 +601,13 @@ class SwitchPlate(RestoreEntity):
             retain=False,
         )
 
-    async def async_push_image(self, image, obj, width=None, height=None):
+    async def async_push_image(self, image, obj, width=None, height=None, fitscreen=False):
         """Update object image."""
 
         image_id = hashlib.md5(image.encode("utf-8")).hexdigest()
 
         rgb_image = await self.hass.async_add_executor_job(
-            image_to_rgb565, image, (width, height)
+            image_to_rgb565, image, (width, height), fitscreen
         )
 
         self.hass.data[DOMAIN][DATA_IMAGES][image_id] = rgb_image

@@ -15,7 +15,7 @@ from .const import DATA_IMAGES, DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
-def image_to_rgb565(in_image, size):
+def image_to_rgb565(in_image, size, fitscreen):
     """Transform image to rgb565 format according to LVGL requirements."""
     try:
         if in_image.startswith("http"):
@@ -29,8 +29,9 @@ def image_to_rgb565(in_image, size):
     original_width, original_height = im.size
     width, height = size
 
-    width = min(w for w in [width, original_width] if w is not None and w > 0)
-    height = min(h for h in [height, original_height] if h is not None and h > 0)
+    if not fitscreen:
+        width = min(w for w in [width, original_width] if w is not None and w > 0)
+        height = min(h for h in [height, original_height] if h is not None and h > 0)
 
     im.thumbnail((height, width), Image.ANTIALIAS)
     width, height = im.size  # actual size after resize
@@ -47,7 +48,7 @@ def image_to_rgb565(in_image, size):
         b = (pix[2] >> 3) & 0x1F
         out_image.write(struct.pack("H", (r << 11) | (g << 5) | b))
 
-    _LOGGER.debug("image_to_rgb565 out_image: %s", out_image.name)
+    _LOGGER.debug("image_to_rgb565 out_image: %s - %s > %s", out_image.name, (original_width, original_height), im.size)
 
     out_image.flush()
 
