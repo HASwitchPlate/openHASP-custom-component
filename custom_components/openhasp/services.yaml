@@ -133,3 +133,10 @@ push_image:
           min: 0
           max: 1024
           mode: box
+    fitscreen:
+      name: Fit Screen
+      description: If this is set to true, then image is resized to the previously defined width and height, regardless of screen dimensions and/or aspect ratio
+      required: false
+      example: false
+      selector:
+        boolean: 
