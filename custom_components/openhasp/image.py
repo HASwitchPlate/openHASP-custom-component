@@ -34,7 +34,7 @@ def image_to_rgb565(in_image, size, fitscreen):
         height = min(h for h in [height, original_height] if h is not None and h > 0)
         im.thumbnail((height, width), Image.ANTIALIAS)
     else:
-        im.resize((height, width), Image.ANTIALIAS)
+        im = im.resize((height, width), Image.ANTIALIAS)
     width, height = im.size  # actual size after resize
 
     out_image = tempfile.NamedTemporaryFile(mode="w+b")
