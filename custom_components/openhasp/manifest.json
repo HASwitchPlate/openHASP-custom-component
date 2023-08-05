@@ -9,5 +9,5 @@
     "issue_tracker": "https://github.com/HASwitchPlate/openHASP-custom-component/issues",
     "mqtt": ["hasp/discovery/#"],
     "requirements": ["jsonschema>=3.2.0"],
-    "version": "0.7.0"
+    "version": "0.7.1"
 }
