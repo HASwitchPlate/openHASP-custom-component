@@ -698,8 +698,9 @@ class HASPObject:
 
         self.properties = config.get(CONF_PROPERTIES)
         self.event_services = {
-            event:Script(hass, script, plate_topic, DOMAIN)
-            for (event,script) in config[CONF_EVENT].items() }
+            event: Script(hass, script, plate_topic, DOMAIN)
+            for (event, script) in config[CONF_EVENT].items()
+        }
         self._tracked_property_templates = []
         self._freeze_properties = []
         self._subscriptions = []
@@ -793,7 +794,7 @@ class HASPObject:
                 elif message[HASP_EVENT] in [HASP_EVENT_UP, HASP_EVENT_RELEASE]:
                     self._freeze_properties = []
 
-                for (event,script) in self.event_services.items():
+                for event, script in self.event_services.items():
                     if event in message[HASP_EVENT]:
                         _LOGGER.debug(
                             "Service call for '%s' triggered by '%s' on '%s' with variables %s",
