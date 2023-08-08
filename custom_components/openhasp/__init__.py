@@ -291,6 +291,7 @@ async def async_unload_entry(hass, entry):
 
     return True
 
+
 async def async_remove_entry(hass, entry):
     plate = entry.data[CONF_NAME]
 
@@ -316,6 +317,7 @@ async def async_remove_entry(hass, entry):
     # Component does not remove entity from entity_registry, so we must do it
     registry = await entity_registry.async_get_registry(hass)
     registry.async_remove(hass.data[DOMAIN][CONF_PLATE][plate].entity_id)
+
 
 # pylint: disable=R0902
 class SwitchPlate(RestoreEntity):
@@ -601,7 +603,9 @@ class SwitchPlate(RestoreEntity):
             retain=False,
         )
 
-    async def async_push_image(self, image, obj, width=None, height=None, fitscreen=False):
+    async def async_push_image(
+        self, image, obj, width=None, height=None, fitscreen=False
+    ):
         """Update object image."""
 
         image_id = hashlib.md5(image.encode("utf-8")).hexdigest()
@@ -713,8 +717,9 @@ class HASPObject:
 
         self.properties = config.get(CONF_PROPERTIES)
         self.event_services = {
-            event:Script(hass, script, plate_topic, DOMAIN)
-            for (event,script) in config[CONF_EVENT].items() }
+            event: Script(hass, script, plate_topic, DOMAIN)
+            for (event, script) in config[CONF_EVENT].items()
+        }
         self._tracked_property_templates = []
         self._freeze_properties = []
         self._subscriptions = []
@@ -812,7 +817,7 @@ class HASPObject:
                 elif message[HASP_EVENT] in [HASP_EVENT_UP, HASP_EVENT_RELEASE]:
                     self._freeze_properties = []
 
-                for (event,script) in self.event_services.items():
+                for event, script in self.event_services.items():
                     if event in message[HASP_EVENT]:
                         _LOGGER.debug(
                             "Service call for '%s' triggered by '%s' on '%s' with variables %s",
