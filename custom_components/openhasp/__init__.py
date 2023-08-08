@@ -13,7 +13,7 @@ from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
 from homeassistant.components.number import DOMAIN as NUMBER_DOMAIN
 from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
 from homeassistant.const import CONF_NAME, STATE_UNAVAILABLE, STATE_UNKNOWN
-from homeassistant.core import callback
+from homeassistant.core import callback, Context
 from homeassistant.exceptions import TemplateError
 from homeassistant.helpers import device_registry as dr, entity_registry
 import homeassistant.helpers.config_validation as cv
@@ -22,7 +22,7 @@ from homeassistant.helpers.event import TrackTemplate, async_track_template_resu
 from homeassistant.helpers.network import get_url
 from homeassistant.helpers.reload import async_integration_yaml_config
 from homeassistant.helpers.restore_state import RestoreEntity
-from homeassistant.helpers.service import async_call_from_config
+from homeassistant.helpers.script import Script
 from homeassistant.util import slugify
 import jsonschema
 import voluptuous as vol
@@ -103,7 +103,7 @@ def hasp_object(value):
 
 
 # Configuration YAML schemas
-EVENT_SCHEMA = cv.schema_with_slug_keys([cv.SERVICE_SCHEMA])
+EVENT_SCHEMA = cv.schema_with_slug_keys(cv.SCRIPT_SCHEMA)
 
 PROPERTY_SCHEMA = cv.schema_with_slug_keys(cv.template)
 
@@ -697,7 +697,9 @@ class HASPObject:
         self.cached_properties = {}
 
         self.properties = config.get(CONF_PROPERTIES)
-        self.event_services = config.get(CONF_EVENT)
+        self.event_services = {
+            event:Script(hass, script, plate_topic, DOMAIN)
+            for (event,script) in config[CONF_EVENT].items() }
         self._tracked_property_templates = []
         self._freeze_properties = []
         self._subscriptions = []
@@ -791,7 +793,7 @@ class HASPObject:
                 elif message[HASP_EVENT] in [HASP_EVENT_UP, HASP_EVENT_RELEASE]:
                     self._freeze_properties = []
 
-                for event in self.event_services:
+                for (event,script) in self.event_services.items():
                     if event in message[HASP_EVENT]:
                         _LOGGER.debug(
                             "Service call for '%s' triggered by '%s' on '%s' with variables %s",
@@ -800,13 +802,10 @@ class HASPObject:
                             msg.topic,
                             message,
                         )
-                        for service in self.event_services[event]:
-                            await async_call_from_config(
-                                self.hass,
-                                service,
-                                validate_config=False,
-                                variables=message,
-                            )
+                        await script.async_run(
+                            run_variables=message,
+                            context=Context(),
+                        )
             except vol.error.Invalid:
                 _LOGGER.debug(
                     "Could not handle openHASP event: '%s' on '%s'",
