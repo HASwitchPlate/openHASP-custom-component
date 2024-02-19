@@ -54,8 +54,7 @@ def validate_jsonl(path):
     return file_in
 
 
-@config_entries.HANDLERS.register(DOMAIN)
-class OpenHASPFlowHandler(config_entries.ConfigFlow):
+class OpenHASPFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Config flow for OpenHASP component."""
 
     VERSION = 1
