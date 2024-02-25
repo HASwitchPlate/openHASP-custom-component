@@ -314,7 +314,7 @@ async def async_remove_entry(hass, entry):
         device_registry.async_remove_device(dev.id)
 
     # Component does not remove entity from entity_registry, so we must do it
-    registry = await entity_registry.async_get(hass)
+    registry = entity_registry.async_get(hass)
     registry.async_remove(hass.data[DOMAIN][CONF_PLATE][plate].entity_id)
 
 # pylint: disable=R0902
