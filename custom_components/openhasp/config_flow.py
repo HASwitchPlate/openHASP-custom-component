@@ -30,6 +30,7 @@ from .const import (
     DISCOVERED_MANUFACTURER,
     DISCOVERED_MODEL,
     DISCOVERED_NODE,
+    DISCOVERED_NODE_T,
     DISCOVERED_PAGES,
     DISCOVERED_POWER,
     DISCOVERED_URL,
@@ -85,10 +86,10 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_abort(reason="discovery_only")
 
     async def async_step_zeroconf(self, discovery_info=None):
-        _discovered = json.loads(discovery_info.properties.get("discovery"))
-        _LOGGER.error("Discovered ZeroConf: %s", _discovered)
+        _discovered = discovery_info.properties
+        _LOGGER.debug("Discovered ZeroConf: %s", _discovered)
 
-        _discovered[CONF_TOPIC] = f"{DEFAULT_TOPIC}/{_discovered[DISCOVERED_NODE]}"
+        _discovered[CONF_TOPIC] = _discovered[DISCOVERED_NODE_T][:-1]
 
         return await self._process_discovery(_discovered)
 
