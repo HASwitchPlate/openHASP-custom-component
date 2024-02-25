@@ -8,7 +8,7 @@
     "iot_class": "local_push",
     "issue_tracker": "https://github.com/HASwitchPlate/openHASP-custom-component/issues",
     "mqtt": ["hasp/discovery/#"],
-    "zeroconf": ["_openhasp._tcp.local."],
     "requirements": ["jsonschema>=3.2.0"],
-    "version": "0.7.1"
+    "version": "0.7.1",
+    "zeroconf": ["_openhasp._tcp.local."]
 }
