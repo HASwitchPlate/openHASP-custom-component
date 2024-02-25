@@ -6,8 +6,7 @@ from typing import Callable
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_HS_COLOR,
-    SUPPORT_BRIGHTNESS,
-    SUPPORT_COLOR,
+    ColorMode,
     LightEntity,
 )
 from homeassistant.config_entries import ConfigEntry
@@ -105,6 +104,7 @@ async def async_setup_entry(
 
 class HASPLight(HASPToggleEntity, LightEntity):
     """Representation of openHASP Light."""
+    _attr_supported_color_modes = {ColorMode.BRIGHTNESS}    
 
     def __init__(self, name, hwid, topic, gpio):
         """Initialize the light."""
@@ -159,12 +159,13 @@ class HASPLight(HASPToggleEntity, LightEntity):
 
 class HASPDimmableLight(HASPToggleEntity, LightEntity):
     """Representation of openHASP Light."""
+    _attr_color_mode = ColorMode.BRIGHTNESS
+    _attr_supported_color_modes = {ColorMode.BRIGHTNESS}
 
     def __init__(self, name, hwid, topic, gpio):
         """Initialize the dimmable light."""
         super().__init__(name, hwid, topic, gpio)
         self._brightness = None
-        self._attr_supported_features = SUPPORT_BRIGHTNESS
         self._gpio = gpio
         self._attr_name = f"{name} dimmable light {self._gpio}"
 
@@ -241,6 +242,8 @@ class HASPDimmableLight(HASPToggleEntity, LightEntity):
 
 class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
     """Representation of HASP LVGL Backlight."""
+    _attr_color_mode = ColorMode.BRIGHTNESS
+    _attr_supported_color_modes = {ColorMode.BRIGHTNESS}
 
     def __init__(self, name, hwid, topic, brightness):
         """Initialize the light."""
@@ -248,7 +251,6 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
         self._awake_brightness = 255
         self._brightness = None
         self._idle_brightness = brightness
-        self._attr_supported_features = SUPPORT_BRIGHTNESS
         self._attr_name = f"{name} backlight"
 
     @property
@@ -396,12 +398,14 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
 class HASPMoodLight(HASPToggleEntity, LightEntity, RestoreEntity):
     """Representation of HASP LVGL Moodlight."""
 
+    _attr_color_mode = ColorMode.HS
+    _attr_supported_color_modes = {ColorMode.HS}
+
     def __init__(self, name, hwid, topic):
         """Initialize the light."""
         super().__init__(name, hwid, topic, "moodlight")
         self._hs = None
         self._brightness = None
-        self._attr_supported_features = SUPPORT_COLOR | SUPPORT_BRIGHTNESS
         self._attr_name = f"{name} moodlight"
 
     @property
