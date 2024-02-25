@@ -5,10 +5,10 @@ from typing import Callable
 
 # pylint: disable=R0801
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_NAME, STATE_ON, STATE_OFF
-from homeassistant.helpers.entity import EntityCategory
+from homeassistant.const import CONF_NAME, STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant, callback
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.entity import EntityCategory
 import voluptuous as vol
 
 from .common import HASPToggleEntity

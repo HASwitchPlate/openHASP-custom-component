@@ -1,11 +1,11 @@
 """Support for current page numbers."""
-import logging
 from dataclasses import dataclass
+import logging
 
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, callback
 from homeassistant.const import CONF_NAME
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.restore_state import RestoreEntity
 
@@ -21,6 +21,7 @@ class HASPNumberDescriptionMixin:
 
     command_topic: str
     state_topic: str
+
 
 @dataclass
 class HASPNumberDescription(NumberEntityDescription, HASPNumberDescriptionMixin):

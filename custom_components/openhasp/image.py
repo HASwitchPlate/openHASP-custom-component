@@ -49,7 +49,12 @@ def image_to_rgb565(in_image, size, fitscreen):
         b = (pix[2] >> 3) & 0x1F
         out_image.write(struct.pack("H", (r << 11) | (g << 5) | b))
 
-    _LOGGER.debug("image_to_rgb565 out_image: %s - %s > %s", out_image.name, (original_width, original_height), im.size)
+    _LOGGER.debug(
+        "image_to_rgb565 out_image: %s - %s > %s",
+        out_image.name,
+        (original_width, original_height),
+        im.size,
+    )
 
     out_image.flush()
 

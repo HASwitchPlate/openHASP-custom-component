@@ -1,15 +1,11 @@
 """Support for current page numbers."""
 import logging
 
-from homeassistant.components.button import (
-    ButtonDeviceClass,
-    ButtonEntity,
-)
+from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
 from homeassistant.const import CONF_NAME
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
-
 
 from .common import HASPEntity
 from .const import CONF_HWID, CONF_TOPIC

@@ -104,7 +104,8 @@ async def async_setup_entry(
 
 class HASPLight(HASPToggleEntity, LightEntity):
     """Representation of openHASP Light."""
-    _attr_supported_color_modes = {ColorMode.BRIGHTNESS}    
+
+    _attr_supported_color_modes = {ColorMode.BRIGHTNESS}
 
     def __init__(self, name, hwid, topic, gpio):
         """Initialize the light."""
@@ -159,6 +160,7 @@ class HASPLight(HASPToggleEntity, LightEntity):
 
 class HASPDimmableLight(HASPToggleEntity, LightEntity):
     """Representation of openHASP Light."""
+
     _attr_color_mode = ColorMode.BRIGHTNESS
     _attr_supported_color_modes = {ColorMode.BRIGHTNESS}
 
@@ -242,6 +244,7 @@ class HASPDimmableLight(HASPToggleEntity, LightEntity):
 
 class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
     """Representation of HASP LVGL Backlight."""
+
     _attr_color_mode = ColorMode.BRIGHTNESS
     _attr_supported_color_modes = {ColorMode.BRIGHTNESS}
 

@@ -57,8 +57,12 @@ class HASPEntity(Entity):
                 if self._state:
                     await self.refresh()
                 else:
-                    self.async_write_ha_state() # Just to update availability
-                _LOGGER.debug("%s is available, %s", self.entity_id, "refresh" if self._state else "stale")
+                    self.async_write_ha_state()  # Just to update availability
+                _LOGGER.debug(
+                    "%s is available, %s",
+                    self.entity_id,
+                    "refresh" if self._state else "stale",
+                )
 
         self._subscriptions.append(
             self.hass.bus.async_listen(EVENT_HASP_PLATE_ONLINE, online)
@@ -84,7 +88,7 @@ class HASPEntity(Entity):
 
 class HASPToggleEntity(HASPEntity, ToggleEntity):
     """Representation of HASP ToggleEntity."""
-    
+
     def __init__(self, name, hwid, topic, gpio):
         """Initialize the relay."""
         super().__init__(name, hwid, topic, gpio)

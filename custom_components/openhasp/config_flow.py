@@ -11,7 +11,6 @@ import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
 from .const import (
-    DEFAULT_TOPIC,
     CONF_DIMLIGHTS,
     CONF_HWID,
     CONF_IDLE_BRIGHTNESS,
@@ -23,6 +22,7 @@ from .const import (
     CONF_RELAYS,
     CONF_TOPIC,
     DEFAULT_IDLE_BRIGHNESS,
+    DEFAULT_TOPIC,
     DISCOVERED_DIM,
     DISCOVERED_HWID,
     DISCOVERED_INPUT,
@@ -85,7 +85,7 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_abort(reason="discovery_only")
 
     async def async_step_zeroconf(self, discovery_info=None):
-        _discovered = json.loads(discovery_info.properties.get('discovery'))
+        _discovered = json.loads(discovery_info.properties.get("discovery"))
         _LOGGER.error("Discovered ZeroConf: %s", _discovered)
 
         _discovered[CONF_TOPIC] = f"{DEFAULT_TOPIC}/{_discovered[DISCOVERED_NODE]}"
@@ -97,12 +97,16 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         _discovered = json.loads(discovery_info.payload)
         _LOGGER.debug("Discovered MQTT: %s", _discovered)
 
-        _discovered[CONF_TOPIC] = f"{discovery_info.topic.split('/')[0]}/{_discovered[DISCOVERED_NODE]}"
+        _discovered[
+            CONF_TOPIC
+        ] = f"{discovery_info.topic.split('/')[0]}/{_discovered[DISCOVERED_NODE]}"
 
         return await self._process_discovery(_discovered)
 
     async def _process_discovery(self, _discovered):
-        await self.async_set_unique_id(_discovered[DISCOVERED_HWID], raise_on_progress=False)
+        await self.async_set_unique_id(
+            _discovered[DISCOVERED_HWID], raise_on_progress=False
+        )
         self._abort_if_unique_id_configured()
 
         version = _discovered.get(DISCOVERED_VERSION)
@@ -116,7 +120,7 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         self.config_data[DISCOVERED_VERSION] = version
 
-        self.config_data[CONF_HWID] = _discovered[DISCOVERED_HWID] 
+        self.config_data[CONF_HWID] = _discovered[DISCOVERED_HWID]
         self.config_data[CONF_NODE] = self.config_data[CONF_NAME] = _discovered[
             DISCOVERED_NODE
         ]
@@ -133,7 +137,9 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self.config_data[CONF_DIMLIGHTS] = _discovered.get(DISCOVERED_DIM)
         self.config_data[CONF_INPUT] = _discovered.get(DISCOVERED_INPUT)
 
-        self.context.update({"title_placeholders": {"name": self.config_data[CONF_NODE]}})
+        self.context.update(
+            {"title_placeholders": {"name": self.config_data[CONF_NODE]}}
+        )
 
         return await self.async_step_personalize()
 
@@ -178,7 +184,8 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required(
-                        CONF_TOPIC, default=self.config_data.get(CONF_TOPIC, DEFAULT_TOPIC)
+                        CONF_TOPIC,
+                        default=self.config_data.get(CONF_TOPIC, DEFAULT_TOPIC),
                     ): str,
                     vol.Required(
                         CONF_NAME, default=self.config_data.get(CONF_NAME)
