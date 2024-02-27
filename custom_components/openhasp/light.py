@@ -335,13 +335,13 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
 
             if message == HASP_IDLE_OFF:
                 brightness = self._awake_brightness
-                backlight = 1
+                backlight = "on"
             elif message == HASP_IDLE_SHORT:
                 brightness = self._idle_brightness
-                backlight = 1
+                backlight = "on"
             elif message == HASP_IDLE_LONG:
                 brightness = self._awake_brightness
-                backlight = 0
+                backlight = "off"
             else:
                 return
 
@@ -374,7 +374,7 @@ class HASPBackLight(HASPToggleEntity, LightEntity, RestoreEntity):
         """Sync local state back to plate."""
         cmd_topic = f"{self._topic}/command"
 
-        new_state = {"state": self._state, "brightness": self._brightness}
+        new_state = {"state": "on" if self._state else "off", "brightness": self._brightness}
 
         _LOGGER.debug("refresh(%s) backlight - %s", self.name, new_state)
 
