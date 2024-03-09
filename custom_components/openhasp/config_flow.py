@@ -98,9 +98,8 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 DISCOVERED_DIM,
                 DISCOVERED_INPUT,
             ]:
-            _discovered[key] = eval(_discovered.get(key))
-        _discovered[key] = eval(_discovered.get(key))
-
+            _LOGGER.debug("[%s] Discovered %s = %s", _discovered[CONF_TOPIC], key, _discovered.get(key))
+            _discovered[key] = json.loads(_discovered.get(key))
 
         return await self._process_discovery(_discovered)
 
