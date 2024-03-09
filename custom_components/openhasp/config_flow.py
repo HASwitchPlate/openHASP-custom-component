@@ -91,6 +91,17 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         _discovered[CONF_TOPIC] = _discovered[DISCOVERED_NODE_T][:-1]
 
+        for key in [
+                DISCOVERED_PAGES,
+                DISCOVERED_POWER,
+                DISCOVERED_LIGHT,
+                DISCOVERED_DIM,
+                DISCOVERED_INPUT,
+            ]:
+            _discovered[key] = eval(_discovered.get(key))
+        _discovered[key] = eval(_discovered.get(key))
+
+
         return await self._process_discovery(_discovered)
 
     async def async_step_mqtt(self, discovery_info=None):
