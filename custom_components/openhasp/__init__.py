@@ -35,6 +35,7 @@ from .const import (
     ATTR_FORCE_FITSCREEN,
     ATTR_HEIGHT,
     ATTR_IDLE,
+    ATTR_PROXY,
     ATTR_IMAGE,
     ATTR_OBJECT,
     ATTR_PAGE,
@@ -152,6 +153,7 @@ PUSH_IMAGE_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_IMAGE): vol.Any(cv.url, cv.isfile),
         vol.Required(ATTR_OBJECT): hasp_object,
+        vol.Optional(ATTR_PROXY): vol.Any(cv.url, cv.isfile),
         vol.Optional(ATTR_WIDTH): cv.positive_int,
         vol.Optional(ATTR_HEIGHT): cv.positive_int,
         vol.Optional(ATTR_FORCE_FITSCREEN): cv.boolean,
@@ -596,7 +598,7 @@ class SwitchPlate(RestoreEntity):
         )
 
     async def async_push_image(
-        self, image, obj, width=None, height=None, fitscreen=False
+        self, image, obj, http_proxy=None, width=None, height=None, fitscreen=False
     ):
         """Update object image."""
 
@@ -610,10 +612,15 @@ class SwitchPlate(RestoreEntity):
 
         cmd_topic = f"{self._topic}/command/{obj}.src"
 
-        rgb_image_url = (
-            f"{get_url(self.hass, allow_external=False)}/api/openhasp/serve/{image_id}"
-        )
-
+        if http_proxy == "None":
+            rgb_image_url = (
+                f"{get_url(self.hass, allow_external=False)}/api/openhasp/serve/{image_id}"
+            )
+        else:
+            rgb_image_url = (
+                f"{http_proxy}/api/openhasp/serve/{image_id}"
+            )
+#self._entry.data
         _LOGGER.debug("Push %s with %s", cmd_topic, rgb_image_url)
 
         await self.hass.components.mqtt.async_publish(
