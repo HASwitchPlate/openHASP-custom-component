@@ -32,9 +32,9 @@ def image_to_rgb565(in_image, size, fitscreen):
     if not fitscreen:
         width = min(w for w in [width, original_width] if w is not None and w > 0)
         height = min(h for h in [height, original_height] if h is not None and h > 0)
-        im.thumbnail((height, width), Image.LANCZOS)
+        im.thumbnail((width, height), Image.LANCZOS)
     else:
-        im = im.resize((height, width), Image.LANCZOS)
+        im = im.resize((width, height), Image.LANCZOS)
     width, height = im.size  # actual size after resize
 
     out_image = tempfile.NamedTemporaryFile(mode="w+b")
