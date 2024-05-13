@@ -4,6 +4,7 @@ import logging
 from typing import Callable
 
 # pylint: disable=R0801
+from homeassistant.components.mqtt import async_publish, async_subscribe
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME, STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant, callback
@@ -66,7 +67,7 @@ class HASPSwitch(HASPToggleEntity):
             # Don't do anything before we know the state
             return
 
-        await self.hass.components.mqtt.async_publish(
+        await async_publish(
             self.hass,
             f"{self._topic}/command/output{self._gpio}",
             json.dumps(HASP_RELAY_SCHEMA({"state": int(self._state)})),
@@ -95,12 +96,14 @@ class HASPSwitch(HASPToggleEntity):
                 _LOGGER.error(err)
 
         self._subscriptions.append(
-            await self.hass.components.mqtt.async_subscribe(
-                f"{self._topic}/state/output{self._gpio}", relay_state_message_received
+            await async_subscribe(
+                self.hass,
+                f"{self._topic}/state/output{self._gpio}",
+                relay_state_message_received,
             )
         )
 
-        await self.hass.components.mqtt.async_publish(
+        await async_publish(
             self.hass,
             f"{self._topic}/command/output{self._gpio}",
             "",
@@ -122,7 +125,7 @@ class HASPAntiBurn(HASPToggleEntity):
 
     async def refresh(self):
         """Sync local state back to plate."""
-        await self.hass.components.mqtt.async_publish(
+        await async_publish(
             self.hass,
             f"{self._topic}/command/antiburn",
             int(self._state),
@@ -152,15 +155,17 @@ class HASPAntiBurn(HASPToggleEntity):
                 _LOGGER.error(err)
 
         self._subscriptions.append(
-            await self.hass.components.mqtt.async_subscribe(
-                f"{self._topic}/state/antiburn", antiburn_state_message_received
+            await async_subscribe(
+                self.hass,
+                f"{self._topic}/state/antiburn",
+                antiburn_state_message_received,
             )
         )
 
         self._state = False
         self._available = True
 
-        await self.hass.components.mqtt.async_publish(
+        await async_publish(
             self.hass,
             f"{self._topic}/command/antiburn",
             int(self._state),

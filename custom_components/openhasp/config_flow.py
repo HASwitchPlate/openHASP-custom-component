@@ -3,6 +3,7 @@ import json
 import logging
 import os
 
+from homeassistant.components.mqtt import async_publish
 from homeassistant import config_entries, data_entry_flow, exceptions
 from homeassistant.components.mqtt import valid_subscribe_topic
 from homeassistant.const import CONF_NAME
@@ -75,7 +76,7 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle a flow initialized by User."""
         _LOGGER.info("Discovery Only")
 
-        await self.hass.components.mqtt.async_publish(
+        await async_publish(
             self.hass,
             "hasp/broadcast/command/discovery",
             "discovery",
@@ -92,13 +93,18 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         _discovered[CONF_TOPIC] = _discovered[DISCOVERED_NODE_T][:-1]
 
         for key in [
-                DISCOVERED_PAGES,
-                DISCOVERED_POWER,
-                DISCOVERED_LIGHT,
-                DISCOVERED_DIM,
-                DISCOVERED_INPUT,
-            ]:
-            _LOGGER.debug("[%s] Discovered %s = %s", _discovered[CONF_TOPIC], key, _discovered.get(key))
+            DISCOVERED_PAGES,
+            DISCOVERED_POWER,
+            DISCOVERED_LIGHT,
+            DISCOVERED_DIM,
+            DISCOVERED_INPUT,
+        ]:
+            _LOGGER.debug(
+                "[%s] Discovered %s = %s",
+                _discovered[CONF_TOPIC],
+                key,
+                _discovered.get(key),
+            )
             _discovered[key] = json.loads(_discovered.get(key))
 
         return await self._process_discovery(_discovered)
