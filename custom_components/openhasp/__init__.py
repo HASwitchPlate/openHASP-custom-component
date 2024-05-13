@@ -344,14 +344,14 @@ class SwitchPlate(RestoreEntity):
 
         self._subscriptions = []
 
-        with open(
-            pathlib.Path(__file__).parent.joinpath("pages_schema.json"), "r"
-        ) as schema_file:
-            self.json_schema = json.load(schema_file)
-
         self._attr_unique_id = entry.data[CONF_HWID]
         self._attr_name = entry.data[CONF_NAME]
         self._attr_icon = "mdi:gesture-tap-box"
+
+    def _read_file(self, path):
+        """Executor helper to read file."""
+        with open(path, "r") as src_file:
+            return src_file.read()
 
     @property
     def state(self):
@@ -376,6 +376,9 @@ class SwitchPlate(RestoreEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
+
+        schema_file_contents = await self.hass.async_add_executor_job(self._read_file, pathlib.Path(__file__).parent.joinpath("pages_schema.json"))
+        self.json_schema = json.loads(schema_file_contents)
 
         state = await self.async_get_last_state()
         if state and state.state not in [STATE_UNAVAILABLE, STATE_UNKNOWN, None]:
@@ -650,17 +653,17 @@ class SwitchPlate(RestoreEntity):
             )
 
         try:
-            with open(path, "r") as pages_file:
-                if path.endswith(".json"):
-                    json_data = json.load(pages_file)
-                    jsonschema.validate(instance=json_data, schema=self.json_schema)
-                    lines = []
-                    for item in json_data:
-                        if isinstance(item, dict):
-                            lines.append(json.dumps(item) + "\n")
-                    await send_lines(lines)
-                else:
-                    await send_lines(pages_file)
+            pages_file = await self.hass.async_add_executor_job(self._read_file, path)
+            if path.endswith(".json"):
+                json_data = json.load(pages_file)
+                jsonschema.validate(instance=json_data, schema=self.json_schema)
+                lines = []
+                for item in json_data:
+                    if isinstance(item, dict):
+                        lines.append(json.dumps(item) + "\n")
+                await send_lines(lines)
+            else:
+                await send_lines(pages_file)
             await self.refresh()
 
         except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError):
