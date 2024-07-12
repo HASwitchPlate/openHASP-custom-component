@@ -655,7 +655,7 @@ class SwitchPlate(RestoreEntity):
         try:
             pages_file = await self.hass.async_add_executor_job(self._read_file, path)
             if path.endswith(".json"):
-                json_data = json.load(pages_file)
+                json_data = json.loads(pages_file)
                 jsonschema.validate(instance=json_data, schema=self.json_schema)
                 lines = []
                 for item in json_data:
