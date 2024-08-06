@@ -264,11 +264,8 @@ async def async_setup_entry(hass, entry) -> bool:
     await component.async_add_entities([plate_entity])
     hass.data[DOMAIN][CONF_PLATE][plate] = plate_entity
 
-    for domain in PLATFORMS:
-        hass.async_create_task(
-            hass.config_entries.async_forward_entry_setup(entry, domain)
-        )
-
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    
     listener = entry.add_update_listener(async_update_options)
     entry.async_on_unload(listener)
 
