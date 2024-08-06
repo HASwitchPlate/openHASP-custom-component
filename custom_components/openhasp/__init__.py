@@ -660,7 +660,7 @@ class SwitchPlate(RestoreEntity):
                         lines.append(json.dumps(item) + "\n")
                 await send_lines(lines)
             else:
-                await send_lines(pages_file)
+                await send_lines(pages_file.splitlines(keepends=True))
             await self.refresh()
 
         except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError):
