@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 import logging
 
+from homeassistant.components.mqtt import async_publish, async_subscribe
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
@@ -74,7 +75,7 @@ class HASPNumber(HASPEntity, NumberEntity, RestoreEntity):
 
     async def refresh(self):
         """Sync local state back to plate."""
-        await self.hass.components.mqtt.async_publish(
+        await async_publish(
             self.hass,
             f"{self._topic}{self.entity_description.command_topic}",
             "" if self._number is None else self._number,
@@ -99,7 +100,8 @@ class HASPNumber(HASPEntity, NumberEntity, RestoreEntity):
             self.async_write_ha_state()
 
         self._subscriptions.append(
-            await self.hass.components.mqtt.async_subscribe(
+            await async_subscribe(
+                self.hass,
                 f"{self._topic}{self.entity_description.state_topic}",
                 page_state_message_received,
             )

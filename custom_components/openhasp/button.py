@@ -1,6 +1,7 @@
 """Support for current page numbers."""
 import logging
 
+from homeassistant.components.mqtt import async_publish
 from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
@@ -45,7 +46,7 @@ class HASPRestartButton(HASPEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         """Handle the button press."""
-        await self.hass.components.mqtt.async_publish(
+        await async_publish(
             self.hass,
             f"{self._topic}/command/restart",
             "",
