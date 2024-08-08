@@ -603,13 +603,13 @@ class SwitchPlate(RestoreEntity):
 
         cmd_topic = f"{self._topic}/command/{obj}.src"
 
-        if http_proxy == None:
+        if http_proxy:
             rgb_image_url = (
-                f"{get_url(self.hass, allow_external=False)}/api/openhasp/serve/{image_id}"
+                f"{http_proxy}/api/openhasp/serve/{image_id}"
             )
         else:
             rgb_image_url = (
-                f"{http_proxy}/api/openhasp/serve/{image_id}"
+                f"{get_url(self.hass, allow_external=False)}/api/openhasp/serve/{image_id}"
             )
 #self._entry.data
         _LOGGER.debug("Push %s with %s", cmd_topic, rgb_image_url)
