@@ -154,7 +154,7 @@ PUSH_IMAGE_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_IMAGE): vol.Any(cv.url, cv.isfile),
         vol.Required(ATTR_OBJECT): hasp_object,
-        vol.Optional(ATTR_PROXY): vol.Any(cv.url, cv.isfile),
+        vol.Optional(ATTR_PROXY): vol.Any(cv.url),
         vol.Optional(ATTR_WIDTH): cv.positive_int,
         vol.Optional(ATTR_HEIGHT): cv.positive_int,
         vol.Optional(ATTR_FORCE_FITSCREEN): cv.boolean,
@@ -603,7 +603,7 @@ class SwitchPlate(RestoreEntity):
 
         cmd_topic = f"{self._topic}/command/{obj}.src"
 
-        if http_proxy == "None":
+        if http_proxy == None:
             rgb_image_url = (
                 f"{get_url(self.hass, allow_external=False)}/api/openhasp/serve/{image_id}"
             )
