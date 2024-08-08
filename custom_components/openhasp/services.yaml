@@ -108,7 +108,7 @@ push_image:
         text:
     http_proxy:
       name: HTTP (Reverse) Proxy
-      description: Proxy address to use. This can be used to allow HTTP access to an otherwise SSL secured HA instance. Offering the proxy functionality is out of the scope of this integraiton.
+      description: Proxy address to use. This can be used to allow HTTP access to an otherwise SSL secured HA instance. Offering the proxy functionality is out of the scope of this integration.
       required: false
       example: "http://people.sc.fsu.edu:port"
       selector:
