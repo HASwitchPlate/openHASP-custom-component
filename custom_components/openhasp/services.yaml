@@ -106,6 +106,13 @@ push_image:
       example: "https://people.sc.fsu.edu/~jburkardt/data/jpg/lena.jpg"
       selector:
         text:
+    http_proxy:
+      name: HTTP (Reverse) Proxy
+      description: Proxy address to use. This can be used to allow HTTP access to an otherwise SSL secured HA instance. Offering the proxy functionality is out of the scope of this integration.
+      required: false
+      example: "http://people.sc.fsu.edu:port"
+      selector:
+        text:
     obj:
       name: Object
       description: Object ID in the format p#b##
