@@ -556,7 +556,7 @@ class SwitchPlate(RestoreEntity):
         if self._statusupdate:
             num_pages = self._statusupdate[HASP_NUM_PAGES]
 
-            if page <= 0 or int(page) > int(num_pages):
+            if page <= 0 or page > num_pages:
                 _LOGGER.error(
                     "Can't change to %s, available pages are 1 to %s", page, num_pages
                 )
