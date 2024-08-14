@@ -4,7 +4,7 @@ import logging
 import struct
 import tempfile
 
-from PIL import Image
+from PIL import Image, ImageOps
 from aiohttp import hdrs, web
 from homeassistant.components.http.static import CACHE_HEADERS
 from homeassistant.components.http.view import HomeAssistantView
@@ -34,7 +34,9 @@ def image_to_rgb565(in_image, size, fitscreen):
         height = min(h for h in [height, original_height] if h is not None and h > 0)
         im.thumbnail((width, height), Image.LANCZOS)
     else:
-        im = im.resize((width, height), Image.LANCZOS)
+        im = ImageOps.fit(im, (width, height), method = 3,
+                   bleed = 0.0, centering =(0.5, 0.5))
+
     width, height = im.size  # actual size after resize
 
     out_image = tempfile.NamedTemporaryFile(mode="w+b")
