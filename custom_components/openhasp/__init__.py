@@ -593,7 +593,7 @@ class SwitchPlate(RestoreEntity):
     ):
         """Update object image."""
 
-        image_id = hashlib.md5(image.encode("utf-8")).hexdigest()
+        image_id = hashlib.md5(image.encode("utf-8") + self._entry.data[CONF_NAME].encode('utf-8')).hexdigest()
 
         rgb_image = await self.hass.async_add_executor_job(
             image_to_rgb565, image, (width, height), fitscreen
