@@ -154,7 +154,7 @@ PUSH_IMAGE_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_IMAGE): vol.Any(cv.url, cv.isfile),
         vol.Required(ATTR_OBJECT): hasp_object,
-        vol.Optional(ATTR_PROXY): vol.Any(cv.url),
+        vol.Optional(ATTR_PROXY): cv.url,
         vol.Optional(ATTR_WIDTH): cv.positive_int,
         vol.Optional(ATTR_HEIGHT): cv.positive_int,
         vol.Optional(ATTR_FORCE_FITSCREEN): cv.boolean,
