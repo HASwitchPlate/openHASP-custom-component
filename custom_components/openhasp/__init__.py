@@ -7,6 +7,7 @@ import pathlib
 import re
 
 from homeassistant.components.mqtt import async_subscribe, async_publish
+import homeassistant.components.mqtt as mqtt
 from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN
 from homeassistant.components.button import DOMAIN as BUTTON_DOMAIN
 from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
@@ -164,6 +165,9 @@ PUSH_IMAGE_SCHEMA =  cv.make_entity_service_schema(
 
 
 async def async_setup(hass, config):
+    """Wait for MQTT to become available before starting."""
+    await mqtt.async_wait_for_mqtt_client(hass)
+
     """Set up the MQTT async example component."""
     conf = config.get(DOMAIN)
 
