@@ -29,7 +29,7 @@
 
 # 0.7.0
 - Better handling of discovery for 0.7.0-dev firmware
-- 
+
 # 0.6.6
 - Support for 2022.7.0
 - Code improvements
