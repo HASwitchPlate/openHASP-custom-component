@@ -1,10 +1,40 @@
-# 0.6.6
+# 0.7.6
+* Fix: MQTTt not being ready at startup. by @xNUTx in https://github.com/HASwitchPlate/openHASP-custom-component/pull/149
 
+# 0.7.5
+* Support for HA 2024.9 by @dgomes 
+* fix: Reuse of the same image with different sized displays causes a random resize. by @xNUTx in https://github.com/HASwitchPlate/openHASP-custom-component/pull/143
+* fix: Dynamic reloading broken on recently added displays. by @xNUTx in https://github.com/HASwitchPlate/openHASP-custom-component/pull/140
+* feat: Added optional setting http_proxy to push_image by @xNUTx in https://github.com/HASwitchPlate/openHASP-custom-component/pull/144
+
+# 0.7.4
+* Fixes 'str' object has no attribute 'read' by @illuzn in https://github.com/HASwitchPlate/openHASP-custom-component/pull/132
+* Replace deprecated async_forward_entry_setup call by @TNTLarsn in https://github.com/HASwitchPlate/openHASP-custom-component/pull/137
+* fix: properly split jsonl upload at lineends by @akloeckner in https://github.com/HASwitchPlate/openHASP-custom-component/pull/138
+
+# 0.7.3
+-  Support for 2024.6.0
+-  Fixed height & width were being transposed when fitscreen=true by @FreeBear-nc in https://github.com/HASwitchPlate/openHASP-custom-component/pull/121
+-  Move file open() to executor job by @dgomes in https://github.com/HASwitchPlate/openHASP-custom-component/pull/123
+-  feat: allow full script syntax in event section by @akloeckner in https://github.com/HASwitchPlate/openHASP-custom-component/pull/112
+
+# 0.7.2
+- Support discovery through mDNS (0.7.0-rc11 or higher)
+- Support for HA 2024.1
+- Replace version popup for legacy 0.6.x plates with log warning
+
+# 0.7.1
+- Fix error as `ANTIALIAS` was removed in Pillow 10.0.0. Now using `LANCZOS` instead.
+- Updated Manifest.json
+
+# 0.7.0
+- Better handling of discovery for 0.7.0-dev firmware
+- 
+# 0.6.6
 - Support for 2022.7.0
 - Code improvements
 
 # 0.6.5
-
 - Support for 2022.4.0
 - Adds page number entity
 - Adds restart button
