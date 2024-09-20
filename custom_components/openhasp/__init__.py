@@ -6,6 +6,10 @@ import os
 import pathlib
 import re
 
+from homeassistant.helpers.device_registry import (
+    CONNECTION_NETWORK_MAC,
+    format_mac,
+)
 from homeassistant.components.mqtt import async_subscribe, async_publish
 import homeassistant.components.mqtt as mqtt
 from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN
@@ -151,7 +155,7 @@ HASP_LWT_SCHEMA = vol.Schema(vol.Any(*HASP_LWT))
 
 HASP_PAGE_SCHEMA = vol.Schema(vol.All(vol.Coerce(int), vol.Range(min=0, max=12)))
 
-PUSH_IMAGE_SCHEMA =  cv.make_entity_service_schema(
+PUSH_IMAGE_SCHEMA = cv.make_entity_service_schema(
     {
         vol.Required(ATTR_IMAGE): vol.Any(cv.url, cv.isfile),
         vol.Required(ATTR_OBJECT): hasp_object,
@@ -262,6 +266,7 @@ async def async_setup_entry(hass, entry) -> bool:
         sw_version=entry.data[DISCOVERED_VERSION],
         configuration_url=entry.data.get(DISCOVERED_URL),
         name=plate,
+        connections={(CONNECTION_NETWORK_MAC, format_mac(entry.data[CONF_HWID]))},
     )
 
     # Add entity to component
@@ -271,7 +276,7 @@ async def async_setup_entry(hass, entry) -> bool:
     hass.data[DOMAIN][CONF_PLATE][plate] = plate_entity
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    
+
     listener = entry.add_update_listener(async_update_options)
     entry.async_on_unload(listener)
 
@@ -380,7 +385,9 @@ class SwitchPlate(RestoreEntity):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
 
-        schema_file_contents = await self.hass.async_add_executor_job(self._read_file, pathlib.Path(__file__).parent.joinpath("pages_schema.json"))
+        schema_file_contents = await self.hass.async_add_executor_job(
+            self._read_file, pathlib.Path(__file__).parent.joinpath("pages_schema.json")
+        )
         self.json_schema = json.loads(schema_file_contents)
 
         state = await self.async_get_last_state()
@@ -560,7 +567,11 @@ class SwitchPlate(RestoreEntity):
         if self._statusupdate:
             num_pages = self._statusupdate[HASP_NUM_PAGES]
 
-            if isinstance(page, int) and isinstance(num_pages, int) and (page <= 0 or page > num_pages):
+            if (
+                isinstance(page, int)
+                and isinstance(num_pages, int)
+                and (page <= 0 or page > num_pages)
+            ):
                 _LOGGER.error(
                     "Can't change to %s, available pages are 1 to %s", page, num_pages
                 )
@@ -597,7 +608,9 @@ class SwitchPlate(RestoreEntity):
     ):
         """Update object image."""
 
-        image_id = hashlib.md5(image.encode("utf-8") + self._entry.data[CONF_NAME].encode('utf-8')).hexdigest()
+        image_id = hashlib.md5(
+            image.encode("utf-8") + self._entry.data[CONF_NAME].encode("utf-8")
+        ).hexdigest()
 
         rgb_image = await self.hass.async_add_executor_job(
             image_to_rgb565, image, (width, height), fitscreen
@@ -608,14 +621,10 @@ class SwitchPlate(RestoreEntity):
         cmd_topic = f"{self._topic}/command/{obj}.src"
 
         if http_proxy:
-            rgb_image_url = (
-                f"{http_proxy}/api/openhasp/serve/{image_id}"
-            )
+            rgb_image_url = f"{http_proxy}/api/openhasp/serve/{image_id}"
         else:
-            rgb_image_url = (
-                f"{get_url(self.hass, allow_external=False)}/api/openhasp/serve/{image_id}"
-            )
-#self._entry.data
+            rgb_image_url = f"{get_url(self.hass, allow_external=False)}/api/openhasp/serve/{image_id}"
+        # self._entry.data
         _LOGGER.debug("Push %s with %s", cmd_topic, rgb_image_url)
 
         await async_publish(self.hass, cmd_topic, rgb_image_url, qos=0, retain=False)

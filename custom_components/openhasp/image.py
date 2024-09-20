@@ -34,8 +34,9 @@ def image_to_rgb565(in_image, size, fitscreen):
         height = min(h for h in [height, original_height] if h is not None and h > 0)
         im.thumbnail((width, height), Image.LANCZOS)
     else:
-        im = ImageOps.fit(im, (width, height), method = 3,
-                   bleed = 0.0, centering =(0.5, 0.5))
+        im = ImageOps.fit(
+            im, (width, height), method=3, bleed=0.0, centering=(0.5, 0.5)
+        )
 
     width, height = im.size  # actual size after resize
 
