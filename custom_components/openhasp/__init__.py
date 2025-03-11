@@ -6,19 +6,14 @@ import os
 import pathlib
 import re
 
-from homeassistant.helpers.device_registry import (
-    CONNECTION_NETWORK_MAC,
-    format_mac,
-)
 from homeassistant.components.mqtt import async_subscribe, async_publish
-import homeassistant.components.mqtt as mqtt
 from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN
 from homeassistant.components.button import DOMAIN as BUTTON_DOMAIN
 from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
 from homeassistant.components.number import DOMAIN as NUMBER_DOMAIN
 from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
 from homeassistant.const import CONF_NAME, STATE_UNAVAILABLE, STATE_UNKNOWN
-from homeassistant.core import callback, Context
+from homeassistant.core import callback
 from homeassistant.exceptions import TemplateError
 from homeassistant.helpers import device_registry as dr, entity_registry
 import homeassistant.helpers.config_validation as cv
@@ -27,7 +22,7 @@ from homeassistant.helpers.event import TrackTemplate, async_track_template_resu
 from homeassistant.helpers.network import get_url
 from homeassistant.helpers.reload import async_integration_yaml_config
 from homeassistant.helpers.restore_state import RestoreEntity
-from homeassistant.helpers.script import Script
+from homeassistant.helpers.service import async_call_from_config
 from homeassistant.util import slugify
 import jsonschema
 import voluptuous as vol
@@ -41,7 +36,6 @@ from .const import (
     ATTR_FORCE_FITSCREEN,
     ATTR_HEIGHT,
     ATTR_IDLE,
-    ATTR_PROXY,
     ATTR_IMAGE,
     ATTR_OBJECT,
     ATTR_PAGE,
@@ -102,14 +96,14 @@ PLATFORMS = [
 
 
 def hasp_object(value):
-    """Validade HASP-LVGL object format."""
-    if re.match("p[0-9]+b[0-9]+", value):
+    """Validate HASP-LVGL object format."""
+    if re.match(r"p[0-9]+b[0-9]+", value):
         return value
     raise vol.Invalid("Not an HASP-LVGL object p#b#")
 
 
 # Configuration YAML schemas
-EVENT_SCHEMA = cv.schema_with_slug_keys(cv.SCRIPT_SCHEMA)
+EVENT_SCHEMA = cv.schema_with_slug_keys([cv.SERVICE_SCHEMA])
 
 PROPERTY_SCHEMA = cv.schema_with_slug_keys(cv.template)
 
@@ -137,6 +131,7 @@ HASP_VAL_SCHEMA = vol.Schema(
     {vol.Required(HASP_VAL): vol.All(int, vol.Range(min=0, max=1))},
     extra=vol.ALLOW_EXTRA,
 )
+
 HASP_EVENT_SCHEMA = vol.Schema(
     {vol.Required(HASP_EVENT): vol.Any(*HASP_EVENTS)}, extra=vol.ALLOW_EXTRA
 )
@@ -147,6 +142,7 @@ HASP_STATUSUPDATE_SCHEMA = vol.Schema(
         vol.Required("version"): cv.string,
         vol.Required("uptime"): int,
         vol.Required("canUpdate"): cv.boolean,
+        vol.Optional("ip"): cv.string,
     },
     extra=vol.ALLOW_EXTRA,
 )
@@ -155,11 +151,10 @@ HASP_LWT_SCHEMA = vol.Schema(vol.Any(*HASP_LWT))
 
 HASP_PAGE_SCHEMA = vol.Schema(vol.All(vol.Coerce(int), vol.Range(min=0, max=12)))
 
-PUSH_IMAGE_SCHEMA = cv.make_entity_service_schema(
+PUSH_IMAGE_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_IMAGE): vol.Any(cv.url, cv.isfile),
         vol.Required(ATTR_OBJECT): hasp_object,
-        vol.Optional(ATTR_PROXY): cv.url,
         vol.Optional(ATTR_WIDTH): cv.positive_int,
         vol.Optional(ATTR_HEIGHT): cv.positive_int,
         vol.Optional(ATTR_FORCE_FITSCREEN): cv.boolean,
@@ -169,32 +164,22 @@ PUSH_IMAGE_SCHEMA = cv.make_entity_service_schema(
 
 
 async def async_setup(hass, config):
-    """Wait for MQTT to become available before starting."""
-    await mqtt.async_wait_for_mqtt_client(hass)
-
-    """Set up the MQTT async example component."""
+    """Set up the openHASP component (via YAML)."""
     conf = config.get(DOMAIN)
-
     if conf is None:
-        # We still depend in YAML so we must fail
         _LOGGER.error(
-            "openHASP requires you to setup your plate objects in your YAML configuration."
+            "openHASP requires YAML configuration under the 'openhasp' key in configuration.yaml"
         )
         return False
 
     hass.data[DOMAIN] = {CONF_PLATE: {}}
 
-    component = hass.data[DOMAIN][CONF_COMPONENT] = EntityComponent(
-        _LOGGER, DOMAIN, hass
-    )
+    component = hass.data[DOMAIN][CONF_COMPONENT] = EntityComponent(_LOGGER, DOMAIN, hass)
 
+    # Register entity services
     component.async_register_entity_service(SERVICE_WAKEUP, {}, "async_wakeup")
-    component.async_register_entity_service(
-        SERVICE_PAGE_NEXT, {}, "async_change_page_next"
-    )
-    component.async_register_entity_service(
-        SERVICE_PAGE_PREV, {}, "async_change_page_prev"
-    )
+    component.async_register_entity_service(SERVICE_PAGE_NEXT, {}, "async_change_page_next")
+    component.async_register_entity_service(SERVICE_PAGE_PREV, {}, "async_change_page_prev")
     component.async_register_entity_service(
         SERVICE_PAGE_CHANGE, {vol.Required(ATTR_PAGE): int}, "async_change_page"
     )
@@ -212,7 +197,6 @@ async def async_setup(hass, config):
         },
         "async_command_service",
     )
-
     component.async_register_entity_service(
         SERVICE_CONFIG,
         {
@@ -221,7 +205,6 @@ async def async_setup(hass, config):
         },
         "async_config_service",
     )
-
     component.async_register_entity_service(
         SERVICE_PUSH_IMAGE, PUSH_IMAGE_SCHEMA, "async_push_image"
     )
@@ -233,22 +216,21 @@ async def async_setup(hass, config):
 
 
 async def async_update_options(hass, entry):
-    """Handle options update."""
-    _LOGGER.debug("Reloading")
+    """Handle options update for a config entry."""
+    _LOGGER.debug("Reloading openHASP integration due to options update")
     await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_setup_entry(hass, entry) -> bool:
-    """Set up OpenHASP via a config entry."""
+    """Set up openHASP via a config entry."""
     plate = entry.data[CONF_NAME]
-    _LOGGER.debug("Setup %s", plate)
+    _LOGGER.debug("Setup for plate: %s", plate)
 
     hass_config = await async_integration_yaml_config(hass, DOMAIN)
-
     if DOMAIN not in hass_config or slugify(plate) not in hass_config[DOMAIN]:
         _LOGGER.error(
-            "No YAML configuration for %s, \
-            please create an entry under 'openhasp' with the slug: %s",
+            "No YAML configuration found for '%s'. "
+            "Please create an entry under 'openhasp' with slug: %s",
             plate,
             slugify(plate),
         )
@@ -266,17 +248,19 @@ async def async_setup_entry(hass, entry) -> bool:
         sw_version=entry.data[DISCOVERED_VERSION],
         configuration_url=entry.data.get(DISCOVERED_URL),
         name=plate,
-        connections={(CONNECTION_NETWORK_MAC, format_mac(entry.data[CONF_HWID]))},
     )
 
-    # Add entity to component
+    # Create and add the Plate entity
     component = hass.data[DOMAIN][CONF_COMPONENT]
     plate_entity = SwitchPlate(hass, config, entry)
     await component.async_add_entities([plate_entity])
     hass.data[DOMAIN][CONF_PLATE][plate] = plate_entity
 
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # Forward setup to other platforms (light, switch, etc.)
+    for domain in PLATFORMS:
+        hass.async_create_task(hass.config_entries.async_forward_entry_setup(entry, domain))
 
+    # Listen for config entry changes
     listener = entry.add_update_listener(async_update_options)
     entry.async_on_unload(listener)
 
@@ -284,9 +268,8 @@ async def async_setup_entry(hass, entry) -> bool:
 
 
 async def async_unload_entry(hass, entry):
-    """Remove a config entry."""
+    """Unload a config entry."""
     plate = entry.data[CONF_NAME]
-
     _LOGGER.debug("Unload entry for plate %s", plate)
 
     for domain in PLATFORMS:
@@ -295,18 +278,18 @@ async def async_unload_entry(hass, entry):
     component = hass.data[DOMAIN][CONF_COMPONENT]
     await component.async_remove_entity(hass.data[DOMAIN][CONF_PLATE][plate].entity_id)
 
-    # Remove Plate entity
+    # Remove Plate entity from internal dict
     del hass.data[DOMAIN][CONF_PLATE][plate]
 
     return True
 
 
 async def async_remove_entry(hass, entry):
+    """Fully remove a config entry (device, entity, services)."""
     plate = entry.data[CONF_NAME]
-
-    # Only remove services if it is the last
+    # Only remove services if this is the last plate
     if len(hass.data[DOMAIN][CONF_PLATE]) == 1:
-        _LOGGER.debug("removing services")
+        _LOGGER.debug("Removing openHASP services for last plate")
         hass.services.async_remove(DOMAIN, SERVICE_WAKEUP)
         hass.services.async_remove(DOMAIN, SERVICE_PAGE_NEXT)
         hass.services.async_remove(DOMAIN, SERVICE_PAGE_PREV)
@@ -316,87 +299,92 @@ async def async_remove_entry(hass, entry):
         hass.services.async_remove(DOMAIN, SERVICE_COMMAND)
 
     device_registry = dr.async_get(hass)
-    dev = device_registry.async_get_device(
-        identifiers={(DOMAIN, entry.data[CONF_HWID])}
-    )
-    if entry.entry_id in dev.config_entries:
+    dev = device_registry.async_get_device(identifiers={(DOMAIN, entry.data[CONF_HWID])})
+    if dev and entry.entry_id in dev.config_entries:
         _LOGGER.debug("Removing device %s", dev)
         device_registry.async_remove_device(dev.id)
 
-    # Component does not remove entity from entity_registry, so we must do it
+    # Remove the entity from the registry
     registry = entity_registry.async_get(hass)
     registry.async_remove(hass.data[DOMAIN][CONF_PLATE][plate].entity_id)
 
 
-# pylint: disable=R0902
+# ---------------------------
+# BEGIN: SwitchPlate class
+# ---------------------------
 class SwitchPlate(RestoreEntity):
     """Representation of an openHASP Plate."""
 
     def __init__(self, hass, config, entry):
         """Initialize a plate."""
         super().__init__()
+        self._hass = hass
         self._entry = entry
         self._topic = entry.data[CONF_TOPIC]
-        self._pages_jsonl = entry.options.get(
-            CONF_PAGES_PATH, entry.data.get(CONF_PAGES_PATH)
-        )
+        self._pages_jsonl = entry.options.get(CONF_PAGES_PATH, entry.data.get(CONF_PAGES_PATH))
 
         self._objects = []
         for obj in config[CONF_OBJECTS]:
             new_obj = HASPObject(hass, self._topic, obj)
-
             self._objects.append(new_obj)
+
         self._statusupdate = {HASP_NUM_PAGES: entry.data[CONF_PAGES]}
         self._available = False
         self._page = 1
-
         self._subscriptions = []
+
+        # Instead of reading pages_schema.json here (which blocks),
+        # we just store the path. We'll load it asynchronously in async_added_to_hass.
+        self._schema_path = pathlib.Path(__file__).parent.joinpath("pages_schema.json")
+        self.json_schema = None
 
         self._attr_unique_id = entry.data[CONF_HWID]
         self._attr_name = entry.data[CONF_NAME]
         self._attr_icon = "mdi:gesture-tap-box"
 
-    def _read_file(self, path):
-        """Executor helper to read file."""
-        with open(path, "r") as src_file:
-            return src_file.read()
-
     @property
     def state(self):
-        """Return the state of the component."""
+        """Return the current page as state."""
         return self._page
 
     @property
     def available(self):
-        """Return if entity is available."""
+        """Return whether the plate is currently online."""
         return self._available
 
-    async def async_will_remove_from_hass(self):
-        """Run before entity is removed."""
-        _LOGGER.debug("Remove plate %s", self._entry.data[CONF_NAME])
-
-        for obj in self._objects:
-            await obj.disable_object()
-
-        for subscription in self._subscriptions:
-            subscription()
+    @property
+    def state_attributes(self):
+        """Return additional plate attributes."""
+        attributes = {}
+        if self._statusupdate:
+            attributes = {**attributes, **self._statusupdate}
+        # Page is displayed as state; remove it from attributes
+        attributes.pop(ATTR_PAGE, None)
+        return attributes
 
     async def async_added_to_hass(self):
-        """Run when entity about to be added."""
+        """Called when entity is about to be added to Home Assistant."""
         await super().async_added_to_hass()
 
-        schema_file_contents = await self.hass.async_add_executor_job(
-            self._read_file, pathlib.Path(__file__).parent.joinpath("pages_schema.json")
-        )
-        self.json_schema = json.loads(schema_file_contents)
+        # Load pages_schema.json asynchronously
+        def _sync_load_schema_file(path):
+            with open(path, "r", encoding="utf-8") as schema_file:
+                return json.load(schema_file)
 
+        self.json_schema = await self._hass.async_add_executor_job(
+            _sync_load_schema_file, self._schema_path
+        )
+
+        # Restore last known page if we have a saved state
         state = await self.async_get_last_state()
         if state and state.state not in [STATE_UNAVAILABLE, STATE_UNKNOWN, None]:
             self._page = int(state.state)
 
+        # Set up MQTT subscriptions
+
         @callback
         async def page_update_received(msg):
-            """Process page state."""
+            """Process page state changes."""
             try:
                 self._page = HASP_PAGE_SCHEMA(msg.payload)
                 _LOGGER.debug("Page changed to %s", self._page)
@@ -405,18 +393,14 @@ class SwitchPlate(RestoreEntity):
                 _LOGGER.error("%s in %s", err, msg.payload)
 
         self._subscriptions.append(
-            await async_subscribe(
-                self.hass, f"{self._topic}/state/page", page_update_received
-            )
+            await async_subscribe(self._hass, f"{self._topic}/state/page", page_update_received)
         )
 
         @callback
         async def statusupdate_message_received(msg):
-            """Process statusupdate."""
-
+            """Process statusupdate message."""
             try:
                 message = HASP_STATUSUPDATE_SCHEMA(json.loads(msg.payload))
-
                 major, minor, _ = message["version"].split(".")
                 if (major, minor) != (MAJOR, MINOR):
                     _LOGGER.warning(
@@ -428,11 +412,44 @@ class SwitchPlate(RestoreEntity):
                 self._available = True
                 self._statusupdate = message
 
+                # If your firmware includes an "ip" field, store it
+                if "ip" in message:
+                    self._statusupdate["ip"] = message["ip"]
+
+                    # ----------------------------------------------------------
+                    # 1) Update the config entry data in core.config_entries
+                    # ----------------------------------------------------------
+                    new_url = f"http://{message['ip']}/"
+                    # Compare to the old URL—only update if changed
+                    old_url = self._entry.data.get(DISCOVERED_URL, "")
+                    if new_url != old_url:
+                        _LOGGER.debug("IP changed to %s, updating config entry URL...", new_url)
+                        new_data = dict(self._entry.data)
+                        new_data[DISCOVERED_URL] = new_url
+                        self._hass.config_entries.async_update_entry(
+                            self._entry, data=new_data
+                        )
+
+                    # ----------------------------------------------------------
+                    # 2) Also update the Device Registry so the device “Link”
+                    #    in HA points to the new IP
+                    # ----------------------------------------------------------
+                    dev_reg = dr.async_get(self._hass)
+                    device = dev_reg.async_get_device(
+                        identifiers={(DOMAIN, self._entry.data[CONF_HWID])}
+                    )
+                    if device:
+                        dev_reg.async_update_device(
+                            device.id, configuration_url=new_url
+                        )
+
+                # For the plate page, we rely on "page" in the message
+                # (But confirm your firmware actually sends "page")
                 self._page = message[ATTR_PAGE]
                 self.async_write_ha_state()
 
-                # Update Plate device information
-                device_registry = dr.async_get(self.hass)
+                # Update the device info (firmware version, etc.)
+                device_registry = dr.async_get(self._hass)
                 device_registry.async_get_or_create(
                     config_entry_id=self._entry.entry_id,
                     identifiers={(DOMAIN, self._entry.data[CONF_HWID])},
@@ -448,13 +465,15 @@ class SwitchPlate(RestoreEntity):
 
         self._subscriptions.append(
             await async_subscribe(
-                self.hass,
+                self._hass,
                 f"{self._topic}/state/statusupdate",
                 statusupdate_message_received,
             )
         )
+
+        # Request an initial status update
         await async_publish(
-            self.hass, f"{self._topic}/command", "statusupdate", qos=0, retain=False
+            self._hass, f"{self._topic}/command", "statusupdate", qos=0, retain=False
         )
 
         @callback
@@ -467,126 +486,96 @@ class SwitchPlate(RestoreEntity):
                 _LOGGER.error("While processing idle message: %s", err)
 
         self._subscriptions.append(
-            await async_subscribe(
-                self.hass, f"{self._topic}/state/idle", idle_message_received
-            )
+            await async_subscribe(self._hass, f"{self._topic}/state/idle", idle_message_received)
         )
 
         @callback
         async def lwt_message_received(msg):
-            """Process LWT."""
+            """Process LWT (online/offline) messages."""
             _LOGGER.debug("Received LWT = %s", msg.payload)
             try:
                 message = HASP_LWT_SCHEMA(msg.payload)
-
                 if message == HASP_ONLINE:
                     self._available = True
-                    self.hass.bus.async_fire(
-                        EVENT_HASP_PLATE_ONLINE,
-                        {CONF_PLATE: self._entry.data[CONF_HWID]},
+                    self._hass.bus.async_fire(
+                        EVENT_HASP_PLATE_ONLINE, {CONF_PLATE: self._entry.data[CONF_HWID]}
                     )
                     if self._pages_jsonl:
                         await self.async_load_page(self._pages_jsonl)
                     else:
                         await self.refresh()
-
+                    # Enable all HASP objects
                     for obj in self._objects:
                         await obj.enable_object()
                 else:
                     self._available = False
-                    self.hass.bus.async_fire(
-                        EVENT_HASP_PLATE_OFFLINE,
-                        {CONF_PLATE: self._entry.data[CONF_HWID]},
+                    self._hass.bus.async_fire(
+                        EVENT_HASP_PLATE_OFFLINE, {CONF_PLATE: self._entry.data[CONF_HWID]}
                     )
                     for obj in self._objects:
                         await obj.disable_object()
-
                 self.async_write_ha_state()
 
             except vol.error.Invalid as err:
                 _LOGGER.error("While processing LWT: %s", err)
 
         self._subscriptions.append(
-            await async_subscribe(self.hass, f"{self._topic}/LWT", lwt_message_received)
+            await async_subscribe(self._hass, f"{self._topic}/LWT", lwt_message_received)
         )
 
-    @property
-    def state_attributes(self):
-        """Return the state attributes."""
-        attributes = {}
+    async def async_will_remove_from_hass(self):
+        """Run before entity is removed."""
+        _LOGGER.debug("Remove plate %s", self._entry.data[CONF_NAME])
+        for obj in self._objects:
+            await obj.disable_object()
+        for subscription in self._subscriptions:
+            subscription()
 
-        if self._statusupdate:
-            attributes = {**attributes, **self._statusupdate}
-
-        if ATTR_PAGE in attributes:
-            del attributes[
-                ATTR_PAGE
-            ]  # Page is tracked in the state, don't confuse users
-
-        return attributes
-
+    # ---------------------------
+    # Plate services
+    # ---------------------------
     async def async_wakeup(self):
         """Wake up the display."""
         cmd_topic = f"{self._topic}/command"
-        _LOGGER.warning("Wakeup will be deprecated in 0.8.0")  # remove in version 0.8.0
-        await async_publish(self.hass, cmd_topic, "wakeup", qos=0, retain=False)
+        _LOGGER.warning("Wakeup will be deprecated in 0.8.0")
+        await async_publish(self._hass, cmd_topic, "wakeup", qos=0, retain=False)
 
     async def async_change_page_next(self):
-        """Change page to next one."""
+        """Go to next page."""
         cmd_topic = f"{self._topic}/command/page"
-        _LOGGER.warning(
-            "page next service will be deprecated in 0.8.0"
-        )  # remove in version 0.8.0
-
-        await async_publish(self.hass, cmd_topic, "page next", qos=0, retain=False)
+        _LOGGER.warning("page next service will be deprecated in 0.8.0")
+        await async_publish(self._hass, cmd_topic, "page next", qos=0, retain=False)
 
     async def async_change_page_prev(self):
-        """Change page to previous one."""
+        """Go to previous page."""
         cmd_topic = f"{self._topic}/command/page"
-        _LOGGER.warning(
-            "page prev service will be deprecated in 0.8.0"
-        )  # remove in version 0.8.0
-
-        await async_publish(self.hass, cmd_topic, "page prev", qos=0, retain=False)
+        _LOGGER.warning("page prev service will be deprecated in 0.8.0")
+        await async_publish(self._hass, cmd_topic, "page prev", qos=0, retain=False)
 
     async def async_clearpage(self, page="all"):
-        """Clear page."""
+        """Clear specified page (or all)."""
         cmd_topic = f"{self._topic}/command"
-
-        await async_publish(
-            self.hass, cmd_topic, f"clearpage {page}", qos=0, retain=False
-        )
-
+        await async_publish(self._hass, cmd_topic, f"clearpage {page}", qos=0, retain=False)
         if page == "all":
-            await async_publish(self.hass, cmd_topic, "page 1", qos=0, retain=False)
+            await async_publish(self._hass, cmd_topic, "page 1", qos=0, retain=False)
 
     async def async_change_page(self, page):
-        """Change page to number."""
+        """Change to a specific page number."""
         cmd_topic = f"{self._topic}/command/page"
-
         if self._statusupdate:
             num_pages = self._statusupdate[HASP_NUM_PAGES]
-
-            if (
-                isinstance(page, int)
-                and isinstance(num_pages, int)
-                and (page <= 0 or page > num_pages)
-            ):
-                _LOGGER.error(
-                    "Can't change to %s, available pages are 1 to %s", page, num_pages
-                )
+            if page <= 0 or page > num_pages:
+                _LOGGER.error("Can't change to %s, available pages are 1 to %s", page, num_pages)
                 return
-
         self._page = page
-
-        _LOGGER.debug("Change page %s", self._page)
-        await async_publish(self.hass, cmd_topic, self._page, qos=0, retain=False)
+        _LOGGER.debug("Change page to %s", self._page)
+        await async_publish(self._hass, cmd_topic, self._page, qos=0, retain=False)
         self.async_write_ha_state()
 
     async def async_command_service(self, keyword, parameters):
-        """Send commands directly to the plate entity."""
+        """Send arbitrary commands to the plate."""
         await async_publish(
-            self.hass,
+            self._hass,
             f"{self._topic}/command",
             f"{keyword} {parameters}".strip(),
             qos=0,
@@ -594,85 +583,79 @@ class SwitchPlate(RestoreEntity):
         )
 
     async def async_config_service(self, submodule, parameters):
-        """Send configuration commands to plate entity."""
+        """Send configuration commands."""
         await async_publish(
-            self.hass,
+            self._hass,
             f"{self._topic}/config/{submodule}",
             f"{parameters}".strip(),
             qos=0,
             retain=False,
         )
 
-    async def async_push_image(
-        self, image, obj, http_proxy=None, width=None, height=None, fitscreen=False
-    ):
-        """Update object image."""
+    async def async_push_image(self, image, obj, width=None, height=None, fitscreen=False):
+        """Push an image to the plate object."""
+        image_id = hashlib.md5(image.encode("utf-8")).hexdigest()
 
-        image_id = hashlib.md5(
-            image.encode("utf-8") + self._entry.data[CONF_NAME].encode("utf-8")
-        ).hexdigest()
+        # Offload image processing to a thread
+        def _convert_to_rgb565():
+            return image_to_rgb565(image, (width, height), fitscreen)
 
-        rgb_image = await self.hass.async_add_executor_job(
-            image_to_rgb565, image, (width, height), fitscreen
-        )
-
-        self.hass.data[DOMAIN][DATA_IMAGES][image_id] = rgb_image
+        rgb_image = await self._hass.async_add_executor_job(_convert_to_rgb565)
+        self._hass.data[DOMAIN][DATA_IMAGES][image_id] = rgb_image
 
         cmd_topic = f"{self._topic}/command/{obj}.src"
-
-        if http_proxy:
-            rgb_image_url = f"{http_proxy}/api/openhasp/serve/{image_id}"
-        else:
-            rgb_image_url = f"{get_url(self.hass, allow_external=False)}/api/openhasp/serve/{image_id}"
-        # self._entry.data
+        rgb_image_url = f"{get_url(self._hass, allow_external=False)}/api/openhasp/serve/{image_id}"
         _LOGGER.debug("Push %s with %s", cmd_topic, rgb_image_url)
-
-        await async_publish(self.hass, cmd_topic, rgb_image_url, qos=0, retain=False)
+        await async_publish(self._hass, cmd_topic, rgb_image_url, qos=0, retain=False)
 
     async def refresh(self):
-        """Refresh objects in the SwitchPlate."""
-
+        """Refresh all objects on the plate (re-send properties)."""
         _LOGGER.info("Refreshing %s", self._entry.data[CONF_NAME])
         for obj in self._objects:
             await obj.refresh()
-
         await self.async_change_page(self._page)
 
     async def async_load_page(self, path):
-        """Load pages file on the SwitchPlate, existing pages will not be cleared."""
+        """Load a .json or .jsonl page definition file onto the plate."""
         cmd_topic = f"{self._topic}/command"
         _LOGGER.info("Load page %s to %s", path, cmd_topic)
 
-        if not self.hass.config.is_allowed_path(path):
-            _LOGGER.error("'%s' is not an allowed directory", path)
+        if not self._hass.config.is_allowed_path(path):
+            _LOGGER.error("'%s' is not in an allowed directory", path)
             return
 
+        # Helper to send lines in chunks
         async def send_lines(lines):
             mqtt_payload_buffer = ""
             for line in lines:
+                # Avoid overly large MQTT payload
                 if len(mqtt_payload_buffer) + len(line) > 1000:
                     await async_publish(
-                        self.hass,
-                        f"{cmd_topic}/jsonl",
-                        mqtt_payload_buffer,
-                        qos=0,
-                        retain=False,
+                        self._hass, f"{cmd_topic}/jsonl", mqtt_payload_buffer, qos=0, retain=False
                     )
                     mqtt_payload_buffer = line
                 else:
-                    mqtt_payload_buffer = mqtt_payload_buffer + line
-            await async_publish(
-                self.hass,
-                f"{cmd_topic}/jsonl",
-                mqtt_payload_buffer,
-                qos=0,
-                retain=False,
-            )
+                    mqtt_payload_buffer += line
+            if mqtt_payload_buffer:
+                await async_publish(
+                    self._hass, f"{cmd_topic}/jsonl", mqtt_payload_buffer, qos=0, retain=False
+                )
+
+        # Synchronous helpers for reading files
+        def _sync_read_json(file_path):
+            with open(file_path, "r", encoding="utf-8") as pages_file:
+                data = json.load(pages_file)
+            return data
+
+        def _sync_read_text(file_path):
+            with open(file_path, "r", encoding="utf-8") as pages_file:
+                return pages_file.readlines()
 
         try:
-            pages_file = await self.hass.async_add_executor_job(self._read_file, path)
             if path.endswith(".json"):
-                json_data = json.loads(pages_file)
+                # Read JSON via thread pool
+                json_data = await self._hass.async_add_executor_job(_sync_read_json, path)
+                # Validate with pre-loaded schema
                 jsonschema.validate(instance=json_data, schema=self.json_schema)
                 lines = []
                 for item in json_data:
@@ -680,20 +663,17 @@ class SwitchPlate(RestoreEntity):
                         lines.append(json.dumps(item) + "\n")
                 await send_lines(lines)
             else:
-                await send_lines(pages_file.splitlines(keepends=True))
+                # Read raw lines via thread pool
+                lines = await self._hass.async_add_executor_job(_sync_read_text, path)
+                await send_lines(lines)
+
             await self.refresh()
 
         except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError):
-            _LOGGER.error(
-                "File or data not present at the moment: %s",
-                os.path.basename(path),
-            )
+            _LOGGER.error("File or data not present: %s", os.path.basename(path))
 
         except json.JSONDecodeError:
-            _LOGGER.error(
-                "Error decoding .json file: %s",
-                os.path.basename(path),
-            )
+            _LOGGER.error("Error decoding JSON file: %s", os.path.basename(path))
 
         except jsonschema.ValidationError as e:
             _LOGGER.error(
@@ -703,13 +683,16 @@ class SwitchPlate(RestoreEntity):
             )
 
 
-# pylint: disable=R0902
+# ---------------------------
+# END: SwitchPlate class
+# ---------------------------
+
+
 class HASPObject:
     """Representation of an HASP-LVGL object."""
 
     def __init__(self, hass, plate_topic, config):
         """Initialize an object."""
-
         self.hass = hass
         self.obj_id = config[CONF_OBJID]
         self.command_topic = f"{plate_topic}/command/{self.obj_id}."
@@ -717,17 +700,13 @@ class HASPObject:
         self.cached_properties = {}
 
         self.properties = config.get(CONF_PROPERTIES)
-        self.event_services = {
-            event: Script(hass, script, plate_topic, DOMAIN)
-            for (event, script) in config[CONF_EVENT].items()
-        }
+        self.event_services = config.get(CONF_EVENT)
         self._tracked_property_templates = []
         self._freeze_properties = []
         self._subscriptions = []
 
     async def enable_object(self):
-        """Initialize object events and properties subscriptions."""
-
+        """Initialize events and properties subscriptions."""
         if self.event_services:
             _LOGGER.debug("Setup event_services for '%s'", self.obj_id)
             self._subscriptions.append(await self.async_listen_hasp_events())
@@ -754,34 +733,31 @@ class HASPObject:
         @callback
         async def _async_template_result_changed(event, updates):
             track_template_result = updates.pop()
-            template = track_template_result.template
+            template_val = track_template_result.template
             result = track_template_result.result
 
             if isinstance(result, TemplateError) or result is None:
                 entity = event and event.data.get("entity_id")
                 _LOGGER.error(
-                    "TemplateError('%s') "
-                    "while processing template '%s' "
-                    "in entity '%s'",
+                    "TemplateError('%s') while processing template '%s' in entity '%s'",
                     result,
-                    template,
+                    template_val,
                     entity,
                 )
                 return
 
             self.cached_properties[_property] = result
             if _property in self._freeze_properties:
-                # Skip update to plate to avoid feedback loops
+                # Skip update while button is pressed to avoid feedback loops
                 return
 
             _LOGGER.debug(
-                "%s.%s - %s changed, updating with: %s",
+                "%s.%s updated from template '%s' with: %s",
                 self.obj_id,
                 _property,
-                template,
+                template_val,
                 result,
             )
-
             await async_publish(self.hass, self.command_topic + _property, result)
 
         property_template = async_track_template_result(
@@ -790,43 +766,44 @@ class HASPObject:
             _async_template_result_changed,
         )
         property_template.async_refresh()
-
         return property_template
 
     async def refresh(self):
-        """Refresh based on cached values."""
+        """Re-send cached property values to the plate."""
         for _property, result in self.cached_properties.items():
             _LOGGER.debug("Refresh object %s.%s = %s", self.obj_id, _property, result)
             await async_publish(self.hass, self.command_topic + _property, result)
 
     async def async_listen_hasp_events(self):
-        """Listen to messages on MQTT for HASP events."""
+        """Listen to MQTT state topic for HASP button/touch events."""
 
         @callback
         async def message_received(msg):
-            """Process object state MQTT message."""
+            """Handle object event messages."""
             try:
                 message = HASP_EVENT_SCHEMA(json.loads(msg.payload))
 
+                # Freeze property updates if button is pressed down
                 if message[HASP_EVENT] == HASP_EVENT_DOWN:
-                    # store properties that shouldn't be updated while button pressed
                     self._freeze_properties = message.keys()
                 elif message[HASP_EVENT] in [HASP_EVENT_UP, HASP_EVENT_RELEASE]:
                     self._freeze_properties = []
 
-                for event, script in self.event_services.items():
+                # If any event service matches the current event, call the configured HA services
+                for event in self.event_services:
                     if event in message[HASP_EVENT]:
                         _LOGGER.debug(
-                            "Service call for '%s' triggered by '%s' on '%s' with variables %s",
+                            "Service call for '%s' triggered by '%s' on '%s' with vars %s",
                             event,
                             msg.payload,
                             msg.topic,
                             message,
                         )
-                        await script.async_run(
-                            run_variables=message,
-                            context=Context(),
-                        )
+                        for service in self.event_services[event]:
+                            await async_call_from_config(
+                                self.hass, service, validate_config=False, variables=message
+                            )
+
             except vol.error.Invalid:
                 _LOGGER.debug(
                     "Could not handle openHASP event: '%s' on '%s'",
@@ -834,9 +811,7 @@ class HASPObject:
                     msg.topic,
                 )
             except json.decoder.JSONDecodeError as err:
-                _LOGGER.error(
-                    "Error decoding received JSON message: %s on %s", err.doc, msg.topic
-                )
+                _LOGGER.error("Error decoding received JSON message: %s on %s", err.doc, msg.topic)
 
         _LOGGER.debug("Subscribe to '%s' events on '%s'", self.obj_id, self.state_topic)
         return await async_subscribe(self.hass, self.state_topic, message_received)
