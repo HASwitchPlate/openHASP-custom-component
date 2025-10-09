@@ -417,7 +417,7 @@ class SwitchPlate(RestoreEntity):
             try:
                 message = HASP_STATUSUPDATE_SCHEMA(json.loads(msg.payload))
 
-                major, minor, _ = message["version"].split(".")
+                major, minor, patch = message["version"].split(".")[:3]
                 if (major, minor) != (MAJOR, MINOR):
                     _LOGGER.warning(
                         "%s firmware mismatch %s <> %s",
