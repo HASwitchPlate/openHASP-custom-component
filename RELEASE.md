@@ -1,3 +1,6 @@
+# 0.7.7
+* Fix for firmware version number has more than three digits. by @fvanroie
+
 # 0.7.6
 * Fix: MQTTt not being ready at startup. by @xNUTx in https://github.com/HASwitchPlate/openHASP-custom-component/pull/149
 
