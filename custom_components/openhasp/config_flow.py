@@ -220,15 +220,11 @@ class OpenHASPFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry):
         """Set the OptionsFlowHandler."""
-        return OpenHASPOptionsFlowHandler(config_entry)
+        return OpenHASPOptionsFlowHandler()
 
 
 class OpenHASPOptionsFlowHandler(config_entries.OptionsFlow):
     """ConfigOptions flow for openHASP."""
-
-    def __init__(self, config_entry):
-        """Initialize openHASP options flow."""
-        self.config_entry = config_entry
 
     async def async_step_init(self, user_input=None):
         """Manage the options."""
