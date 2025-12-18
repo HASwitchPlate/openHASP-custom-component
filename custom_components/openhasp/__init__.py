@@ -175,37 +175,57 @@ async def async_setup(hass, config):
 
     component = hass.data[DOMAIN][CONF_COMPONENT] = EntityComponent(_LOGGER, DOMAIN, hass)
 
-    # Register entity services
-    component.async_register_entity_service(SERVICE_WAKEUP, {}, "async_wakeup")
-    component.async_register_entity_service(SERVICE_PAGE_NEXT, {}, "async_change_page_next")
-    component.async_register_entity_service(SERVICE_PAGE_PREV, {}, "async_change_page_prev")
+    # Use cv.make_entity_service_schema for all services for consistency
     component.async_register_entity_service(
-        SERVICE_PAGE_CHANGE, {vol.Required(ATTR_PAGE): int}, "async_change_page"
+        SERVICE_WAKEUP,
+        cv.make_entity_service_schema({}),
+        "async_wakeup",
     )
     component.async_register_entity_service(
-        SERVICE_LOAD_PAGE, {vol.Required(ATTR_PATH): cv.isfile}, "async_load_page"
+        SERVICE_PAGE_NEXT,
+        cv.make_entity_service_schema({}),
+        "async_change_page_next",
     )
     component.async_register_entity_service(
-        SERVICE_CLEAR_PAGE, {vol.Optional(ATTR_PAGE): int}, "async_clearpage"
+        SERVICE_PAGE_PREV,
+        cv.make_entity_service_schema({}),
+        "async_change_page_prev",
+    )
+    component.async_register_entity_service(
+        SERVICE_PAGE_CHANGE,
+        cv.make_entity_service_schema({vol.Required(ATTR_PAGE): int}),
+        "async_change_page",
+    )
+    component.async_register_entity_service(
+        SERVICE_LOAD_PAGE,
+        cv.make_entity_service_schema({vol.Required(ATTR_PATH): cv.isfile}),
+        "async_load_page",
+    )
+    component.async_register_entity_service(
+        SERVICE_CLEAR_PAGE,
+        cv.make_entity_service_schema({vol.Optional(ATTR_PAGE): int}),
+        "async_clearpage",
     )
     component.async_register_entity_service(
         SERVICE_COMMAND,
-        {
+        cv.make_entity_service_schema({
             vol.Required(ATTR_COMMAND_KEYWORD): cv.string,
             vol.Optional(ATTR_COMMAND_PARAMETERS, default=""): cv.string,
-        },
+        }),
         "async_command_service",
     )
     component.async_register_entity_service(
         SERVICE_CONFIG,
-        {
+        cv.make_entity_service_schema({
             vol.Required(ATTR_CONFIG_SUBMODULE): cv.string,
             vol.Required(ATTR_CONFIG_PARAMETERS): cv.string,
-        },
+        }),
         "async_config_service",
     )
     component.async_register_entity_service(
-        SERVICE_PUSH_IMAGE, PUSH_IMAGE_SCHEMA, "async_push_image"
+        SERVICE_PUSH_IMAGE,
+        PUSH_IMAGE_SCHEMA,
+        "async_push_image",
     )
 
     hass.data[DOMAIN][DATA_IMAGES] = dict()
@@ -400,7 +420,8 @@ class SwitchPlate(RestoreEntity):
             """Process statusupdate message."""
             try:
                 message = HASP_STATUSUPDATE_SCHEMA(json.loads(msg.payload))
-                major, minor, _ = message["version"].split(".")
+
+                major, minor, patch = message["version"].split(".")[:3]
                 if (major, minor) != (MAJOR, MINOR):
                     _LOGGER.warning(
                         "%s firmware mismatch %s <> %s",
