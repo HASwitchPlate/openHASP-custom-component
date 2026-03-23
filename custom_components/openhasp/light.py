@@ -106,7 +106,8 @@ async def async_setup_entry(
 class HASPLight(HASPToggleEntity, LightEntity):
     """Representation of openHASP Light."""
 
-    _attr_supported_color_modes = {ColorMode.BRIGHTNESS}
+    _attr_color_mode = ColorMode.ONOFF
+    _attr_supported_color_modes = {ColorMode.ONOFF}
 
     def __init__(self, name, hwid, topic, gpio):
         """Initialize the light."""
