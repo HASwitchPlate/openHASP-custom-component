@@ -58,6 +58,7 @@ from .const import (
     CONF_PROPERTIES,
     CONF_TOPIC,
     CONF_TRACK,
+    CONF_SUBTOPIC,
     DATA_IMAGES,
     DATA_LISTENER,
     DISCOVERED_MANUFACTURER,
@@ -119,6 +120,7 @@ OBJECT_SCHEMA = vol.Schema(
         vol.Optional(CONF_TRACK, default=None): vol.Any(cv.entity_id, None),
         vol.Optional(CONF_PROPERTIES, default={}): PROPERTY_SCHEMA,
         vol.Optional(CONF_EVENT, default={}): EVENT_SCHEMA,
+        vol.Optional(CONF_SUBTOPIC): cv.string,
     }
 )
 
@@ -725,7 +727,11 @@ class HASPObject:
 
         self.hass = hass
         self.obj_id = config[CONF_OBJID]
-        self.command_topic = f"{plate_topic}/command/{self.obj_id}."
+        subtopic = config.get("subtopic")
+        if subtopic:
+            self.command_topic = f"{plate_topic}/command/{subtopic}/{self.obj_id}."
+        else:
+            self.command_topic = f"{plate_topic}/command/{self.obj_id}."
         self.state_topic = f"{plate_topic}/state/{self.obj_id}"
         self.cached_properties = {}
 

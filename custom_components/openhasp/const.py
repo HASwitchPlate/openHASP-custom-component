@@ -28,6 +28,8 @@ CONF_GPIO = "gpio"
 CONF_NODE = "node"
 CONF_HWID = "hwid"
 CONF_INPUT = "input"
+CONF_SUBTOPIC = "subtopic"
+
 
 DATA_LISTENER = "listener"
 DATA_IMAGES = "images"
