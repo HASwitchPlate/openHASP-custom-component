@@ -1,3 +1,7 @@
+# 0.7.8
+* Use proper entity service schemas & replace async_forward_entry_setup with async_forward_entry_setups by @wjnelson78 in https://github.com/HASwitchPlate/openHASP-custom-component/pull/159
+* Fix OptionsFlow config_entry setter error in Home Assistant 2024.x+ by @wjnelson78 in https://github.com/HASwitchPlate/openHASP-custom-component/pull/165
+
 # 0.7.7
 * Fix for firmware version number has more than three digits. by @fvanroie
 
