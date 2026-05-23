@@ -1,3 +1,7 @@
+# 0.7.9
+* Add support for custom/subtopic by @cumal in https://github.com/HASwitchPlate/openHASP-custom-component/pull/167
+* Fix: Change supported color modes to ONOFF by @irish-david in https://github.com/HASwitchPlate/openHASP-custom-component/pull/171
+  
 # 0.7.8
 * Use proper entity service schemas & replace async_forward_entry_setup with async_forward_entry_setups by @wjnelson78 in https://github.com/HASwitchPlate/openHASP-custom-component/pull/159
 * Fix OptionsFlow config_entry setter error in Home Assistant 2024.x+ by @wjnelson78 in https://github.com/HASwitchPlate/openHASP-custom-component/pull/165
