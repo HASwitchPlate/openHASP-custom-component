@@ -33,6 +33,16 @@ def image_to_rgb565(in_image, size, fitscreen):
         width = min(w for w in [width, original_width] if w is not None and w > 0)
         height = min(h for h in [height, original_height] if h is not None and h > 0)
         im.thumbnail((width, height), Image.LANCZOS)
+        # Letterbox to the exact target size so the pushed image width
+        # always matches the plate object width. The plate decodes RGB565
+        # rows using the header width, so a pushed image narrower than
+        # the box (e.g. a square source into a wide box) renders doubled
+        # or split instead of centered.
+        canvas = Image.new("RGB", (width, height), (0, 0, 0))
+        canvas.paste(
+            im.convert("RGB"), ((width - im.width) // 2, (height - im.height) // 2)
+        )
+        im = canvas
     else:
         im = ImageOps.fit(
             im, (width, height), method=3, bleed=0.0, centering=(0.5, 0.5)
