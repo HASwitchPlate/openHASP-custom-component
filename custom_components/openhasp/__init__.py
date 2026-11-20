@@ -500,6 +500,13 @@ class SwitchPlate(RestoreEntity):
                         EVENT_HASP_PLATE_ONLINE,
                         {CONF_PLATE: self._entry.data[CONF_HWID]},
                     )
+                    # Ensure any existing subscriptions are removed before
+                    # re-registering, to avoid duplicate event handlers after
+                    # a HA reload while the plate remains online (retained LWT
+                    # message triggers this handler again on re-subscription).
+                    for obj in self._objects:
+                        await obj.disable_object()
+
                     if self._pages_jsonl:
                         await self.async_load_page(self._pages_jsonl)
                     else:
